@@ -36,6 +36,12 @@ youtube-annotator/
 3. Click "Load unpacked" and select this folder
 4. Navigate to any YouTube video
 
+## Next Task
+
+Build a backend so users can share annotations with each other. Decisions needed:
+- Backend tech: Node.js/Express, Python/FastAPI, or Firebase/Supabase
+- Auth: Anonymous or user accounts
+
 ## Future Plans
 
 - **Sharing**: Backend to share annotations with other users who have the extension
