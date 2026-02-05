@@ -24,7 +24,7 @@ class AnnotatorAPI {
 
     if (result.anonymousId) {
       this.anonymousId = result.anonymousId;
-      console.log('Using existing anonymous ID');
+      console.log('[DEBUG] Using existing anonymous ID:', this.anonymousId.substring(0, 8) + '...');
       return this.anonymousId;
     }
 
@@ -35,7 +35,7 @@ class AnnotatorAPI {
 
       // Save to storage
       await chrome.storage.local.set({ anonymousId: this.anonymousId });
-      console.log('Registered new anonymous user');
+      console.log('[DEBUG] Registered new anonymous user:', this.anonymousId.substring(0, 8) + '...');
 
       return this.anonymousId;
     } catch (error) {

@@ -86,6 +86,12 @@
       const shareFetches = result.shares.map(share =>
         api.getShare(share.shareToken)
           .then(shareData => {
+            // Debug: Log the share data to see what backend returns
+            console.log(`[DEBUG] Share ${share.shareToken}:`, {
+              isOwner: shareData.isOwner,
+              annotationCount: shareData.annotations?.length
+            });
+
             if (shareData.annotations && Array.isArray(shareData.annotations)) {
               // Use backend's isOwner field to determine ownership
               const isOwn = shareData.isOwner || false;
