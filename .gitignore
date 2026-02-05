@@ -1,2 +1,30 @@
+# OS files
 .DS_Store
+Thumbs.db
+
+# Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Claude AI files (sensitive project context)
+CLAUDE.md
+.claude/
+.claude.json
+*.claude.json
+
+# Chrome extension build artifacts
+*.crx
+*.pem
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~

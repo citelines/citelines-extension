@@ -16,6 +16,16 @@
   transform: translateX(-50%) scale(1.4);
 }
 
+/* Shared annotation markers (view-only mode) */
+.yt-annotator-marker-shared {
+  background-color: #2196F3;
+  opacity: 0.8;
+}
+
+.yt-annotator-marker-shared:hover {
+  opacity: 1;
+}
+
 /* Annotation popup */
 .yt-annotator-popup {
   position: absolute;

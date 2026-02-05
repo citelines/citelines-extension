@@ -7,12 +7,13 @@
     "storage"
   ],
   "host_permissions": [
-    "https://www.youtube.com/*"
+    "https://www.youtube.com/*",
+    "http://localhost:3000/*"
   ],
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
-      "js": ["content.js"],
+      "js": ["api.js", "shareUI.js", "content.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

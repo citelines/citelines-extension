@@ -7,7 +7,10 @@
   let annotations = {};
   let markersContainer = null;
   let addButton = null;
+  let shareButton = null;
+  let browseButton = null;
   let activePopup = null;
+  let viewOnlyAnnotations = []; // For shared annotations in view-only mode
 
   // Get video ID from URL
   function getVideoId() {
@@ -44,9 +47,9 @@
   }
 
   // Create marker element for an annotation
-  function createMarker(annotation, video) {
+  function createMarker(annotation, video, isViewOnly = false) {
     const marker = document.createElement('div');
-    marker.className = 'yt-annotator-marker';
+    marker.className = isViewOnly ? 'yt-annotator-marker yt-annotator-marker-shared' : 'yt-annotator-marker';
     marker.dataset.annotationId = annotation.id;
 
     // Calculate position as percentage
@@ -55,7 +58,7 @@
 
     marker.addEventListener('click', (e) => {
       e.stopPropagation();
-      showAnnotationPopup(annotation, video);
+      showAnnotationPopup(annotation, video, isViewOnly);
     });
 
     return marker;
@@ -74,8 +77,15 @@
     const videoId = getVideoId();
     const annotationsList = annotations[videoId] || [];
 
+    // Render local annotations
     annotationsList.forEach((annotation) => {
-      const marker = createMarker(annotation, video);
+      const marker = createMarker(annotation, video, false);
+      markersContainer.appendChild(marker);
+    });
+
+    // Render view-only shared annotations (with different color)
+    viewOnlyAnnotations.forEach((annotation) => {
+      const marker = createMarker(annotation, video, true);
       markersContainer.appendChild(marker);
     });
   }
@@ -89,7 +99,7 @@
   }
 
   // Show popup for viewing/editing annotation
-  function showAnnotationPopup(annotation, video) {
+  function showAnnotationPopup(annotation, video, isViewOnly = false) {
     closePopup();
 
     const playerContainer = document.querySelector('#movie_player');
@@ -98,14 +108,17 @@
     const popup = document.createElement('div');
     popup.className = 'yt-annotator-popup';
 
+    const deleteButton = isViewOnly ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
+    const badge = isViewOnly ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">SHARED</span>' : '';
+
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
-        <span class="yt-annotator-popup-timestamp">${formatTime(annotation.timestamp)}</span>
+        <span class="yt-annotator-popup-timestamp">${formatTime(annotation.timestamp)}${badge}</span>
         <button class="yt-annotator-popup-close">&times;</button>
       </div>
       <div class="yt-annotator-popup-content">${escapeHtml(annotation.text)}</div>
       <div class="yt-annotator-popup-actions">
-        <button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>
+        ${deleteButton}
         <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="goto">Go to</button>
       </div>
     `;
@@ -113,13 +126,15 @@
     // Event listeners
     popup.querySelector('.yt-annotator-popup-close').addEventListener('click', closePopup);
 
-    popup.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-      const videoId = getVideoId();
-      annotations[videoId] = (annotations[videoId] || []).filter(a => a.id !== annotation.id);
-      await saveAnnotations(videoId, annotations[videoId]);
-      renderMarkers();
-      closePopup();
-    });
+    if (!isViewOnly) {
+      popup.querySelector('[data-action="delete"]').addEventListener('click', async () => {
+        const videoId = getVideoId();
+        annotations[videoId] = (annotations[videoId] || []).filter(a => a.id !== annotation.id);
+        await saveAnnotations(videoId, annotations[videoId]);
+        renderMarkers();
+        closePopup();
+      });
+    }
 
     popup.querySelector('[data-action="goto"]').addEventListener('click', () => {
       video.currentTime = annotation.timestamp;
@@ -222,6 +237,134 @@
     playerContainer.appendChild(addButton);
   }
 
+  // Create share and browse buttons
+  function createShareButtons() {
+    if (shareButton || browseButton) return;
+
+    const playerContainer = document.querySelector('#movie_player');
+    if (!playerContainer) return;
+
+    // Create container for share buttons
+    const buttonContainer = document.createElement('div');
+    buttonContainer.className = 'yt-annotator-share-container';
+    buttonContainer.style.cssText = `
+      position: absolute;
+      bottom: 70px;
+      right: 12px;
+      display: flex;
+      gap: 8px;
+      z-index: 60;
+    `;
+
+    // Share button
+    shareButton = createShareButton();
+    shareButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const videoId = getVideoId();
+      const videoTitle = document.querySelector('h1.ytd-watch-metadata yt-formatted-string')?.textContent || 'YouTube Video';
+      const annotationsList = annotations[videoId] || [];
+
+      if (annotationsList.length === 0) {
+        alert('No annotations to share! Add some annotations first.');
+        return;
+      }
+
+      showShareModal(videoId, annotationsList, videoTitle, (result) => {
+        console.log('Share created:', result);
+      });
+    });
+
+    // Browse button
+    browseButton = createBrowseButton();
+    browseButton.addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const videoId = getVideoId();
+
+      showBrowseModal(videoId, (shareData) => {
+        handleImportShare(shareData);
+      });
+    });
+
+    buttonContainer.appendChild(shareButton);
+    buttonContainer.appendChild(browseButton);
+    playerContainer.appendChild(buttonContainer);
+  }
+
+  // Handle importing shared annotations
+  async function handleImportShare(shareData) {
+    const videoId = getVideoId();
+    const localAnnotations = annotations[videoId] || [];
+
+    showImportModal(shareData, localAnnotations, async (action, sharedAnnotations) => {
+      if (action === 'view') {
+        // View only mode - store in temporary array
+        viewOnlyAnnotations = sharedAnnotations.map((ann, index) => ({
+          ...ann,
+          id: `shared_${Date.now()}_${index}` // Give unique IDs
+        }));
+        renderMarkers();
+        console.log('Viewing shared annotations (not saved)');
+      } else if (action === 'merge') {
+        // Merge with local annotations
+        const merged = [...localAnnotations];
+
+        // Add shared annotations that don't conflict (within 1 second)
+        sharedAnnotations.forEach(sharedAnn => {
+          const hasConflict = merged.some(local =>
+            Math.abs(local.timestamp - sharedAnn.timestamp) < 1
+          );
+
+          if (!hasConflict) {
+            merged.push({
+              ...sharedAnn,
+              id: Date.now().toString() + Math.random().toString(36).substr(2, 9)
+            });
+          }
+        });
+
+        annotations[videoId] = merged;
+        await saveAnnotations(videoId, merged);
+        renderMarkers();
+        console.log(`Merged ${merged.length - localAnnotations.length} new annotations`);
+      } else if (action === 'replace') {
+        // Replace local annotations
+        const replaced = sharedAnnotations.map((ann, index) => ({
+          ...ann,
+          id: Date.now().toString() + index.toString()
+        }));
+
+        annotations[videoId] = replaced;
+        await saveAnnotations(videoId, replaced);
+        renderMarkers();
+        console.log(`Replaced with ${replaced.length} shared annotations`);
+      }
+    });
+  }
+
+  // Check for share parameter in URL
+  async function checkForShareLink() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const shareToken = urlParams.get('share');
+
+    if (shareToken) {
+      console.log('Share token detected:', shareToken);
+
+      try {
+        // Fetch shared annotations
+        const shareData = await api.getShare(shareToken);
+        console.log('Loaded share:', shareData);
+
+        // Show import modal after short delay to let page load
+        setTimeout(() => {
+          handleImportShare(shareData);
+        }, 2000);
+      } catch (error) {
+        console.error('Failed to load share:', error);
+        // Optionally show error notification
+      }
+    }
+  }
+
   // Create markers container
   function createMarkersContainer() {
     if (markersContainer) return;
@@ -244,11 +387,21 @@
     if (videoId !== currentVideoId) {
       currentVideoId = videoId;
       annotations[videoId] = await loadAnnotations(videoId);
+      viewOnlyAnnotations = []; // Clear view-only annotations on video change
     }
 
     createMarkersContainer();
     createAddButton();
+    createShareButtons();
     renderMarkers();
+
+    // Check for share link
+    checkForShareLink();
+
+    // Initialize API (get or create anonymous ID)
+    api.initialize().catch(err => {
+      console.error('Failed to initialize API:', err);
+    });
   }
 
   // Wait for YouTube player to be ready
@@ -306,6 +459,9 @@
         // Reset UI elements for new page
         markersContainer = null;
         addButton = null;
+        shareButton = null;
+        browseButton = null;
+        viewOnlyAnnotations = [];
         initialized = false;
         closePopup();
 
