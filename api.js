@@ -11,6 +11,17 @@ class AnnotatorAPI {
   }
 
   /**
+   * Get storage key for anonymous ID (different for incognito mode)
+   * @returns {string} Storage key
+   */
+  getStorageKey() {
+    // Use different storage keys for incognito vs regular mode
+    // This ensures each context has its own anonymous ID
+    const isIncognito = chrome.extension.inIncognitoContext;
+    return isIncognito ? 'anonymousId_incognito' : 'anonymousId';
+  }
+
+  /**
    * Initialize the API client - get or create anonymous ID
    * @returns {Promise<string>} Anonymous ID
    */
@@ -19,12 +30,15 @@ class AnnotatorAPI {
       return this.anonymousId;
     }
 
-    // Try to get existing anonymous ID from storage
-    const result = await chrome.storage.local.get(['anonymousId']);
+    const storageKey = this.getStorageKey();
+    const isIncognito = chrome.extension.inIncognitoContext;
 
-    if (result.anonymousId) {
-      this.anonymousId = result.anonymousId;
-      console.log('[DEBUG] Using existing anonymous ID:', this.anonymousId.substring(0, 8) + '...');
+    // Try to get existing anonymous ID from storage
+    const result = await chrome.storage.local.get([storageKey]);
+
+    if (result[storageKey]) {
+      this.anonymousId = result[storageKey];
+      console.log(`[DEBUG] Using existing anonymous ID (${isIncognito ? 'incognito' : 'regular'}):`, this.anonymousId.substring(0, 8) + '...');
       return this.anonymousId;
     }
 
@@ -33,9 +47,9 @@ class AnnotatorAPI {
       const data = await this.registerAnonymousUser();
       this.anonymousId = data.anonymousId;
 
-      // Save to storage
-      await chrome.storage.local.set({ anonymousId: this.anonymousId });
-      console.log('[DEBUG] Registered new anonymous user:', this.anonymousId.substring(0, 8) + '...');
+      // Save to storage with appropriate key
+      await chrome.storage.local.set({ [storageKey]: this.anonymousId });
+      console.log(`[DEBUG] Registered new anonymous user (${isIncognito ? 'incognito' : 'regular'}):`, this.anonymousId.substring(0, 8) + '...');
 
       return this.anonymousId;
     } catch (error) {
