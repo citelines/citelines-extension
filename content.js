@@ -145,24 +145,18 @@
     markersContainer.innerHTML = '';
 
     const videoId = getVideoId();
-    const localAnnotations = annotations[videoId] || [];
 
-    // Render your own annotations (red markers)
-    localAnnotations.forEach((annotation) => {
-      const marker = createMarker(annotation, video, false);
-      markersContainer.appendChild(marker);
-    });
-
-    // Render all shared annotations from other users (blue markers)
+    // Render ALL annotations from sharedAnnotations (includes everyone's)
+    // Use isOwn flag to determine color
     sharedAnnotations.forEach((annotation) => {
-      // Skip if it's our own annotation (already rendered above)
-      if (annotation.isOwn) return;
-
-      const marker = createMarker(annotation, video, true);
+      const isShared = !annotation.isOwn; // Blue if not yours, red if yours
+      const marker = createMarker(annotation, video, isShared);
       markersContainer.appendChild(marker);
     });
 
-    console.log(`Rendered ${localAnnotations.length} own + ${sharedAnnotations.filter(a => !a.isOwn).length} shared annotations`);
+    const ownCount = sharedAnnotations.filter(a => a.isOwn).length;
+    const sharedCount = sharedAnnotations.filter(a => !a.isOwn).length;
+    console.log(`Rendered ${ownCount} own + ${sharedCount} shared annotations`);
   }
 
   // Close any open popup
