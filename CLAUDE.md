@@ -35,6 +35,8 @@ youtube-annotator/
 │   │   ├── utils/         # tokenGenerator.js, validator.js
 │   │   └── migrate.js
 │   ├── migrations/        # SQL schema files
+│   ├── clear-data.js      # Utility to clear Railway database
+│   ├── clear-database.sql # SQL script for manual database clearing
 │   ├── railway.json       # Railway deployment config
 │   └── package.json
 ├── SETUP.md
@@ -56,17 +58,41 @@ youtube-annotator/
 - **Anonymous auth**: No sign-up, automatic ID generation
 - **Local + Cloud**: Stored locally (offline) and in backend (shared)
 
-### Recent Fixes
+### Recent Fixes (Current Session)
 
-**Ownership Detection Bug** ✅ FIXED:
+**1. Ownership Detection Bug** ✅ FIXED:
 - **Problem**: Incognito and regular windows were sharing the same anonymous ID
 - **Root cause**: chrome.storage.local is shared between incognito and regular modes by default
 - **Solution**: Implemented separate storage keys for each context:
   - Regular mode: `anonymousId`
   - Incognito mode: `anonymousId_incognito`
 - **Result**: Each context now has its own user identity, ownership detection works correctly
-- Red markers ("YOU") = your annotations
-- Blue markers ("OTHER USER") = other users' annotations
+
+**2. Auto Re-registration** ✅ FIXED:
+- **Problem**: After clearing database, extension had orphaned anonymous ID
+- **Error**: "User not found. Please register first" (401)
+- **Solution**: Added automatic re-registration in api.js when user not found
+- **Result**: Extension automatically recovers from database resets
+
+**3. Delete Button Not Working** ✅ FIXED:
+- **Problem**: Delete button clicked but nothing happened
+- **Root cause**: Delete logic still used old local-only `annotations` object
+- **Solution**: Updated delete to work with collaborative mode:
+  - Finds the share by `annotation.shareToken`
+  - Updates/deletes share on backend
+  - Re-fetches all annotations to refresh display
+- **Result**: Delete now properly removes annotations from backend and updates all users
+
+**4. Duplicate Shares** ✅ FIXED:
+- **Problem**: Multiple shares created per user per video (7 shares for 1 user)
+- **Root cause**: `userShareId` not persisted, each save created new share
+- **Solution**: Track `userShareId` when fetching shares to identify existing user share
+- **Result**: Updates existing share instead of creating duplicates
+
+**5. Database Clearing Tool** ✅ ADDED:
+- Created `backend/clear-data.js` script to wipe test data
+- Connects to Railway production database
+- Allows clean testing with fresh data
 
 ## Technical Implementation
 
@@ -223,6 +249,31 @@ youtube-annotator/
 - Check API responses: Verify isOwner field values
 - Check Railway logs: See backend errors
 
+### Database Maintenance
+
+**Clearing Test Data:**
+
+To wipe all annotations from the Railway production database:
+
+1. Update `backend/.env` with Railway DATABASE_URL:
+   - Get URL from Railway: PostgreSQL service → Variables → DATABASE_URL
+   - URL format: `postgresql://postgres:PASSWORD@gondola.proxy.rlwy.net:PORT/railway`
+   - Update in `.env`: `DATABASE_URL=<railway-url>`
+
+2. Run the clearing script:
+   ```bash
+   cd backend
+   node clear-data.js
+   ```
+
+3. This will:
+   - Connect to Railway production database
+   - Display current share/user counts
+   - Delete all shares (keeps users registered)
+   - Show final counts
+
+**Important**: Make sure to use the **public/external** Railway URL (with `.proxy.rlwy.net`), not the internal URL (`.railway.internal`).
+
 ### Known Issues
 
 **None currently** - All major issues have been resolved!
@@ -233,14 +284,17 @@ youtube-annotator/
 - ✅ Each context (regular/incognito) treated as separate user
 
 **Data Cleanup:**
-- Old test annotations remain in database
-- May confuse testing
-- Can clear via: `chrome.storage.local.clear()` in console
+- Use `backend/clear-data.js` to wipe Railway database
+- Connects to production database via DATABASE_URL in .env
+- Clears all shares while preserving user registrations
 
 ## Recent Commits
 
-1. `c6a4a15` - Fix: Separate anonymous IDs for incognito mode ✅
-2. `7ad58f4` - Add debug logging for ownership detection
+1. `da8ffbc` - Fix delete button and prevent duplicate shares ✅
+2. `620643f` - Update CLAUDE.md - ownership detection bug fixed
+3. `c6a4a15` - Fix: Separate anonymous IDs for incognito mode ✅
+4. `7ad58f4` - Add debug logging for ownership detection
+5. `597d029` - CRITICAL FIX: Annotations showing on all videos
 3. `597d029` - Fix: Don't render markers before fetching annotations
 4. `79c985d` - Re-fetch annotations after saving to backend
 5. `f72dc45` - Fix: Render annotations from shared data only
@@ -288,6 +342,14 @@ youtube-annotator/
 
 ---
 
-**Last Updated**: Ownership detection bug fixed - fully functional collaborative mode
-**Status**: ✅ Production ready - all core features working correctly
+**Last Updated**: All critical bugs fixed - delete, auto-registration, duplicate shares resolved
+**Status**: ✅ Production ready - tested and working in regular + incognito modes
+**Key Features Working**:
+- ✅ Collaborative annotation sharing
+- ✅ Separate user IDs for incognito mode
+- ✅ Delete annotations (syncs to backend)
+- ✅ Auto-recovery from database resets
+- ✅ No duplicate shares per user per video
+- ✅ Color-coded ownership (red = yours, blue = others)
+
 **Repository**: https://github.com/abekatz11/youtube-annotator
