@@ -9,6 +9,9 @@ const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust Railway proxy for rate limiting and X-Forwarded-For headers
+app.set('trust proxy', true);
+
 // Middleware
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
