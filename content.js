@@ -475,7 +475,6 @@
 
     createMarkersContainer();
     createAddButton();
-    renderMarkers();
 
     // Initialize API and fetch all annotations
     try {
@@ -483,6 +482,7 @@
       console.log('API initialized');
 
       // Fetch all annotations from all users for this video
+      // renderMarkers() is called by fetchAllAnnotations() after data is loaded
       await fetchAllAnnotations(videoId);
     } catch (err) {
       console.error('Failed to initialize API:', err);
