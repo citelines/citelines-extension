@@ -4,13 +4,12 @@
   'use strict';
 
   let currentVideoId = null;
-  let annotations = {};
+  let annotations = {}; // Local annotations (your own)
+  let sharedAnnotations = []; // All annotations from all users
   let markersContainer = null;
   let addButton = null;
-  let shareButton = null;
-  let browseButton = null;
   let activePopup = null;
-  let viewOnlyAnnotations = []; // For shared annotations in view-only mode
+  let userShareId = null; // Your share ID for current video
 
   // Get video ID from URL
   function getVideoId() {
@@ -39,11 +38,70 @@
     });
   }
 
-  // Save annotations to storage
+  // Save annotations to storage and backend
   async function saveAnnotations(videoId, annotationsList) {
-    return new Promise((resolve) => {
+    // Save to local storage
+    await new Promise((resolve) => {
       chrome.storage.local.set({ [`annotations_${videoId}`]: annotationsList }, resolve);
     });
+
+    // Auto-save to backend (collaborative mode)
+    try {
+      if (annotationsList.length > 0) {
+        await syncAnnotationsToBackend(videoId, annotationsList);
+      }
+    } catch (error) {
+      console.error('Failed to sync annotations to backend:', error);
+    }
+  }
+
+  // Sync user's annotations to backend
+  async function syncAnnotationsToBackend(videoId, annotationsList) {
+    const videoTitle = document.querySelector('h1.ytd-watch-metadata yt-formatted-string')?.textContent || 'YouTube Video';
+
+    if (userShareId) {
+      // Update existing share
+      await api.updateShare(userShareId, {
+        annotations: annotationsList,
+        title: `${videoTitle} - Annotations`
+      });
+    } else {
+      // Create new share
+      const result = await api.createShare(videoId, annotationsList, `${videoTitle} - Annotations`);
+      userShareId = result.shareToken;
+      console.log('Created share:', result.shareToken);
+    }
+  }
+
+  // Fetch all annotations from all users for current video
+  async function fetchAllAnnotations(videoId) {
+    try {
+      const result = await api.getSharesForVideo(videoId);
+      sharedAnnotations = [];
+
+      // Flatten all annotations from all shares
+      result.shares.forEach(share => {
+        // We'll fetch each share to get the full annotations
+        api.getShare(share.shareToken)
+          .then(shareData => {
+            if (shareData.annotations && Array.isArray(shareData.annotations)) {
+              shareData.annotations.forEach(ann => {
+                sharedAnnotations.push({
+                  ...ann,
+                  shareToken: share.shareToken,
+                  isOwn: share.shareToken === userShareId
+                });
+              });
+              renderMarkers(); // Re-render when new annotations loaded
+            }
+          })
+          .catch(err => console.error('Failed to fetch share:', err));
+      });
+
+      console.log(`Loaded ${result.shares.length} shares for video ${videoId}`);
+    } catch (error) {
+      console.error('Failed to fetch annotations:', error);
+    }
   }
 
   // Create marker element for an annotation
@@ -75,19 +133,24 @@
     markersContainer.innerHTML = '';
 
     const videoId = getVideoId();
-    const annotationsList = annotations[videoId] || [];
+    const localAnnotations = annotations[videoId] || [];
 
-    // Render local annotations
-    annotationsList.forEach((annotation) => {
+    // Render your own annotations (red markers)
+    localAnnotations.forEach((annotation) => {
       const marker = createMarker(annotation, video, false);
       markersContainer.appendChild(marker);
     });
 
-    // Render view-only shared annotations (with different color)
-    viewOnlyAnnotations.forEach((annotation) => {
+    // Render all shared annotations from other users (blue markers)
+    sharedAnnotations.forEach((annotation) => {
+      // Skip if it's our own annotation (already rendered above)
+      if (annotation.isOwn) return;
+
       const marker = createMarker(annotation, video, true);
       markersContainer.appendChild(marker);
     });
+
+    console.log(`Rendered ${localAnnotations.length} own + ${sharedAnnotations.filter(a => !a.isOwn).length} shared annotations`);
   }
 
   // Close any open popup
@@ -99,7 +162,7 @@
   }
 
   // Show popup for viewing/editing annotation
-  function showAnnotationPopup(annotation, video, isViewOnly = false) {
+  function showAnnotationPopup(annotation, video, isShared = false) {
     closePopup();
 
     const playerContainer = document.querySelector('#movie_player');
@@ -108,8 +171,8 @@
     const popup = document.createElement('div');
     popup.className = 'yt-annotator-popup';
 
-    const deleteButton = isViewOnly ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
-    const badge = isViewOnly ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">SHARED</span>' : '';
+    const deleteButton = isShared ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
+    const badge = isShared ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">YOU</span>';
 
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
@@ -126,7 +189,7 @@
     // Event listeners
     popup.querySelector('.yt-annotator-popup-close').addEventListener('click', closePopup);
 
-    if (!isViewOnly) {
+    if (!isShared) {
       popup.querySelector('[data-action="delete"]').addEventListener('click', async () => {
         const videoId = getVideoId();
         annotations[videoId] = (annotations[videoId] || []).filter(a => a.id !== annotation.id);
@@ -397,21 +460,24 @@
     if (videoId !== currentVideoId) {
       currentVideoId = videoId;
       annotations[videoId] = await loadAnnotations(videoId);
-      viewOnlyAnnotations = []; // Clear view-only annotations on video change
+      sharedAnnotations = []; // Clear shared annotations
+      userShareId = null; // Reset share ID for new video
     }
 
     createMarkersContainer();
     createAddButton();
-    createShareButtons();
     renderMarkers();
 
-    // Check for share link
-    checkForShareLink();
+    // Initialize API and fetch all annotations
+    try {
+      await api.initialize();
+      console.log('API initialized');
 
-    // Initialize API (get or create anonymous ID)
-    api.initialize().catch(err => {
+      // Fetch all annotations from all users for this video
+      await fetchAllAnnotations(videoId);
+    } catch (err) {
       console.error('Failed to initialize API:', err);
-    });
+    }
   }
 
   // Wait for YouTube player to be ready
@@ -469,9 +535,8 @@
         // Reset UI elements for new page
         markersContainer = null;
         addButton = null;
-        shareButton = null;
-        browseButton = null;
-        viewOnlyAnnotations = [];
+        sharedAnnotations = [];
+        userShareId = null;
         initialized = false;
         closePopup();
 
