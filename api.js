@@ -104,6 +104,23 @@ class AnnotatorAPI {
 
     if (!response.ok) {
       const error = await response.json();
+
+      // If user not found (401), re-register and retry
+      if (response.status === 401 && error.message && error.message.includes('User not found')) {
+        console.log('[DEBUG] User not found in database, re-registering...');
+
+        // Clear old anonymous ID and re-register
+        const storageKey = this.getStorageKey();
+        await chrome.storage.local.remove([storageKey]);
+        this.anonymousId = null;
+
+        // Re-initialize (will register new user)
+        await this.initialize();
+
+        // Retry the create share request
+        return this.createShare(videoId, annotations, title);
+      }
+
       throw new Error(error.message || 'Failed to create share');
     }
 

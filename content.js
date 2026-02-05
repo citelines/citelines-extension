@@ -96,6 +96,12 @@
               // Use backend's isOwner field to determine ownership
               const isOwn = shareData.isOwner || false;
 
+              // If this is the user's share, store the token to avoid creating duplicates
+              if (isOwn && !userShareId) {
+                userShareId = share.shareToken;
+                console.log('[DEBUG] Found user share:', userShareId);
+              }
+
               return shareData.annotations.map(ann => ({
                 ...ann,
                 shareToken: share.shareToken,
@@ -207,9 +213,36 @@
     if (!isShared) {
       popup.querySelector('[data-action="delete"]').addEventListener('click', async () => {
         const videoId = getVideoId();
-        annotations[videoId] = (annotations[videoId] || []).filter(a => a.id !== annotation.id);
-        await saveAnnotations(videoId, annotations[videoId]);
-        renderMarkers();
+
+        // Find the user's share and remove this annotation from it
+        const shareToken = annotation.shareToken;
+        if (shareToken) {
+          try {
+            // Get current share data
+            const shareData = await api.getShare(shareToken);
+
+            // Filter out the deleted annotation
+            const updatedAnnotations = shareData.annotations.filter(a => a.id !== annotation.id);
+
+            if (updatedAnnotations.length === 0) {
+              // If no annotations left, delete the entire share
+              await api.deleteShare(shareToken);
+            } else {
+              // Update the share with remaining annotations
+              await api.updateShare(shareToken, { annotations: updatedAnnotations });
+            }
+
+            // Update local storage
+            annotations[videoId] = updatedAnnotations;
+            await chrome.storage.local.set({ [`annotations_${videoId}`]: updatedAnnotations });
+
+            // Re-fetch all annotations to update display
+            await fetchAllAnnotations(videoId);
+          } catch (error) {
+            console.error('Failed to delete annotation:', error);
+          }
+        }
+
         closePopup();
       });
     }
