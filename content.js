@@ -50,6 +50,9 @@
       if (annotationsList.length > 0) {
         await syncAnnotationsToBackend(videoId, annotationsList);
       }
+
+      // Re-fetch all annotations to get updated data with correct ownership
+      await fetchAllAnnotations(videoId);
     } catch (error) {
       console.error('Failed to sync annotations to backend:', error);
     }
