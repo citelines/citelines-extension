@@ -85,11 +85,14 @@
         api.getShare(share.shareToken)
           .then(shareData => {
             if (shareData.annotations && Array.isArray(shareData.annotations)) {
+              // Use backend's isOwner field to determine ownership
+              const isOwn = shareData.isOwner || false;
+
               shareData.annotations.forEach(ann => {
                 sharedAnnotations.push({
                   ...ann,
                   shareToken: share.shareToken,
-                  isOwn: share.shareToken === userShareId
+                  isOwn: isOwn
                 });
               });
               renderMarkers(); // Re-render when new annotations loaded
