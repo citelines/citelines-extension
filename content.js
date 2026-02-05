@@ -77,31 +77,40 @@
   async function fetchAllAnnotations(videoId) {
     try {
       const result = await api.getSharesForVideo(videoId);
-      sharedAnnotations = [];
+      sharedAnnotations = []; // Clear existing shared annotations
 
-      // Flatten all annotations from all shares
-      result.shares.forEach(share => {
-        // We'll fetch each share to get the full annotations
+      // Fetch all share details in parallel
+      const shareFetches = result.shares.map(share =>
         api.getShare(share.shareToken)
           .then(shareData => {
             if (shareData.annotations && Array.isArray(shareData.annotations)) {
               // Use backend's isOwner field to determine ownership
               const isOwn = shareData.isOwner || false;
 
-              shareData.annotations.forEach(ann => {
-                sharedAnnotations.push({
-                  ...ann,
-                  shareToken: share.shareToken,
-                  isOwn: isOwn
-                });
-              });
-              renderMarkers(); // Re-render when new annotations loaded
+              return shareData.annotations.map(ann => ({
+                ...ann,
+                shareToken: share.shareToken,
+                isOwn: isOwn
+              }));
             }
+            return [];
           })
-          .catch(err => console.error('Failed to fetch share:', err));
-      });
+          .catch(err => {
+            console.error('Failed to fetch share:', err);
+            return [];
+          })
+      );
 
-      console.log(`Loaded ${result.shares.length} shares for video ${videoId}`);
+      // Wait for all fetches to complete
+      const allAnnotations = await Promise.all(shareFetches);
+
+      // Flatten the array of arrays into sharedAnnotations
+      sharedAnnotations = allAnnotations.flat();
+
+      console.log(`Loaded ${result.shares.length} shares with ${sharedAnnotations.length} total annotations for video ${videoId}`);
+
+      // Render once after all annotations are loaded
+      renderMarkers();
     } catch (error) {
       console.error('Failed to fetch annotations:', error);
     }
