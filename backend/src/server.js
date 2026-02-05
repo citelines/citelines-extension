@@ -81,22 +81,25 @@ app.use(cors(corsOptions));
 const generalLimiter = rateLimit({
   windowMs: 1 * 60 * 1000, // 1 minute
   max: 100, // 100 requests per minute per IP
-  message: 'Too many requests from this IP, please try again later',
+  message: { error: 'Too many requests', message: 'Too many requests from this IP, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
 });
 
-const createShareLimiter = rateLimit({
+// More relaxed rate limiting for collaborative mode
+// Only limit write operations (POST/PUT/DELETE), not reads (GET)
+const writeShareLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
-  max: 10, // 10 shares per hour per IP
-  message: 'Too many shares created from this IP, please try again later',
+  max: 50, // 50 write operations per hour per IP
+  message: 'Too many shares created/updated from this IP, please try again later',
   standardHeaders: true,
   legacyHeaders: false,
   skipSuccessfulRequests: false,
+  skip: (req) => req.method === 'GET' // Don't rate limit GET requests
 });
 
 app.use('/api/', generalLimiter);
-app.use('/api/shares', createShareLimiter);
+app.use('/api/shares', writeShareLimiter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
