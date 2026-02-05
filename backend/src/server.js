@@ -46,8 +46,8 @@ const corsOptions = {
       return callback(null, true);
     }
 
-    // Allow YouTube in development
-    if (process.env.NODE_ENV === 'development' && origin && origin.includes('youtube.com')) {
+    // Allow YouTube.com (both development and production)
+    if (origin && origin.includes('youtube.com')) {
       return callback(null, true);
     }
 
