@@ -239,10 +239,18 @@
 
   // Create share and browse buttons
   function createShareButtons() {
-    if (shareButton || browseButton) return;
+    console.log('[YT Annotator] createShareButtons called');
+    if (shareButton || browseButton) {
+      console.log('[YT Annotator] Buttons already exist, skipping');
+      return;
+    }
 
     const playerContainer = document.querySelector('#movie_player');
-    if (!playerContainer) return;
+    if (!playerContainer) {
+      console.log('[YT Annotator] Player container not found');
+      return;
+    }
+    console.log('[YT Annotator] Creating share buttons...');
 
     // Create container for share buttons
     const buttonContainer = document.createElement('div');
@@ -257,6 +265,7 @@
     `;
 
     // Share button
+    console.log('[YT Annotator] createShareButton exists:', typeof createShareButton !== 'undefined');
     shareButton = createShareButton();
     shareButton.addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -288,6 +297,7 @@
     buttonContainer.appendChild(shareButton);
     buttonContainer.appendChild(browseButton);
     playerContainer.appendChild(buttonContainer);
+    console.log('[YT Annotator] Share and Browse buttons added successfully');
   }
 
   // Handle importing shared annotations

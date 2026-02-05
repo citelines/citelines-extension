@@ -5,8 +5,8 @@
 
 class AnnotatorAPI {
   constructor() {
-    // Change this to your production URL when deployed
-    this.baseUrl = 'http://localhost:3000/api';
+    // Production Railway backend
+    this.baseUrl = 'https://youtube-annotator-production.up.railway.app/api';
     this.anonymousId = null;
   }
 

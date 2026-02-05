@@ -13,7 +13,29 @@ const PORT = process.env.PORT || 3000;
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-// CORS configuration
+// Chrome Private Network Access (PNA) - Allow YouTube.com to access localhost
+// Required for extensions to make API calls from public websites to localhost
+app.use((req, res, next) => {
+  const origin = req.headers.origin;
+
+  // Allow YouTube.com and chrome extensions in development
+  if (origin && (origin.includes('youtube.com') || origin.startsWith('chrome-extension://'))) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Anonymous-ID');
+    res.setHeader('Access-Control-Allow-Private-Network', 'true');
+  }
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+
+  next();
+});
+
+// CORS configuration (as backup)
 const corsOptions = {
   origin: function (origin, callback) {
     // Allow requests with no origin (like mobile apps or curl requests)
@@ -21,6 +43,11 @@ const corsOptions = {
 
     // Allow chrome-extension:// origins
     if (origin.startsWith('chrome-extension://')) {
+      return callback(null, true);
+    }
+
+    // Allow YouTube in development
+    if (process.env.NODE_ENV === 'development' && origin && origin.includes('youtube.com')) {
       return callback(null, true);
     }
 
@@ -34,7 +61,7 @@ const corsOptions = {
     }
 
     // Allow localhost in development
-    if (process.env.NODE_ENV === 'development' && origin.includes('localhost')) {
+    if (process.env.NODE_ENV === 'development' && origin && origin.includes('localhost')) {
       return callback(null, true);
     }
 
