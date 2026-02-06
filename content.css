@@ -4,16 +4,18 @@
   top: -4px;
   width: 8px;
   height: 8px;
-  background-color: #ff6b6b;
+  background-color: #00d9ff;
   border-radius: 50%;
   transform: translateX(-50%);
   cursor: pointer;
   z-index: 9999;
   transition: transform 0.15s ease;
+  box-shadow: 0 0 4px rgba(0, 217, 255, 0.6);
 }
 
 .yt-annotator-marker:hover {
   transform: translateX(-50%) scale(1.4);
+  box-shadow: 0 0 6px rgba(0, 217, 255, 0.8);
 }
 
 /* Shared annotation markers (view-only mode) */
@@ -94,7 +96,7 @@
 
 .yt-annotator-popup-input:focus {
   outline: none;
-  border-color: #ff6b6b;
+  border-color: #00d9ff;
 }
 
 .yt-annotator-popup-actions {
@@ -115,12 +117,13 @@
 }
 
 .yt-annotator-btn-primary {
-  background: #ff6b6b;
-  color: #fff;
+  background: #00d9ff;
+  color: #000;
+  font-weight: 600;
 }
 
 .yt-annotator-btn-primary:hover {
-  background: #ff5252;
+  background: #00eeff;
 }
 
 .yt-annotator-btn-secondary {
@@ -147,25 +150,27 @@
   position: absolute;
   right: 12px;
   bottom: 48px;
-  background: rgba(255, 107, 107, 0.9);
-  color: #fff;
+  background: rgba(0, 217, 255, 0.9);
+  color: #000;
   border: none;
   border-radius: 50%;
   width: 36px;
   height: 36px;
   font-size: 20px;
+  font-weight: 600;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 9999;
   transition: transform 0.15s ease, background-color 0.15s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(0, 217, 255, 0.4);
 }
 
 .yt-annotator-add-btn:hover {
   transform: scale(1.1);
-  background: #ff5252;
+  background: #00eeff;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(0, 217, 255, 0.6);
 }
 
 /* Marker container */
@@ -209,7 +214,7 @@
 
 .yt-annotator-select:focus {
   outline: none;
-  border-color: #ff6b6b;
+  border-color: #00d9ff;
 }
 
 /* Citation Input Fields */
@@ -233,7 +238,7 @@
 
 .yt-annotator-input:focus {
   outline: none;
-  border-color: #ff6b6b;
+  border-color: #00d9ff;
 }
 
 .yt-annotator-input::placeholder {
@@ -248,7 +253,7 @@
   background: rgba(255, 255, 255, 0.05);
   border-radius: 6px;
   margin-bottom: 10px;
-  border-left: 3px solid #ff6b6b;
+  border-left: 3px solid #00d9ff;
 }
 
 .yt-annotator-citation-icon {
@@ -273,7 +278,7 @@
 }
 
 a.yt-annotator-citation-title:hover {
-  color: #ff6b6b;
+  color: #00d9ff;
   text-decoration: underline;
 }
 

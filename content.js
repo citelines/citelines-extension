@@ -289,7 +289,7 @@
     popup.className = 'yt-annotator-popup';
 
     const deleteButton = isShared ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
-    const badge = isShared ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">YOU</span>';
+    const badge = isShared ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #00d9ff; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">YOU</span>';
 
     const citationHTML = formatCitation(annotation.citation);
     const creationTime = formatCreationTime(annotation.createdAt);
