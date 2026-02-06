@@ -364,8 +364,20 @@
           // Only show connector if there's a reasonable gap (at least 5px)
           if (connectorHeight >= 5) {
             connector.style.height = `${connectorHeight}px`;
+
+            // Calculate horizontal offset for the elbow
+            // Horizontal distance from popup center to marker
+            const popupCenter = popupRect.left + (popupRect.width / 2);
+            const horizontalOffset = markerAbsoluteX - popupCenter;
+            const absOffset = Math.abs(horizontalOffset);
+            const direction = horizontalOffset >= 0 ? 'right' : 'left';
+
+            connector.style.setProperty('--horizontal-offset', `${absOffset}px`);
+            connector.style.setProperty('--direction', direction);
+            connector.classList.add(`yt-annotator-connector-${direction}`);
+
             popup.appendChild(connector);
-            console.log('[Connector] Added to popup');
+            console.log('[Connector] Added to popup, offset:', horizontalOffset, 'direction:', direction);
           } else {
             console.log('[Connector] Height too small:', connectorHeight);
           }

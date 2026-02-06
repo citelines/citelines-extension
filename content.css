@@ -46,16 +46,58 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
 }
 
-/* Connector line from popup to marker */
+/* Connector line from popup to marker (L-shaped) */
 .yt-annotator-popup-connector {
   position: absolute;
   bottom: -1px;
+  left: 50%;
   width: 2px;
-  background: linear-gradient(to bottom, #0497a6 0%, #0497a6 70%, rgba(4, 151, 166, 0.5) 90%, transparent 100%);
+  background: transparent;
   transform: translateX(-50%);
   pointer-events: none;
   z-index: -1;
-  opacity: 0.9;
+}
+
+/* Vertical line going down from popup center */
+.yt-annotator-popup-connector::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 2px;
+  height: 40%;
+  background: #0497a6;
+}
+
+/* Horizontal + vertical L-shape to marker (going RIGHT) */
+.yt-annotator-connector-right::after {
+  content: '';
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  width: var(--horizontal-offset);
+  height: calc(60% + 2px);
+  border-right: 2px solid #0497a6;
+  border-bottom: 2px solid #0497a6;
+  border-bottom-right-radius: 3px;
+  transform: translateX(-1px);
+  box-sizing: border-box;
+}
+
+/* Horizontal + vertical L-shape to marker (going LEFT) */
+.yt-annotator-connector-left::after {
+  content: '';
+  position: absolute;
+  top: 40%;
+  right: 50%;
+  width: var(--horizontal-offset);
+  height: calc(60% + 2px);
+  border-left: 2px solid #0497a6;
+  border-bottom: 2px solid #0497a6;
+  border-bottom-left-radius: 3px;
+  transform: translateX(1px);
+  box-sizing: border-box;
 }
 
 .yt-annotator-popup-header {
