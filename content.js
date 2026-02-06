@@ -381,13 +381,17 @@
             const elbowHeight = totalHeight * 0.3;
             const remainingHeight = totalHeight - elbowHeight;
 
+            // Calculate horizontal line position
+            const horizontalWidth = Math.abs(horizontalOffset);
+            const horizontalLeft = Math.min(markerX, popupCenterX);
+
             // Create three line segments
             const verticalTop = document.createElement('div');
             verticalTop.className = 'yt-annotator-connector-vertical-top';
             verticalTop.style.cssText = `
               position: absolute;
               top: 0;
-              left: 50%;
+              left: ${popupCenterX}px;
               transform: translateX(-50%);
               width: 2px;
               height: ${elbowHeight}px;
@@ -396,8 +400,6 @@
 
             const horizontal = document.createElement('div');
             horizontal.className = 'yt-annotator-connector-horizontal';
-            const horizontalWidth = Math.abs(horizontalOffset);
-            const horizontalLeft = horizontalOffset >= 0 ? popupCenterX : (popupCenterX - horizontalWidth);
             horizontal.style.cssText = `
               position: absolute;
               top: ${elbowHeight}px;
