@@ -299,16 +299,16 @@
     // Calculate marker position as percentage
     const percentage = (annotation.timestamp / video.duration) * 100;
 
-    // Get the progress bar container
+    // Get the progress bar and player container
     const progressBar = document.querySelector('.ytp-progress-bar-container');
-    if (!progressBar) return;
+    const playerContainer = document.querySelector('#movie_player');
+    if (!progressBar || !playerContainer) return;
 
     const progressBarRect = progressBar.getBoundingClientRect();
-    const playerContainer = document.querySelector('#movie_player');
     const playerRect = playerContainer.getBoundingClientRect();
 
-    // Calculate marker position in pixels
-    const markerX = (percentage / 100) * progressBarRect.width;
+    // Calculate marker absolute position on the progress bar
+    const markerAbsoluteX = progressBarRect.left + (percentage / 100) * progressBarRect.width;
 
     // Get popup dimensions
     const popupWidth = popup.offsetWidth;
@@ -318,8 +318,9 @@
     const minConstraint = playerWidth * 0.30;
     const maxConstraint = playerWidth * 0.70;
 
-    // Calculate ideal popup position (centered on marker)
-    let popupLeft = markerX - (popupWidth / 2);
+    // Calculate ideal popup position (centered on marker, relative to player)
+    const markerRelativeToPlayer = markerAbsoluteX - playerRect.left;
+    let popupLeft = markerRelativeToPlayer - (popupWidth / 2);
 
     // Clamp to middle 40% zone
     const popupMinLeft = minConstraint - (popupWidth / 2);
@@ -330,15 +331,29 @@
     popup.style.left = `${popupLeft}px`;
     popup.style.transform = 'none';
 
-    // Create connector line
-    const connector = document.createElement('div');
-    connector.className = 'yt-annotator-popup-connector';
+    // Wait for next frame to get accurate popup position
+    requestAnimationFrame(() => {
+      const popupRect = popup.getBoundingClientRect();
 
-    // Calculate connector position (from popup to actual marker)
-    const connectorLeft = markerX - popupLeft;
-    connector.style.left = `${connectorLeft}px`;
+      // Create connector line
+      const connector = document.createElement('div');
+      connector.className = 'yt-annotator-popup-connector';
 
-    popup.appendChild(connector);
+      // Calculate connector horizontal position (relative to popup)
+      const connectorLeft = markerAbsoluteX - popupRect.left;
+      connector.style.left = `${connectorLeft}px`;
+
+      // Calculate connector height (from popup bottom to progress bar)
+      const popupBottom = popupRect.bottom;
+      const progressBarTop = progressBarRect.top;
+      const connectorHeight = progressBarTop - popupBottom;
+
+      if (connectorHeight > 0) {
+        connector.style.height = `${connectorHeight}px`;
+      }
+
+      popup.appendChild(connector);
+    });
   }
 
   // Show popup for viewing/editing annotation

@@ -49,14 +49,13 @@
 /* Connector line from popup to marker */
 .yt-annotator-popup-connector {
   position: absolute;
-  bottom: -48px;
+  bottom: -1px;
   width: 2px;
-  height: 48px;
-  background: linear-gradient(to bottom, #0497a6 0%, #0497a6 80%, transparent 100%);
+  background: linear-gradient(to bottom, #0497a6 0%, #0497a6 70%, rgba(4, 151, 166, 0.5) 90%, transparent 100%);
   transform: translateX(-50%);
   pointer-events: none;
   z-index: -1;
-  opacity: 0.8;
+  opacity: 0.9;
 }
 
 .yt-annotator-popup-header {
