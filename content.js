@@ -174,6 +174,56 @@
     console.log(`Rendered ${ownCount} own + ${sharedCount} shared annotations`);
   }
 
+  // Format citation for display
+  function formatCitation(citation) {
+    if (!citation || !citation.type) return '';
+
+    let html = '<div class="yt-annotator-citation">';
+
+    switch(citation.type) {
+      case 'youtube':
+        html += '<div class="yt-annotator-citation-icon">🎥</div>';
+        html += '<div class="yt-annotator-citation-content">';
+        if (citation.url) {
+          html += `<a href="${escapeHtml(citation.url)}" target="_blank" rel="noopener noreferrer" class="yt-annotator-citation-title">${escapeHtml(citation.title || 'YouTube Video')}</a>`;
+        } else {
+          html += `<span class="yt-annotator-citation-title">${escapeHtml(citation.title || 'YouTube Video')}</span>`;
+        }
+        html += '</div>';
+        break;
+
+      case 'movie':
+        html += '<div class="yt-annotator-citation-icon">🎬</div>';
+        html += '<div class="yt-annotator-citation-content">';
+        html += `<span class="yt-annotator-citation-title">${escapeHtml(citation.title || 'Movie')}</span>`;
+        const movieMeta = [];
+        if (citation.year) movieMeta.push(citation.year);
+        if (citation.director) movieMeta.push(`dir. ${citation.director}`);
+        if (movieMeta.length > 0) {
+          html += `<div class="yt-annotator-citation-meta">${escapeHtml(movieMeta.join(' • '))}</div>`;
+        }
+        html += '</div>';
+        break;
+
+      case 'article':
+        html += '<div class="yt-annotator-citation-icon">📄</div>';
+        html += '<div class="yt-annotator-citation-content">';
+        if (citation.url) {
+          html += `<a href="${escapeHtml(citation.url)}" target="_blank" rel="noopener noreferrer" class="yt-annotator-citation-title">${escapeHtml(citation.title || 'Article')}</a>`;
+        } else {
+          html += `<span class="yt-annotator-citation-title">${escapeHtml(citation.title || 'Article')}</span>`;
+        }
+        if (citation.author) {
+          html += `<div class="yt-annotator-citation-meta">by ${escapeHtml(citation.author)}</div>`;
+        }
+        html += '</div>';
+        break;
+    }
+
+    html += '</div>';
+    return html;
+  }
+
   // Close any open popup
   function closePopup() {
     if (activePopup) {
@@ -195,11 +245,14 @@
     const deleteButton = isShared ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
     const badge = isShared ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">YOU</span>';
 
+    const citationHTML = formatCitation(annotation.citation);
+
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
         <span class="yt-annotator-popup-timestamp">${formatTime(annotation.timestamp)}${badge}</span>
         <button class="yt-annotator-popup-close">&times;</button>
       </div>
+      ${citationHTML}
       <div class="yt-annotator-popup-content">${escapeHtml(annotation.text)}</div>
       <div class="yt-annotator-popup-actions">
         ${deleteButton}
@@ -264,14 +317,30 @@
     if (!playerContainer) return;
 
     const popup = document.createElement('div');
-    popup.className = 'yt-annotator-popup';
+    popup.className = 'yt-annotator-popup yt-annotator-popup-create';
 
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
         <span class="yt-annotator-popup-timestamp">New annotation at ${formatTime(timestamp)}</span>
         <button class="yt-annotator-popup-close">&times;</button>
       </div>
-      <textarea class="yt-annotator-popup-input" placeholder="Enter your annotation..."></textarea>
+
+      <div class="yt-annotator-citation-type">
+        <label for="citation-type">Citation Type:</label>
+        <select id="citation-type" class="yt-annotator-select">
+          <option value="note">Basic Note</option>
+          <option value="youtube">YouTube Video</option>
+          <option value="movie">Movie</option>
+          <option value="article">Article</option>
+        </select>
+      </div>
+
+      <div id="citation-fields" class="yt-annotator-citation-fields">
+        <!-- Dynamic fields will be inserted here -->
+      </div>
+
+      <textarea class="yt-annotator-popup-input" placeholder="Your note or comment..."></textarea>
+
       <div class="yt-annotator-popup-actions">
         <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="cancel">Cancel</button>
         <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="save">Save</button>
@@ -279,6 +348,59 @@
     `;
 
     const textarea = popup.querySelector('textarea');
+    const citationTypeSelect = popup.querySelector('#citation-type');
+    const citationFields = popup.querySelector('#citation-fields');
+
+    // Function to update citation fields based on selected type
+    function updateCitationFields(type) {
+      let fieldsHTML = '';
+
+      switch(type) {
+        case 'youtube':
+          fieldsHTML = `
+            <input type="text" class="yt-annotator-input" id="citation-title" placeholder="Video Title" />
+            <input type="url" class="yt-annotator-input" id="citation-url" placeholder="YouTube URL" />
+          `;
+          break;
+        case 'movie':
+          fieldsHTML = `
+            <input type="text" class="yt-annotator-input" id="citation-title" placeholder="Movie Title" />
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="yt-annotator-input" id="citation-year" placeholder="Year" style="flex: 1;" />
+              <input type="text" class="yt-annotator-input" id="citation-director" placeholder="Director (optional)" style="flex: 2;" />
+            </div>
+          `;
+          break;
+        case 'article':
+          fieldsHTML = `
+            <input type="text" class="yt-annotator-input" id="citation-title" placeholder="Article Title" />
+            <input type="url" class="yt-annotator-input" id="citation-url" placeholder="Article URL" />
+            <input type="text" class="yt-annotator-input" id="citation-author" placeholder="Author (optional)" />
+          `;
+          break;
+        case 'note':
+        default:
+          fieldsHTML = '';
+          break;
+      }
+
+      citationFields.innerHTML = fieldsHTML;
+
+      // Stop keyboard events for all inputs
+      citationFields.querySelectorAll('input').forEach(input => {
+        input.addEventListener('keydown', (e) => e.stopPropagation());
+        input.addEventListener('keyup', (e) => e.stopPropagation());
+        input.addEventListener('keypress', (e) => e.stopPropagation());
+      });
+    }
+
+    // Initialize with note type (no fields)
+    updateCitationFields('note');
+
+    // Update fields when type changes
+    citationTypeSelect.addEventListener('change', (e) => {
+      updateCitationFields(e.target.value);
+    });
 
     // Stop keyboard events from reaching YouTube player
     textarea.addEventListener('keydown', (e) => e.stopPropagation());
@@ -295,10 +417,31 @@
       if (!text) return;
 
       const videoId = getVideoId();
+      const citationType = citationTypeSelect.value;
+
+      // Build citation object based on type
+      let citation = null;
+      if (citationType !== 'note') {
+        citation = { type: citationType };
+
+        const titleInput = popup.querySelector('#citation-title');
+        const urlInput = popup.querySelector('#citation-url');
+        const yearInput = popup.querySelector('#citation-year');
+        const directorInput = popup.querySelector('#citation-director');
+        const authorInput = popup.querySelector('#citation-author');
+
+        if (titleInput) citation.title = titleInput.value.trim();
+        if (urlInput) citation.url = urlInput.value.trim();
+        if (yearInput) citation.year = yearInput.value.trim();
+        if (directorInput) citation.director = directorInput.value.trim();
+        if (authorInput) citation.author = authorInput.value.trim();
+      }
+
       const newAnnotation = {
         id: Date.now().toString(),
         timestamp: timestamp,
         text: text,
+        citation: citation,
         createdAt: new Date().toISOString()
       };
 
