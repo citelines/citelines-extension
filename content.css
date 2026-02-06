@@ -4,7 +4,7 @@
   top: -4px;
   width: 8px;
   height: 8px;
-  background-color: #00d9ff;
+  background-color: #0497a6;
   border-radius: 50%;
   transform: translateX(-50%);
   cursor: pointer;
@@ -96,7 +96,7 @@
 
 .yt-annotator-popup-input:focus {
   outline: none;
-  border-color: #00d9ff;
+  border-color: #0497a6;
 }
 
 .yt-annotator-popup-actions {
@@ -117,13 +117,13 @@
 }
 
 .yt-annotator-btn-primary {
-  background: #00d9ff;
+  background: #0497a6;
   color: #000;
   font-weight: 600;
 }
 
 .yt-annotator-btn-primary:hover {
-  background: #00eeff;
+  background: #05b3c4;
 }
 
 .yt-annotator-btn-secondary {
@@ -169,7 +169,7 @@
 
 .yt-annotator-add-btn:hover {
   transform: scale(1.1);
-  background: #00eeff;
+  background: #05b3c4;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(0, 217, 255, 0.6);
 }
 
@@ -214,7 +214,7 @@
 
 .yt-annotator-select:focus {
   outline: none;
-  border-color: #00d9ff;
+  border-color: #0497a6;
 }
 
 /* Citation Input Fields */
@@ -238,7 +238,7 @@
 
 .yt-annotator-input:focus {
   outline: none;
-  border-color: #00d9ff;
+  border-color: #0497a6;
 }
 
 .yt-annotator-input::placeholder {
@@ -253,7 +253,7 @@
   background: rgba(255, 255, 255, 0.05);
   border-radius: 6px;
   margin-bottom: 10px;
-  border-left: 3px solid #00d9ff;
+  border-left: 3px solid #0497a6;
 }
 
 .yt-annotator-citation-icon {
@@ -278,7 +278,7 @@
 }
 
 a.yt-annotator-citation-title:hover {
-  color: #00d9ff;
+  color: #0497a6;
   text-decoration: underline;
 }
 
