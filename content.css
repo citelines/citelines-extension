@@ -164,7 +164,7 @@
   position: absolute;
   right: 12px;
   bottom: 80px;
-  background: rgba(0, 217, 255, 0.9);
+  background: rgba(4, 151, 166, 0.9);
   color: #000;
   border: none;
   border-radius: 50%;
@@ -178,7 +178,7 @@
   justify-content: center;
   z-index: 10002;
   transition: transform 0.15s ease, background-color 0.15s ease, right 0.3s ease;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(0, 217, 255, 0.4);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(4, 151, 166, 0.4);
 }
 
 .yt-annotator-add-btn.sidebar-open {
@@ -188,7 +188,7 @@
 .yt-annotator-add-btn:hover {
   transform: scale(1.1);
   background: #05b3c4;
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(0, 217, 255, 0.6);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(4, 151, 166, 0.6);
 }
 
 /* Marker container */
