@@ -174,6 +174,18 @@
     console.log(`Rendered ${ownCount} own + ${sharedCount} shared annotations`);
   }
 
+  // Format date string
+  function formatDate(citation) {
+    if (!citation.month && !citation.day && !citation.year) return '';
+
+    const parts = [];
+    if (citation.month) parts.push(citation.month);
+    if (citation.day) parts.push(citation.day);
+    if (citation.year) parts.push(citation.year);
+
+    return parts.join(' ');
+  }
+
   // Format citation for display
   function formatCitation(citation) {
     if (!citation || !citation.type) return '';
@@ -188,6 +200,10 @@
           html += `<a href="${escapeHtml(citation.url)}" target="_blank" rel="noopener noreferrer" class="yt-annotator-citation-title">${escapeHtml(citation.title || 'YouTube Video')}</a>`;
         } else {
           html += `<span class="yt-annotator-citation-title">${escapeHtml(citation.title || 'YouTube Video')}</span>`;
+        }
+        const youtubeDate = formatDate(citation);
+        if (youtubeDate) {
+          html += `<div class="yt-annotator-citation-meta">${escapeHtml(youtubeDate)}</div>`;
         }
         html += '</div>';
         break;
@@ -213,8 +229,12 @@
         } else {
           html += `<span class="yt-annotator-citation-title">${escapeHtml(citation.title || 'Article')}</span>`;
         }
-        if (citation.author) {
-          html += `<div class="yt-annotator-citation-meta">by ${escapeHtml(citation.author)}</div>`;
+        const articleMeta = [];
+        if (citation.author) articleMeta.push(`by ${citation.author}`);
+        const articleDate = formatDate(citation);
+        if (articleDate) articleMeta.push(articleDate);
+        if (articleMeta.length > 0) {
+          html += `<div class="yt-annotator-citation-meta">${escapeHtml(articleMeta.join(' • '))}</div>`;
         }
         html += '</div>';
         break;
@@ -360,6 +380,11 @@
           fieldsHTML = `
             <input type="text" class="yt-annotator-input" id="citation-title" placeholder="Video Title" />
             <input type="url" class="yt-annotator-input" id="citation-url" placeholder="YouTube URL" />
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="yt-annotator-input" id="citation-month" placeholder="Month" style="flex: 1;" />
+              <input type="text" class="yt-annotator-input" id="citation-day" placeholder="Day" style="flex: 1;" />
+              <input type="text" class="yt-annotator-input" id="citation-year" placeholder="Year" style="flex: 1;" />
+            </div>
           `;
           break;
         case 'movie':
@@ -376,6 +401,11 @@
             <input type="text" class="yt-annotator-input" id="citation-title" placeholder="Article Title" />
             <input type="url" class="yt-annotator-input" id="citation-url" placeholder="Article URL" />
             <input type="text" class="yt-annotator-input" id="citation-author" placeholder="Author (optional)" />
+            <div style="display: flex; gap: 8px;">
+              <input type="text" class="yt-annotator-input" id="citation-month" placeholder="Month" style="flex: 1;" />
+              <input type="text" class="yt-annotator-input" id="citation-day" placeholder="Day" style="flex: 1;" />
+              <input type="text" class="yt-annotator-input" id="citation-year" placeholder="Year" style="flex: 1;" />
+            </div>
           `;
           break;
         case 'note':
@@ -413,10 +443,8 @@
     popup.querySelector('[data-action="save"]').addEventListener('click', async (e) => {
       e.stopPropagation();
       e.preventDefault();
-      const text = textarea.value.trim();
-      if (!text) return;
 
-      const videoId = getVideoId();
+      const text = textarea.value.trim();
       const citationType = citationTypeSelect.value;
 
       // Build citation object based on type
@@ -427,16 +455,33 @@
         const titleInput = popup.querySelector('#citation-title');
         const urlInput = popup.querySelector('#citation-url');
         const yearInput = popup.querySelector('#citation-year');
+        const monthInput = popup.querySelector('#citation-month');
+        const dayInput = popup.querySelector('#citation-day');
         const directorInput = popup.querySelector('#citation-director');
         const authorInput = popup.querySelector('#citation-author');
 
         if (titleInput) citation.title = titleInput.value.trim();
         if (urlInput) citation.url = urlInput.value.trim();
         if (yearInput) citation.year = yearInput.value.trim();
+        if (monthInput) citation.month = monthInput.value.trim();
+        if (dayInput) citation.day = dayInput.value.trim();
         if (directorInput) citation.director = directorInput.value.trim();
         if (authorInput) citation.author = authorInput.value.trim();
+
+        // Validate: citation needs at least a title
+        if (!citation.title) {
+          alert('Please enter a title for the citation');
+          return;
+        }
       }
 
+      // Require either text or citation
+      if (!text && !citation) {
+        alert('Please enter a note or add a citation');
+        return;
+      }
+
+      const videoId = getVideoId();
       const newAnnotation = {
         id: Date.now().toString(),
         timestamp: timestamp,
@@ -449,9 +494,15 @@
         annotations[videoId] = [];
       }
       annotations[videoId].push(newAnnotation);
-      await saveAnnotations(videoId, annotations[videoId]);
-      renderMarkers();
-      closePopup();
+
+      try {
+        await saveAnnotations(videoId, annotations[videoId]);
+        renderMarkers();
+        closePopup();
+      } catch (error) {
+        console.error('Failed to save annotation:', error);
+        alert('Failed to save annotation. Please try again.');
+      }
     });
 
     playerContainer.appendChild(popup);
