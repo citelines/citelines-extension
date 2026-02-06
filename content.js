@@ -285,6 +285,52 @@
       activePopup.remove();
       activePopup = null;
     }
+    // Remove connector line if it exists
+    const connector = document.querySelector('.yt-annotator-popup-connector');
+    if (connector) {
+      connector.remove();
+    }
+  }
+
+  // Position popup near the marker on the progress bar
+  function positionPopupNearMarker(popup, annotation, video) {
+    if (!video || !video.duration) return;
+
+    // Calculate marker position as percentage
+    const percentage = (annotation.timestamp / video.duration) * 100;
+
+    // Get the progress bar container
+    const progressBar = document.querySelector('.ytp-progress-bar-container');
+    if (!progressBar) return;
+
+    const progressBarRect = progressBar.getBoundingClientRect();
+    const markerX = (percentage / 100) * progressBarRect.width;
+
+    // Get popup dimensions
+    const popupRect = popup.getBoundingClientRect();
+    const popupWidth = popup.offsetWidth;
+
+    // Calculate popup position (centered on marker)
+    let popupLeft = markerX - (popupWidth / 2);
+
+    // Keep popup within bounds
+    const minLeft = 10;
+    const maxLeft = progressBarRect.width - popupWidth - 10;
+    popupLeft = Math.max(minLeft, Math.min(popupLeft, maxLeft));
+
+    // Position popup
+    popup.style.left = `${popupLeft}px`;
+    popup.style.transform = 'none';
+
+    // Create connector line
+    const connector = document.createElement('div');
+    connector.className = 'yt-annotator-popup-connector';
+
+    // Calculate connector position (from popup bottom to marker)
+    const connectorLeft = markerX - popupLeft;
+    connector.style.left = `${connectorLeft}px`;
+
+    popup.appendChild(connector);
   }
 
   // Show popup for viewing/editing annotation
@@ -365,6 +411,9 @@
 
     playerContainer.appendChild(popup);
     activePopup = popup;
+
+    // Position popup near the marker
+    positionPopupNearMarker(popup, annotation, video);
   }
 
   // Show popup for creating new annotation
@@ -718,14 +767,14 @@
 
     contentDiv.innerHTML = listHTML;
 
-    // Add click handlers to jump to timestamp
-    contentDiv.querySelectorAll('.yt-annotator-sidebar-item').forEach(item => {
+    // Add click handlers to show annotation popup
+    contentDiv.querySelectorAll('.yt-annotator-sidebar-item').forEach((item, index) => {
       item.addEventListener('click', (e) => {
         e.stopPropagation();
-        const timestamp = parseFloat(item.dataset.timestamp);
+        const annotation = filtered[index];
         const video = document.querySelector('video');
-        if (video) {
-          video.currentTime = timestamp;
+        if (video && annotation) {
+          showAnnotationPopup(annotation, video, !annotation.isOwn);
         }
       });
     });
