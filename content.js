@@ -340,6 +340,8 @@
       popup.style.transform = 'none';
 
       console.log('[Positioning] Popup positioned at', popupLeft);
+      console.log('[Positioning] Marker absolute X:', markerAbsoluteX);
+      console.log('[Positioning] Marker relative to player:', markerRelativeToPlayer);
 
       // Wait for next frame to get accurate popup position
       requestAnimationFrame(() => {
@@ -360,6 +362,9 @@
           const totalHeight = Math.abs(progressBarTop - popupBottom);
 
           console.log('[Connector] Total height:', totalHeight);
+          console.log('[Positions] Popup left:', popupRect.left, 'width:', popupRect.width);
+          console.log('[Positions] Marker absolute X:', markerAbsoluteX);
+          console.log('[Positions] Progress bar left:', progressBarRect.left, 'width:', progressBarRect.width);
 
           // Only show connector if there's a reasonable gap
           if (totalHeight >= 10) {
@@ -367,6 +372,10 @@
             const popupCenterX = popupRect.width / 2;
             const markerX = markerAbsoluteX - popupRect.left;
             const horizontalOffset = markerX - popupCenterX;
+
+            console.log('[Calc] Popup center X:', popupCenterX);
+            console.log('[Calc] Marker X relative to popup:', markerX);
+            console.log('[Calc] Horizontal offset:', horizontalOffset);
 
             // Elbow at 30% down from popup
             const elbowHeight = totalHeight * 0.3;
