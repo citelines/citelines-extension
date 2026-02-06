@@ -304,19 +304,27 @@
     if (!progressBar) return;
 
     const progressBarRect = progressBar.getBoundingClientRect();
+    const playerContainer = document.querySelector('#movie_player');
+    const playerRect = playerContainer.getBoundingClientRect();
+
+    // Calculate marker position in pixels
     const markerX = (percentage / 100) * progressBarRect.width;
 
     // Get popup dimensions
-    const popupRect = popup.getBoundingClientRect();
     const popupWidth = popup.offsetWidth;
 
-    // Calculate popup position (centered on marker)
+    // Constrain popup to middle 40% of video window (30% to 70%)
+    const playerWidth = playerRect.width;
+    const minConstraint = playerWidth * 0.30;
+    const maxConstraint = playerWidth * 0.70;
+
+    // Calculate ideal popup position (centered on marker)
     let popupLeft = markerX - (popupWidth / 2);
 
-    // Keep popup within bounds
-    const minLeft = 10;
-    const maxLeft = progressBarRect.width - popupWidth - 10;
-    popupLeft = Math.max(minLeft, Math.min(popupLeft, maxLeft));
+    // Clamp to middle 40% zone
+    const popupMinLeft = minConstraint - (popupWidth / 2);
+    const popupMaxLeft = maxConstraint - (popupWidth / 2);
+    popupLeft = Math.max(popupMinLeft, Math.min(popupLeft, popupMaxLeft));
 
     // Position popup
     popup.style.left = `${popupLeft}px`;
@@ -326,7 +334,7 @@
     const connector = document.createElement('div');
     connector.className = 'yt-annotator-popup-connector';
 
-    // Calculate connector position (from popup bottom to marker)
+    // Calculate connector position (from popup to actual marker)
     const connectorLeft = markerX - popupLeft;
     connector.style.left = `${connectorLeft}px`;
 

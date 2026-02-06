@@ -49,26 +49,14 @@
 /* Connector line from popup to marker */
 .yt-annotator-popup-connector {
   position: absolute;
-  bottom: -44px;
+  bottom: -48px;
   width: 2px;
-  height: 44px;
-  background: linear-gradient(to bottom, #0497a6, transparent);
+  height: 48px;
+  background: linear-gradient(to bottom, #0497a6 0%, #0497a6 80%, transparent 100%);
   transform: translateX(-50%);
   pointer-events: none;
   z-index: -1;
-}
-
-.yt-annotator-popup-connector::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
-  background: #0497a6;
-  border-radius: 50%;
-  box-shadow: 0 0 6px rgba(4, 151, 166, 0.8);
+  opacity: 0.8;
 }
 
 .yt-annotator-popup-header {
