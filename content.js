@@ -33,11 +33,18 @@
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   }
 
+  // Get storage key for annotations (different for incognito mode)
+  function getAnnotationsStorageKey(videoId) {
+    const isIncognito = chrome.extension.inIncognitoContext;
+    return isIncognito ? `annotations_incognito_${videoId}` : `annotations_${videoId}`;
+  }
+
   // Load annotations from storage
   async function loadAnnotations(videoId) {
     return new Promise((resolve) => {
-      chrome.storage.local.get([`annotations_${videoId}`], (result) => {
-        resolve(result[`annotations_${videoId}`] || []);
+      const storageKey = getAnnotationsStorageKey(videoId);
+      chrome.storage.local.get([storageKey], (result) => {
+        resolve(result[storageKey] || []);
       });
     });
   }
@@ -46,7 +53,8 @@
   async function saveAnnotations(videoId, annotationsList) {
     // Save to local storage
     await new Promise((resolve) => {
-      chrome.storage.local.set({ [`annotations_${videoId}`]: annotationsList }, resolve);
+      const storageKey = getAnnotationsStorageKey(videoId);
+      chrome.storage.local.set({ [storageKey]: annotationsList }, resolve);
     });
 
     // Auto-save to backend (collaborative mode)
@@ -126,7 +134,14 @@
       // Flatten the array of arrays into sharedAnnotations
       sharedAnnotations = allAnnotations.flat();
 
-      console.log(`Loaded ${result.shares.length} shares with ${sharedAnnotations.length} total annotations for video ${videoId}`);
+      console.log(`[DEBUG] Loaded ${result.shares.length} shares with ${sharedAnnotations.length} total annotations for video ${videoId}`);
+      console.log('[DEBUG] Share tokens:', result.shares.map(s => s.shareToken));
+      console.log('[DEBUG] Annotations breakdown:', {
+        total: sharedAnnotations.length,
+        own: sharedAnnotations.filter(a => a.isOwn).length,
+        others: sharedAnnotations.filter(a => !a.isOwn).length
+      });
+      console.log('[DEBUG] Annotation IDs:', sharedAnnotations.map(a => `${a.id}:${a.isOwn ? 'own' : 'other'}`));
 
       // Render once after all annotations are loaded
       renderMarkers();
@@ -222,10 +237,11 @@
   }
 
   // Format citation for display
-  function formatCitation(citation) {
+  function formatCitation(citation, isOwn = true) {
     if (!citation || !citation.type) return '';
 
-    let html = '<div class="yt-annotator-citation">';
+    const ownershipClass = isOwn ? '' : ' other';
+    let html = `<div class="yt-annotator-citation${ownershipClass}">`;
 
     switch(citation.type) {
       case 'youtube':
@@ -391,6 +407,9 @@
             const horizontalWidth = Math.abs(horizontalOffset) + 2;
             const horizontalLeft = Math.min(markerXRelativeToPopup, popupCenterX) - 1;
 
+            // Connector color matches ownership: teal for mine, lighter grey for others
+            const connectorColor = annotation.isOwn ? '#0497a6' : '#888888';
+
             // Create three line segments
             const verticalTop = document.createElement('div');
             verticalTop.className = 'yt-annotator-connector-vertical-top';
@@ -401,7 +420,7 @@
               transform: translateX(-50%);
               width: 2px;
               height: ${elbowHeight + 1}px;
-              background: #0497a6;
+              background: ${connectorColor};
             `;
 
             const horizontal = document.createElement('div');
@@ -412,7 +431,7 @@
               left: ${horizontalLeft}px;
               width: ${horizontalWidth}px;
               height: 2px;
-              background: #0497a6;
+              background: ${connectorColor};
             `;
 
             const verticalBottom = document.createElement('div');
@@ -424,7 +443,7 @@
               transform: translateX(-50%);
               width: 2px;
               height: ${remainingHeight}px;
-              background: #0497a6;
+              background: ${connectorColor};
             `;
 
             connector.appendChild(verticalTop);
@@ -459,9 +478,9 @@
     popup.className = 'yt-annotator-popup';
 
     const deleteButton = isShared ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
-    const badge = isShared ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">YOU</span>';
+    const badge = isShared ? '<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU</span>';
 
-    const citationHTML = formatCitation(annotation.citation);
+    const citationHTML = formatCitation(annotation.citation, !isShared);
     const creationTime = formatCreationTime(annotation.createdAt);
     const creationTimeHTML = creationTime ? `<div class="yt-annotator-creation-time">Created ${creationTime}</div>` : '';
 
@@ -506,7 +525,8 @@
 
             // Update local storage
             annotations[videoId] = updatedAnnotations;
-            await chrome.storage.local.set({ [`annotations_${videoId}`]: updatedAnnotations });
+            const storageKey = getAnnotationsStorageKey(videoId);
+            await chrome.storage.local.set({ [storageKey]: updatedAnnotations });
 
             // Re-fetch all annotations to update display
             await fetchAllAnnotations(videoId);
@@ -753,7 +773,7 @@
 
     sidebarButton = document.createElement('button');
     sidebarButton.className = 'yt-annotator-sidebar-btn';
-    sidebarButton.innerHTML = '📋';
+    sidebarButton.innerHTML = '≡';
     sidebarButton.title = 'View all annotations';
 
     sidebarButton.addEventListener('click', (e) => {
@@ -773,10 +793,18 @@
       }
       sidebar.classList.add('yt-annotator-sidebar-open');
       updateSidebarContent();
+
+      // Move buttons to the left when sidebar opens
+      if (addButton) addButton.classList.add('sidebar-open');
+      if (sidebarButton) sidebarButton.classList.add('sidebar-open');
     } else {
       if (sidebar) {
         sidebar.classList.remove('yt-annotator-sidebar-open');
       }
+
+      // Move buttons back when sidebar closes
+      if (addButton) addButton.classList.remove('sidebar-open');
+      if (sidebarButton) sidebarButton.classList.remove('sidebar-open');
     }
   }
 

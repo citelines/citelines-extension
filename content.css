@@ -1,31 +1,34 @@
-/* Annotation markers on the progress bar */
+/* Annotation markers on the progress bar - triangles pointing down */
 .yt-annotator-marker {
   position: absolute;
-  top: -4px;
-  width: 8px;
-  height: 8px;
-  background-color: #0497a6;
-  border-radius: 50%;
+  top: -10px;
+  width: 0;
+  height: 0;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 10px solid #0497a6;
   transform: translateX(-50%);
   cursor: pointer;
   z-index: 9999;
   transition: transform 0.15s ease;
-  box-shadow: 0 0 4px rgba(0, 217, 255, 0.6);
+  filter: drop-shadow(0 0 3px rgba(4, 151, 166, 0.6)) drop-shadow(0 0 0 1px #3a3a3a);
 }
 
 .yt-annotator-marker:hover {
-  transform: translateX(-50%) scale(1.4);
-  box-shadow: 0 0 6px rgba(0, 217, 255, 0.8);
+  transform: translateX(-50%) scale(1.3);
+  filter: drop-shadow(0 0 5px rgba(4, 151, 166, 0.8)) drop-shadow(0 0 0 1px #3a3a3a);
 }
 
-/* Shared annotation markers (view-only mode) */
+/* Shared annotation markers (other users) */
 .yt-annotator-marker-shared {
-  background-color: #2196F3;
-  opacity: 0.8;
+  border-top-color: #888888;
+  filter: drop-shadow(0 0 3px rgba(136, 136, 136, 0.6));
+  opacity: 0.9;
 }
 
 .yt-annotator-marker-shared:hover {
   opacity: 1;
+  filter: drop-shadow(0 0 5px rgba(136, 136, 136, 0.8));
 }
 
 /* Annotation popup */
@@ -160,7 +163,7 @@
 .yt-annotator-add-btn {
   position: absolute;
   right: 12px;
-  bottom: 48px;
+  bottom: 80px;
   background: rgba(0, 217, 255, 0.9);
   color: #000;
   border: none;
@@ -173,9 +176,13 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  z-index: 10002;
+  transition: transform 0.15s ease, background-color 0.15s ease, right 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(0, 217, 255, 0.4);
+}
+
+.yt-annotator-add-btn.sidebar-open {
+  right: 362px;
 }
 
 .yt-annotator-add-btn:hover {
@@ -321,7 +328,7 @@ a.yt-annotator-citation-title:hover {
 .yt-annotator-sidebar-btn {
   position: absolute;
   right: 12px;
-  bottom: 92px;
+  bottom: 124px;
   background: rgba(4, 151, 166, 0.9);
   color: #000;
   border: none;
@@ -333,9 +340,13 @@ a.yt-annotator-citation-title:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 9999;
-  transition: transform 0.15s ease, background-color 0.15s ease;
+  z-index: 10002;
+  transition: transform 0.15s ease, background-color 0.15s ease, right 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(4, 151, 166, 0.4);
+}
+
+.yt-annotator-sidebar-btn.sidebar-open {
+  right: 362px;
 }
 
 .yt-annotator-sidebar-btn:hover {
@@ -483,6 +494,7 @@ a.yt-annotator-citation-title:hover {
 /* Sidebar Item */
 .yt-annotator-sidebar-item {
   background: rgba(255, 255, 255, 0.03);
+  border: 2px solid #3a3a3a;
   border-left: 3px solid #0497a6;
   border-radius: 6px;
   padding: 12px;
@@ -492,7 +504,7 @@ a.yt-annotator-citation-title:hover {
 }
 
 .yt-annotator-sidebar-item.other {
-  border-left-color: #2196F3;
+  border-left: 2px solid #3a3a3a;
 }
 
 .yt-annotator-sidebar-item:hover {
@@ -515,10 +527,6 @@ a.yt-annotator-citation-title:hover {
   font-family: 'Roboto Mono', monospace;
 }
 
-.yt-annotator-sidebar-item.other .yt-annotator-sidebar-time {
-  color: #2196F3;
-}
-
 .yt-annotator-sidebar-badge {
   font-size: 10px;
   font-weight: 600;
@@ -529,10 +537,11 @@ a.yt-annotator-citation-title:hover {
 .yt-annotator-sidebar-badge.own {
   background: #0497a6;
   color: #000;
+  border: 2px solid #3a3a3a;
 }
 
 .yt-annotator-sidebar-badge.other {
-  background: #2196F3;
+  background: #3a3a3a;
   color: #fff;
 }
 
