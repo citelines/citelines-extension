@@ -49,7 +49,7 @@
 /* Connector line container */
 .yt-annotator-popup-connector {
   position: absolute;
-  bottom: -1px;
+  top: 100%;
   left: 0;
   width: 100%;
   background: transparent;
@@ -348,7 +348,7 @@ a.yt-annotator-citation-title:hover {
 .yt-annotator-sidebar {
   position: absolute;
   top: 0;
-  right: -350px;
+  right: -360px;
   width: 350px;
   height: 100%;
   background: rgba(20, 20, 20, 0.98);

@@ -347,34 +347,39 @@
       requestAnimationFrame(() => {
         try {
           const popupRect = popup.getBoundingClientRect();
+          const playerRect = playerContainer.getBoundingClientRect();
 
           // Create connector line
           const connector = document.createElement('div');
           connector.className = 'yt-annotator-popup-connector';
 
-          // Calculate connector horizontal position (relative to popup)
-          const connectorLeft = markerAbsoluteX - popupRect.left;
-          connector.style.left = `${connectorLeft}px`;
-
           // Calculate connector geometry
+          // Connector starts at popup's bottom edge (top: 100% in CSS)
           const popupBottom = popupRect.bottom;
-          const progressBarTop = progressBarRect.top;
-          const totalHeight = Math.abs(progressBarTop - popupBottom);
+          // Markers are positioned at top: -4px, so their top edge is 4px above progress bar
+          const markerTop = progressBarRect.top - 4;
+          const totalHeight = Math.abs(markerTop - popupBottom);
 
           console.log('[Connector] Total height:', totalHeight);
           console.log('[Positions] Popup left:', popupRect.left, 'width:', popupRect.width);
+          console.log('[Positions] Player left:', playerRect.left);
           console.log('[Positions] Marker absolute X:', markerAbsoluteX);
           console.log('[Positions] Progress bar left:', progressBarRect.left, 'width:', progressBarRect.width);
 
           // Only show connector if there's a reasonable gap
           if (totalHeight >= 10) {
-            // Calculate positions
-            const popupCenterX = popupRect.width / 2;
-            const markerX = markerAbsoluteX - popupRect.left;
-            const horizontalOffset = markerX - popupCenterX;
+            // Calculate positions relative to popup's border box
+            // Connector container has left: 0, so it starts at popup's left edge
+            const popupBorderWidth = popup.offsetWidth;
+            const popupCenterX = popupBorderWidth / 2;
 
-            console.log('[Calc] Popup center X:', popupCenterX);
-            console.log('[Calc] Marker X relative to popup:', markerX);
+            // Marker position relative to popup's border box (left edge)
+            const markerXRelativeToPopup = markerAbsoluteX - popupRect.left;
+            const horizontalOffset = markerXRelativeToPopup - popupCenterX;
+
+            console.log('[Calc] Popup border width:', popupBorderWidth);
+            console.log('[Calc] Popup center X (border box):', popupCenterX);
+            console.log('[Calc] Marker X relative to popup:', markerXRelativeToPopup);
             console.log('[Calc] Horizontal offset:', horizontalOffset);
 
             // Elbow at 30% down from popup
@@ -382,8 +387,9 @@
             const remainingHeight = totalHeight - elbowHeight;
 
             // Calculate horizontal line position
-            const horizontalWidth = Math.abs(horizontalOffset);
-            const horizontalLeft = Math.min(markerX, popupCenterX);
+            // Extend by 1px on each side to overlap with vertical lines (2px total)
+            const horizontalWidth = Math.abs(horizontalOffset) + 2;
+            const horizontalLeft = Math.min(markerXRelativeToPopup, popupCenterX) - 1;
 
             // Create three line segments
             const verticalTop = document.createElement('div');
@@ -394,7 +400,7 @@
               left: ${popupCenterX}px;
               transform: translateX(-50%);
               width: 2px;
-              height: ${elbowHeight}px;
+              height: ${elbowHeight + 1}px;
               background: #0497a6;
             `;
 
@@ -414,7 +420,7 @@
             verticalBottom.style.cssText = `
               position: absolute;
               top: ${elbowHeight}px;
-              left: ${markerX}px;
+              left: ${markerXRelativeToPopup}px;
               transform: translateX(-50%);
               width: 2px;
               height: ${remainingHeight}px;
