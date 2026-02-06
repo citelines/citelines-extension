@@ -354,32 +354,73 @@
           const connectorLeft = markerAbsoluteX - popupRect.left;
           connector.style.left = `${connectorLeft}px`;
 
-          // Calculate connector height (from popup bottom to progress bar)
+          // Calculate connector geometry
           const popupBottom = popupRect.bottom;
           const progressBarTop = progressBarRect.top;
-          const connectorHeight = Math.abs(progressBarTop - popupBottom);
+          const totalHeight = Math.abs(progressBarTop - popupBottom);
 
-          console.log('[Connector] Height:', connectorHeight, 'Left:', connectorLeft);
+          console.log('[Connector] Total height:', totalHeight);
 
-          // Only show connector if there's a reasonable gap (at least 5px)
-          if (connectorHeight >= 5) {
-            connector.style.height = `${connectorHeight}px`;
+          // Only show connector if there's a reasonable gap
+          if (totalHeight >= 10) {
+            // Calculate positions
+            const popupCenterX = popupRect.width / 2;
+            const markerX = markerAbsoluteX - popupRect.left;
+            const horizontalOffset = markerX - popupCenterX;
 
-            // Calculate horizontal offset for the elbow
-            // Horizontal distance from popup center to marker
-            const popupCenter = popupRect.left + (popupRect.width / 2);
-            const horizontalOffset = markerAbsoluteX - popupCenter;
-            const absOffset = Math.abs(horizontalOffset);
-            const direction = horizontalOffset >= 0 ? 'right' : 'left';
+            // Elbow at 30% down from popup
+            const elbowHeight = totalHeight * 0.3;
+            const remainingHeight = totalHeight - elbowHeight;
 
-            connector.style.setProperty('--horizontal-offset', `${absOffset}px`);
-            connector.style.setProperty('--direction', direction);
-            connector.classList.add(`yt-annotator-connector-${direction}`);
+            // Create three line segments
+            const verticalTop = document.createElement('div');
+            verticalTop.className = 'yt-annotator-connector-vertical-top';
+            verticalTop.style.cssText = `
+              position: absolute;
+              top: 0;
+              left: 50%;
+              transform: translateX(-50%);
+              width: 2px;
+              height: ${elbowHeight}px;
+              background: #0497a6;
+            `;
+
+            const horizontal = document.createElement('div');
+            horizontal.className = 'yt-annotator-connector-horizontal';
+            const horizontalWidth = Math.abs(horizontalOffset);
+            const horizontalLeft = horizontalOffset >= 0 ? popupCenterX : (popupCenterX - horizontalWidth);
+            horizontal.style.cssText = `
+              position: absolute;
+              top: ${elbowHeight}px;
+              left: ${horizontalLeft}px;
+              width: ${horizontalWidth}px;
+              height: 2px;
+              background: #0497a6;
+            `;
+
+            const verticalBottom = document.createElement('div');
+            verticalBottom.className = 'yt-annotator-connector-vertical-bottom';
+            verticalBottom.style.cssText = `
+              position: absolute;
+              top: ${elbowHeight}px;
+              left: ${markerX}px;
+              transform: translateX(-50%);
+              width: 2px;
+              height: ${remainingHeight}px;
+              background: #0497a6;
+            `;
+
+            connector.appendChild(verticalTop);
+            connector.appendChild(horizontal);
+            connector.appendChild(verticalBottom);
+
+            // Set connector height
+            connector.style.height = `${totalHeight}px`;
 
             popup.appendChild(connector);
-            console.log('[Connector] Added to popup, offset:', horizontalOffset, 'direction:', direction);
+            console.log('[Connector] Added segments:', {elbowHeight, horizontalOffset, remainingHeight});
           } else {
-            console.log('[Connector] Height too small:', connectorHeight);
+            console.log('[Connector] Height too small:', totalHeight);
           }
         } catch (err) {
           console.error('[Connector] Error:', err);
