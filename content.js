@@ -8,6 +8,10 @@
   let sharedAnnotations = []; // All annotations from all users
   let markersContainer = null;
   let addButton = null;
+  let sidebarButton = null;
+  let sidebar = null;
+  let sidebarOpen = false;
+  let sidebarFilter = 'all'; // 'all', 'mine', 'others'
   let activePopup = null;
   let userShareId = null; // Your share ID for current video
 
@@ -172,6 +176,11 @@
     const ownCount = sharedAnnotations.filter(a => a.isOwn).length;
     const sharedCount = sharedAnnotations.filter(a => !a.isOwn).length;
     console.log(`Rendered ${ownCount} own + ${sharedCount} shared annotations`);
+
+    // Update sidebar if it's open
+    if (sidebarOpen && sidebar) {
+      updateSidebarContent();
+    }
   }
 
   // Format date string
@@ -571,6 +580,157 @@
     playerContainer.appendChild(addButton);
   }
 
+  // Create the sidebar toggle button
+  function createSidebarButton() {
+    if (sidebarButton) return;
+
+    const playerContainer = document.querySelector('#movie_player');
+    if (!playerContainer) return;
+
+    sidebarButton = document.createElement('button');
+    sidebarButton.className = 'yt-annotator-sidebar-btn';
+    sidebarButton.innerHTML = '📋';
+    sidebarButton.title = 'View all annotations';
+
+    sidebarButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
+
+    playerContainer.appendChild(sidebarButton);
+  }
+
+  // Toggle sidebar open/closed
+  function toggleSidebar() {
+    sidebarOpen = !sidebarOpen;
+    if (sidebarOpen) {
+      if (!sidebar) {
+        createSidebar();
+      }
+      sidebar.classList.add('yt-annotator-sidebar-open');
+      updateSidebarContent();
+    } else {
+      if (sidebar) {
+        sidebar.classList.remove('yt-annotator-sidebar-open');
+      }
+    }
+  }
+
+  // Create the sidebar panel
+  function createSidebar() {
+    if (sidebar) return;
+
+    const playerContainer = document.querySelector('#movie_player');
+    if (!playerContainer) return;
+
+    sidebar = document.createElement('div');
+    sidebar.className = 'yt-annotator-sidebar';
+
+    sidebar.innerHTML = `
+      <div class="yt-annotator-sidebar-header">
+        <h3>Annotations</h3>
+        <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
+      </div>
+      <div class="yt-annotator-sidebar-filters">
+        <button class="yt-annotator-filter-btn active" data-filter="all">All</button>
+        <button class="yt-annotator-filter-btn" data-filter="mine">Mine</button>
+        <button class="yt-annotator-filter-btn" data-filter="others">Others</button>
+      </div>
+      <div class="yt-annotator-sidebar-count"></div>
+      <div class="yt-annotator-sidebar-content"></div>
+    `;
+
+    // Close button
+    sidebar.querySelector('.yt-annotator-sidebar-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleSidebar();
+    });
+
+    // Filter buttons
+    sidebar.querySelectorAll('.yt-annotator-filter-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const filter = btn.dataset.filter;
+        sidebarFilter = filter;
+
+        // Update active state
+        sidebar.querySelectorAll('.yt-annotator-filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        updateSidebarContent();
+      });
+    });
+
+    playerContainer.appendChild(sidebar);
+  }
+
+  // Update sidebar content with annotations
+  function updateSidebarContent() {
+    if (!sidebar) return;
+
+    const contentDiv = sidebar.querySelector('.yt-annotator-sidebar-content');
+    const countDiv = sidebar.querySelector('.yt-annotator-sidebar-count');
+
+    // Filter annotations based on selected filter
+    let filtered = sharedAnnotations;
+    if (sidebarFilter === 'mine') {
+      filtered = sharedAnnotations.filter(a => a.isOwn);
+    } else if (sidebarFilter === 'others') {
+      filtered = sharedAnnotations.filter(a => !a.isOwn);
+    }
+
+    // Sort by timestamp
+    filtered = [...filtered].sort((a, b) => a.timestamp - b.timestamp);
+
+    // Update count
+    countDiv.textContent = `${filtered.length} annotation${filtered.length !== 1 ? 's' : ''}`;
+
+    // Generate list HTML
+    if (filtered.length === 0) {
+      contentDiv.innerHTML = '<div class="yt-annotator-sidebar-empty">No annotations yet</div>';
+      return;
+    }
+
+    const listHTML = filtered.map(annotation => {
+      const citationPreview = annotation.citation ?
+        `<div class="yt-annotator-sidebar-citation">
+          ${annotation.citation.type === 'youtube' ? '🎥' : annotation.citation.type === 'movie' ? '🎬' : '📄'}
+          ${escapeHtml(annotation.citation.title || '')}
+        </div>` : '';
+
+      const textPreview = annotation.text ?
+        `<div class="yt-annotator-sidebar-text">${escapeHtml(annotation.text.substring(0, 100))}${annotation.text.length > 100 ? '...' : ''}</div>` : '';
+
+      const ownerClass = annotation.isOwn ? 'own' : 'other';
+      const ownerBadge = annotation.isOwn ? '<span class="yt-annotator-sidebar-badge own">YOU</span>' : '<span class="yt-annotator-sidebar-badge other">OTHER</span>';
+
+      return `
+        <div class="yt-annotator-sidebar-item ${ownerClass}" data-timestamp="${annotation.timestamp}">
+          <div class="yt-annotator-sidebar-item-header">
+            <span class="yt-annotator-sidebar-time">${formatTime(annotation.timestamp)}</span>
+            ${ownerBadge}
+          </div>
+          ${citationPreview}
+          ${textPreview}
+        </div>
+      `;
+    }).join('');
+
+    contentDiv.innerHTML = listHTML;
+
+    // Add click handlers to jump to timestamp
+    contentDiv.querySelectorAll('.yt-annotator-sidebar-item').forEach(item => {
+      item.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const timestamp = parseFloat(item.dataset.timestamp);
+        const video = document.querySelector('video');
+        if (video) {
+          video.currentTime = timestamp;
+        }
+      });
+    });
+  }
+
   // Create share and browse buttons
   function createShareButtons() {
     console.log('[YT Annotator] createShareButtons called');
@@ -737,6 +897,7 @@
 
     createMarkersContainer();
     createAddButton();
+    createSidebarButton();
 
     // Initialize API and fetch all annotations
     try {
