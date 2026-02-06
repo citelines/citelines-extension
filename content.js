@@ -294,66 +294,87 @@
 
   // Position popup near the marker on the progress bar
   function positionPopupNearMarker(popup, annotation, video) {
-    if (!video || !video.duration) return;
-
-    // Calculate marker position as percentage
-    const percentage = (annotation.timestamp / video.duration) * 100;
-
-    // Get the progress bar and player container
-    const progressBar = document.querySelector('.ytp-progress-bar-container');
-    const playerContainer = document.querySelector('#movie_player');
-    if (!progressBar || !playerContainer) return;
-
-    const progressBarRect = progressBar.getBoundingClientRect();
-    const playerRect = playerContainer.getBoundingClientRect();
-
-    // Calculate marker absolute position on the progress bar
-    const markerAbsoluteX = progressBarRect.left + (percentage / 100) * progressBarRect.width;
-
-    // Get popup dimensions
-    const popupWidth = popup.offsetWidth;
-
-    // Constrain popup to middle 40% of video window (30% to 70%)
-    const playerWidth = playerRect.width;
-    const minConstraint = playerWidth * 0.30;
-    const maxConstraint = playerWidth * 0.70;
-
-    // Calculate ideal popup position (centered on marker, relative to player)
-    const markerRelativeToPlayer = markerAbsoluteX - playerRect.left;
-    let popupLeft = markerRelativeToPlayer - (popupWidth / 2);
-
-    // Clamp to middle 40% zone
-    const popupMinLeft = minConstraint - (popupWidth / 2);
-    const popupMaxLeft = maxConstraint - (popupWidth / 2);
-    popupLeft = Math.max(popupMinLeft, Math.min(popupLeft, popupMaxLeft));
-
-    // Position popup
-    popup.style.left = `${popupLeft}px`;
-    popup.style.transform = 'none';
-
-    // Wait for next frame to get accurate popup position
-    requestAnimationFrame(() => {
-      const popupRect = popup.getBoundingClientRect();
-
-      // Create connector line
-      const connector = document.createElement('div');
-      connector.className = 'yt-annotator-popup-connector';
-
-      // Calculate connector horizontal position (relative to popup)
-      const connectorLeft = markerAbsoluteX - popupRect.left;
-      connector.style.left = `${connectorLeft}px`;
-
-      // Calculate connector height (from popup bottom to progress bar)
-      const popupBottom = popupRect.bottom;
-      const progressBarTop = progressBarRect.top;
-      const connectorHeight = progressBarTop - popupBottom;
-
-      if (connectorHeight > 0) {
-        connector.style.height = `${connectorHeight}px`;
+    try {
+      if (!video || !video.duration) {
+        console.log('[Positioning] No video or duration');
+        return;
       }
 
-      popup.appendChild(connector);
-    });
+      // Calculate marker position as percentage
+      const percentage = (annotation.timestamp / video.duration) * 100;
+
+      // Get the progress bar and player container
+      const progressBar = document.querySelector('.ytp-progress-bar-container');
+      const playerContainer = document.querySelector('#movie_player');
+
+      if (!progressBar || !playerContainer) {
+        console.log('[Positioning] Missing progress bar or player container');
+        return;
+      }
+
+      const progressBarRect = progressBar.getBoundingClientRect();
+      const playerRect = playerContainer.getBoundingClientRect();
+
+      // Calculate marker absolute position on the progress bar
+      const markerAbsoluteX = progressBarRect.left + (percentage / 100) * progressBarRect.width;
+
+      // Get popup dimensions
+      const popupWidth = popup.offsetWidth;
+
+      // Constrain popup to middle 40% of video window (30% to 70%)
+      const playerWidth = playerRect.width;
+      const minConstraint = playerWidth * 0.30;
+      const maxConstraint = playerWidth * 0.70;
+
+      // Calculate ideal popup position (centered on marker, relative to player)
+      const markerRelativeToPlayer = markerAbsoluteX - playerRect.left;
+      let popupLeft = markerRelativeToPlayer - (popupWidth / 2);
+
+      // Clamp to middle 40% zone
+      const popupMinLeft = minConstraint - (popupWidth / 2);
+      const popupMaxLeft = maxConstraint - (popupWidth / 2);
+      popupLeft = Math.max(popupMinLeft, Math.min(popupLeft, popupMaxLeft));
+
+      // Position popup
+      popup.style.left = `${popupLeft}px`;
+      popup.style.transform = 'none';
+
+      console.log('[Positioning] Popup positioned at', popupLeft);
+
+      // Wait for next frame to get accurate popup position
+      requestAnimationFrame(() => {
+        try {
+          const popupRect = popup.getBoundingClientRect();
+
+          // Create connector line
+          const connector = document.createElement('div');
+          connector.className = 'yt-annotator-popup-connector';
+
+          // Calculate connector horizontal position (relative to popup)
+          const connectorLeft = markerAbsoluteX - popupRect.left;
+          connector.style.left = `${connectorLeft}px`;
+
+          // Calculate connector height (from popup bottom to progress bar)
+          const popupBottom = popupRect.bottom;
+          const progressBarTop = progressBarRect.top;
+          const connectorHeight = progressBarTop - popupBottom;
+
+          console.log('[Connector] Height:', connectorHeight, 'Left:', connectorLeft);
+
+          if (connectorHeight > 0) {
+            connector.style.height = `${connectorHeight}px`;
+            popup.appendChild(connector);
+            console.log('[Connector] Added to popup');
+          } else {
+            console.log('[Connector] Height not positive:', connectorHeight);
+          }
+        } catch (err) {
+          console.error('[Connector] Error:', err);
+        }
+      });
+    } catch (error) {
+      console.error('[Positioning] Error:', error);
+    }
   }
 
   // Show popup for viewing/editing annotation
