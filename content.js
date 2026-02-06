@@ -186,6 +186,32 @@
     return parts.join(' ');
   }
 
+  // Format creation timestamp for display
+  function formatCreationTime(isoString) {
+    if (!isoString) return '';
+
+    try {
+      const date = new Date(isoString);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffMins = Math.floor(diffMs / 60000);
+      const diffHours = Math.floor(diffMs / 3600000);
+      const diffDays = Math.floor(diffMs / 86400000);
+
+      // Relative time for recent annotations
+      if (diffMins < 1) return 'just now';
+      if (diffMins < 60) return `${diffMins} minute${diffMins !== 1 ? 's' : ''} ago`;
+      if (diffHours < 24) return `${diffHours} hour${diffHours !== 1 ? 's' : ''} ago`;
+      if (diffDays < 7) return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+
+      // Absolute date for older annotations
+      const options = { month: 'short', day: 'numeric', year: 'numeric' };
+      return date.toLocaleDateString('en-US', options);
+    } catch (e) {
+      return '';
+    }
+  }
+
   // Format citation for display
   function formatCitation(citation) {
     if (!citation || !citation.type) return '';
@@ -266,6 +292,8 @@
     const badge = isShared ? '<span style="background: #2196F3; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #ff6b6b; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">YOU</span>';
 
     const citationHTML = formatCitation(annotation.citation);
+    const creationTime = formatCreationTime(annotation.createdAt);
+    const creationTimeHTML = creationTime ? `<div class="yt-annotator-creation-time">Created ${creationTime}</div>` : '';
 
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
@@ -274,6 +302,7 @@
       </div>
       ${citationHTML}
       <div class="yt-annotator-popup-content">${escapeHtml(annotation.text)}</div>
+      ${creationTimeHTML}
       <div class="yt-annotator-popup-actions">
         ${deleteButton}
         <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="goto">Go to</button>

@@ -290,3 +290,13 @@ a.yt-annotator-citation-title:hover {
 .yt-annotator-popup-create .yt-annotator-popup-input {
   min-height: 50px;
 }
+
+/* Creation timestamp */
+.yt-annotator-creation-time {
+  font-size: 11px;
+  color: #888;
+  margin-top: 8px;
+  margin-bottom: 4px;
+  font-style: italic;
+  text-align: right;
+}
