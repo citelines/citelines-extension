@@ -357,16 +357,17 @@
           // Calculate connector height (from popup bottom to progress bar)
           const popupBottom = popupRect.bottom;
           const progressBarTop = progressBarRect.top;
-          const connectorHeight = progressBarTop - popupBottom;
+          const connectorHeight = Math.abs(progressBarTop - popupBottom);
 
           console.log('[Connector] Height:', connectorHeight, 'Left:', connectorLeft);
 
-          if (connectorHeight > 0) {
+          // Only show connector if there's a reasonable gap (at least 5px)
+          if (connectorHeight >= 5) {
             connector.style.height = `${connectorHeight}px`;
             popup.appendChild(connector);
             console.log('[Connector] Added to popup');
           } else {
-            console.log('[Connector] Height not positive:', connectorHeight);
+            console.log('[Connector] Height too small:', connectorHeight);
           }
         } catch (err) {
           console.error('[Connector] Error:', err);
