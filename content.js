@@ -1156,23 +1156,27 @@
       const url = location.href;
       if (url !== lastUrl) {
         lastUrl = url;
+        console.log('[YT Annotator] Navigation detected:', url);
+
         // Reset UI elements for new page
         markersContainer = null;
         addButton = null;
+        sidebarButton = null;
+        sidebar = null;
+        sidebarOpen = false;
         sharedAnnotations = [];
         userShareId = null;
         initialized = false;
         closePopup();
 
-        // Re-initialize after short delay
-        setTimeout(() => {
-          const player = document.querySelector('#movie_player');
-          const video = document.querySelector('video');
-          if (player && video && video.readyState >= 1) {
-            initialized = true;
-            initialize();
-          }
-        }, 1000);
+        // Disconnect previous observer if exists
+        if (playerObserver) {
+          playerObserver.disconnect();
+          playerObserver = null;
+        }
+
+        // Wait for new video player to be ready
+        waitForPlayer();
       }
     }).observe(document, { subtree: true, childList: true });
   }
