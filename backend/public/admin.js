@@ -725,7 +725,7 @@ function renderCitations(citations) {
             <input type="checkbox" id="selectAll" onchange="toggleSelectAll()"
                    ${activeCitations.length === 0 ? 'disabled' : ''}>
           </th>
-          <th>Token</th>
+          <th>Share Token</th>
           <th>Annotation ID</th>
           <th>Video ID</th>
           ${citationColumnHeader('title', 'Title', { showSort: true, showFilter: false })}
