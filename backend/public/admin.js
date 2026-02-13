@@ -67,8 +67,8 @@ document.getElementById('loginForm')?.addEventListener('submit', async (e) => {
     document.getElementById('dashboard').classList.add('active');
     document.getElementById('userInfo').textContent = currentUser.displayName || currentUser.email;
 
-    // Load initial data
-    loadAllData();
+    // Restore last active tab (or load default data)
+    restoreActiveTab();
 
   } catch (error) {
     loginError.textContent = error.message;
@@ -90,7 +90,7 @@ function logout() {
 if (JWT_TOKEN) {
   document.getElementById('loginPage').style.display = 'none';
   document.getElementById('dashboard').classList.add('active');
-  loadAllData();
+  restoreActiveTab();
 }
 
 // ============================================================================
@@ -106,6 +106,9 @@ function switchTab(tabName) {
   document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
   document.getElementById(`${tabName}Tab`).classList.add('active');
 
+  // Save active tab to localStorage
+  localStorage.setItem('admin_active_tab', tabName);
+
   // Load data if needed
   if (tabName === 'users' && usersData.length === 0) {
     loadUsers();
@@ -115,6 +118,42 @@ function switchTab(tabName) {
     loadAnalytics();
   } else if (tabName === 'audit' && auditData.length === 0) {
     loadAudit();
+  }
+}
+
+// Restore last active tab on page load
+function restoreActiveTab() {
+  const savedTab = localStorage.getItem('admin_active_tab');
+  if (savedTab && ['users', 'citations', 'analytics', 'audit'].includes(savedTab)) {
+    // Remove default active states
+    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+    // Find and activate the saved tab
+    const tabs = document.querySelectorAll('.tab');
+    tabs.forEach(tab => {
+      if (tab.textContent.toLowerCase() === savedTab ||
+          (savedTab === 'audit' && tab.textContent === 'Audit Log')) {
+        tab.classList.add('active');
+      }
+    });
+
+    // Activate the saved tab content
+    document.getElementById(`${savedTab}Tab`).classList.add('active');
+
+    // Load data for the saved tab
+    if (savedTab === 'users') {
+      loadUsers();
+    } else if (savedTab === 'citations') {
+      loadCitations();
+    } else if (savedTab === 'analytics') {
+      loadAnalytics();
+    } else if (savedTab === 'audit') {
+      loadAudit();
+    }
+  } else {
+    // Default to users tab
+    loadAllData();
   }
 }
 
