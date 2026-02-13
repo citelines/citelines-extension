@@ -207,15 +207,20 @@ youtube-annotator/
 
 ### Running Locally
 
-1. Start backend:
+1. **Install git hooks** (prevents committing credentials):
+   ```bash
+   ./scripts/install-hooks.sh
+   ```
+
+2. Start backend:
    ```bash
    cd backend
    npm run dev
    ```
 
-2. Load extension in Chrome (see Installation)
+3. Load extension in Chrome (see Installation)
 
-3. Test on YouTube videos
+4. Test on YouTube videos
 
 ### Testing
 
@@ -267,6 +272,16 @@ See [PLAN.md](PLAN.md) for detailed future feature specifications.
 - **SQL injection protection**: Parameterized queries
 - **CORS**: Restricted to extension origins
 - **XSS prevention**: HTML escaping on all user content
+- **Git hooks**: Pre-commit credential scanning prevents accidental leaks
+
+### For Developers
+
+**Important**: Install git hooks after cloning:
+```bash
+./scripts/install-hooks.sh
+```
+
+This installs a pre-commit hook that scans for exposed credentials (database URLs, API keys, passwords) before allowing commits. Prevents GitGuardian alerts and security incidents.
 
 ## Privacy
 
