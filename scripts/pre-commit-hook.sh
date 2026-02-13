@@ -53,9 +53,6 @@ declare -a PATTERNS=(
 
   # Railway-specific (gondola is Railway's proxy)
   "gondola\.proxy\.rlwy\.net"
-
-  # The specific exposed password (should be rotated, but catch it anyway)
-  "***REMOVED***"
 )
 
 # Check each staged file
