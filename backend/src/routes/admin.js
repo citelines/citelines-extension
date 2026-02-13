@@ -743,6 +743,7 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
           annotation_timestamp: annotation.timestamp,
           annotation_count: share.annotations.length,  // Total in this share
           created_at: share.created_at,
+          user_id: share.user_id,  // User ID for linking to user details
           creator_display_name: share.creator_display_name,
           // Annotation-level deletion (soft delete within JSONB)
           annotation_deleted_at: annotation.deleted_at,

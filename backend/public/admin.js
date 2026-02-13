@@ -843,7 +843,9 @@ function renderCitations(citations) {
               <td><code>${citation.annotation_id}</code></td>
               <td>${citation.video_id}</td>
               <td>${citation.title || '-'}</td>
-              <td>${citation.creator_display_name || '-'}</td>
+              <td>${citation.user_id ?
+                `<a href="javascript:void(0)" onclick="openUserDetailsModal('${citation.user_id}')" style="color: #0497a6; text-decoration: none; cursor: pointer;">${citation.creator_display_name}</a>` :
+                (citation.creator_display_name || '-')}</td>
               <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(content)}">${escapeHtml(displayContent)}</td>
               <td>${timestamp}</td>
               <td>
