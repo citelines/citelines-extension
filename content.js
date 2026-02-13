@@ -235,17 +235,38 @@
     );
 
     if (isLikelyAd) {
-      console.log('[Markers] Detected ad playing, waiting for actual video...');
+      console.log(`[Markers] Detected possible ad (duration: ${video.duration}s), waiting for actual video...`);
+      const adDuration = video.duration;
+      let retryAttempted = false;
+
       // Wait for ad to finish and actual video to load
       const waitForActualVideo = () => {
+        if (retryAttempted) return; // Only retry once
+        retryAttempted = true;
+
         const newVideo = document.querySelector('video');
-        if (newVideo && newVideo.duration > 60) {
-          console.log('[Markers] Actual video loaded after ad');
+        // Check if duration has changed significantly (not just > 60s)
+        if (newVideo && newVideo.duration && Math.abs(newVideo.duration - adDuration) > 1) {
+          console.log(`[Markers] Actual video loaded after ad (new duration: ${newVideo.duration}s)`);
+          renderMarkers();
+        } else {
+          console.log(`[Markers] Duration unchanged (${newVideo?.duration}s) - might be false positive, rendering anyway`);
           renderMarkers();
         }
       };
+
       video.addEventListener('ended', waitForActualVideo, { once: true });
       video.addEventListener('durationchange', waitForActualVideo, { once: true });
+
+      // Fallback: if no event fires within 2 seconds, assume false positive and render
+      setTimeout(() => {
+        if (!retryAttempted) {
+          console.log('[Markers] Ad detection timeout - rendering markers anyway');
+          retryAttempted = true;
+          renderMarkers();
+        }
+      }, 2000);
+
       return;
     }
 
