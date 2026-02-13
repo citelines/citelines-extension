@@ -27,11 +27,13 @@ async function logAdminAction(adminId, actionType, targetType, targetId, reason,
 
 /**
  * DELETE /api/admin/citations/:token
- * Soft delete a citation (admin only)
+ * Delete specific annotation or entire share
+ * If annotation_id provided: removes that annotation from JSONB array
+ * If annotation_id not provided: soft-deletes entire share (backward compat)
  */
 router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, res) => {
   const { token } = req.params;
-  const { reason } = req.body;
+  const { reason, annotation_id } = req.body;
 
   if (!reason || reason.trim().length === 0) {
     return res.status(400).json({
@@ -40,9 +42,9 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
     });
   }
 
-  // Find citation
+  // Find share
   const result = await db.query(
-    'SELECT id, share_token FROM shares WHERE share_token = $1',
+    'SELECT id, share_token, annotations, deleted_by_admin FROM shares WHERE share_token = $1',
     [token]
   );
 
@@ -52,31 +54,97 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
     });
   }
 
-  const citation = result.rows[0];
+  const share = result.rows[0];
 
-  // Soft delete
-  await db.query(
-    `UPDATE shares
-     SET deleted_by_admin = $1, deleted_at = NOW(), deletion_reason = $2
-     WHERE share_token = $3`,
-    [req.user.id, reason.trim(), token]
-  );
+  // If specific annotation_id provided, remove just that annotation
+  if (annotation_id) {
+    const annotations = share.annotations || [];
+    const filteredAnnotations = annotations.filter(ann => ann.id !== annotation_id);
 
-  // Log action
-  await logAdminAction(
-    req.user.id,
-    'delete_citation',
-    'citation',
-    citation.id,
-    reason.trim()
-  );
+    if (filteredAnnotations.length === annotations.length) {
+      return res.status(404).json({
+        error: 'Annotation not found',
+        message: 'The specified annotation does not exist in this share'
+      });
+    }
 
-  res.json({
-    message: 'Citation deleted successfully',
-    shareToken: token,
-    deletedBy: req.user.display_name,
-    reason: reason.trim()
-  });
+    // If all annotations removed, soft-delete the entire share
+    if (filteredAnnotations.length === 0) {
+      await db.query(
+        `UPDATE shares
+         SET deleted_by_admin = $1, deleted_at = NOW(), deletion_reason = $2, annotations = '[]'::jsonb
+         WHERE share_token = $3`,
+        [req.user.id, reason.trim(), token]
+      );
+
+      await logAdminAction(
+        req.user.id,
+        'delete_annotation',
+        'annotation',
+        annotation_id,
+        reason.trim(),
+        { share_token: token, last_annotation: true }
+      );
+
+      return res.json({
+        message: 'Last annotation deleted, share soft-deleted',
+        shareToken: token,
+        annotationId: annotation_id,
+        deletedBy: req.user.display_name,
+        reason: reason.trim()
+      });
+    }
+
+    // Otherwise, just remove the annotation from the array
+    await db.query(
+      `UPDATE shares
+       SET annotations = $1
+       WHERE share_token = $2`,
+      [JSON.stringify(filteredAnnotations), token]
+    );
+
+    await logAdminAction(
+      req.user.id,
+      'delete_annotation',
+      'annotation',
+      annotation_id,
+      reason.trim(),
+      { share_token: token, remaining_count: filteredAnnotations.length }
+    );
+
+    res.json({
+      message: 'Annotation deleted successfully',
+      shareToken: token,
+      annotationId: annotation_id,
+      remainingCount: filteredAnnotations.length,
+      deletedBy: req.user.display_name,
+      reason: reason.trim()
+    });
+
+  } else {
+    // No annotation_id: soft-delete entire share (backward compatibility)
+    await db.query(
+      `UPDATE shares
+       SET deleted_by_admin = $1, deleted_at = NOW(), deletion_reason = $2
+       WHERE share_token = $3`,
+      [req.user.id, reason.trim(), token]
+    );
+
+    await logAdminAction(
+      req.user.id,
+      'delete_citation',
+      'citation',
+      share.id,
+      reason.trim()
+    );
+
+    res.json({
+      message: 'Citation deleted successfully (all annotations)',
+      shareToken: token,
+      deletedBy: req.user.display_name,
+      reason: reason.trim()
+    });
+  }
 }));
 
 /**
@@ -458,9 +526,33 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
     [parseInt(limit), parseInt(offset)]
   );
 
+  // Expand each share into individual annotations for admin view
+  const expandedCitations = [];
+
+  result.rows.forEach(share => {
+    if (share.annotations && Array.isArray(share.annotations)) {
+      share.annotations.forEach(annotation => {
+        expandedCitations.push({
+          share_token: share.share_token,
+          annotation_id: annotation.id,  // Individual annotation ID
+          video_id: share.video_id,
+          title: share.title,
+          annotation_text: annotation.text,  // Individual annotation text
+          annotation_timestamp: annotation.timestamp,
+          annotation_count: share.annotations.length,  // Total in this share
+          created_at: share.created_at,
+          creator_display_name: share.creator_display_name,
+          deleted_at: share.deleted_at,
+          deleted_by_display_name: share.deleted_by_display_name,
+          deletion_reason: share.deletion_reason
+        });
+      });
+    }
+  });
+
   res.json({
-    citations: result.rows,
-    count: result.rows.length,
+    citations: expandedCitations,
+    count: expandedCitations.length,
     limit: parseInt(limit),
     offset: parseInt(offset)
   });

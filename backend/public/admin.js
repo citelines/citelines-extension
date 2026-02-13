@@ -251,6 +251,7 @@ function renderCitations(citations) {
           <th>Title</th>
           <th>Creator</th>
           <th>Content</th>
+          <th>Timestamp</th>
           <th>Count</th>
           <th>Status</th>
           <th>Created</th>
@@ -259,14 +260,10 @@ function renderCitations(citations) {
       </thead>
       <tbody>
         ${citations.map(citation => {
-          // Get first annotation text
-          let content = '-';
-          if (citation.annotations && citation.annotations.length > 0) {
-            const firstAnnotation = citation.annotations[0];
-            const text = firstAnnotation.text || '';
-            // Truncate if longer than 80 chars
-            content = text.length > 80 ? text.substring(0, 80) + '...' : text;
-          }
+          // Backend now returns individual annotations (one row per annotation)
+          const content = citation.annotation_text || '-';
+          const displayContent = content.length > 80 ? content.substring(0, 80) + '...' : content;
+          const timestamp = citation.annotation_timestamp ? formatTimestamp(citation.annotation_timestamp) : '-';
 
           return `
             <tr>
@@ -274,7 +271,8 @@ function renderCitations(citations) {
               <td>${citation.video_id}</td>
               <td>${citation.title || '-'}</td>
               <td>${citation.creator_display_name || '-'}</td>
-              <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(content)}">${escapeHtml(content)}</td>
+              <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(content)}">${escapeHtml(displayContent)}</td>
+              <td>${timestamp}</td>
               <td>${citation.annotation_count || 0}</td>
               <td>
                 ${citation.deleted_at ?
@@ -285,7 +283,7 @@ function renderCitations(citations) {
               <td>
                 <div class="action-buttons">
                   ${!citation.deleted_at ?
-                    `<button class="action-btn btn-danger" onclick="openDeleteCitationModal('${citation.share_token}', '${escapeHtml(citation.title || citation.video_id)}')">Delete</button>` :
+                    `<button class="action-btn btn-danger" onclick="openDeleteCitationModal('${citation.share_token}', '${escapeHtml(citation.title || citation.video_id)}', '${citation.annotation_id}')">Delete</button>` :
                     `<button class="action-btn btn-success" onclick="restoreCitation('${citation.share_token}')">Restore</button>`}
                 </div>
               </td>
@@ -380,17 +378,17 @@ function openBlockModal(userId, displayName) {
   document.getElementById('actionModal').classList.add('active');
 }
 
-function openDeleteCitationModal(token, title) {
-  currentAction = { type: 'deleteCitation', token, title };
+function openDeleteCitationModal(token, title, annotationId) {
+  currentAction = { type: 'deleteCitation', token, title, annotationId };
 
-  document.getElementById('modalTitle').textContent = 'Delete Citation';
-  document.getElementById('modalDescription').textContent = `Delete "${title}"?`;
+  document.getElementById('modalTitle').textContent = 'Delete Annotation';
+  document.getElementById('modalDescription').textContent = `Delete annotation from "${title}"?`;
   document.getElementById('modalBody').innerHTML = `
     <div class="form-group">
       <label for="deleteReason">Reason</label>
       <input type="text" id="deleteReason" class="search-box" placeholder="e.g., Inappropriate content" style="width: 100%;">
     </div>
-    <p style="color: #666; font-size: 14px; margin-top: 10px;">This is a soft delete and can be restored later.</p>
+    <p style="color: #666; font-size: 14px; margin-top: 10px;">This will remove only this annotation. If it's the last annotation in the share, the entire share will be soft-deleted.</p>
   `;
   const confirmBtn = document.getElementById('modalConfirmBtn');
   confirmBtn.textContent = 'Delete';
@@ -434,7 +432,8 @@ async function confirmAction() {
       case 'deleteCitation':
         await deleteCitation(
           currentAction.token,
-          document.getElementById('deleteReason').value
+          document.getElementById('deleteReason').value,
+          currentAction.annotationId
         );
         break;
     }
@@ -514,14 +513,21 @@ async function unblockUser(userId) {
   await loadAudit();
 }
 
-async function deleteCitation(token, reason) {
+async function deleteCitation(token, reason, annotationId) {
+  const body = { reason };
+
+  // Include annotation_id if provided (for annotation-level deletion)
+  if (annotationId) {
+    body.annotation_id = annotationId;
+  }
+
   const response = await fetch(`${API_URL}/api/admin/citations/${token}`, {
     method: 'DELETE',
     headers: {
       'Authorization': `Bearer ${JWT_TOKEN}`,
       'Content-Type': 'application/json'
     },
-    body: JSON.stringify({ reason })
+    body: JSON.stringify(body)
   });
 
   if (!response.ok) {
@@ -563,18 +569,17 @@ function filterUsers() {
 function filterCitations() {
   const search = document.getElementById('citationSearch').value.toLowerCase();
   const filtered = citationsData.filter(citation => {
-    // Check token, video ID, title
+    // Check token, video ID, title, creator
     if ((citation.share_token?.toLowerCase().includes(search)) ||
         (citation.video_id?.toLowerCase().includes(search)) ||
-        (citation.title?.toLowerCase().includes(search))) {
+        (citation.title?.toLowerCase().includes(search)) ||
+        (citation.creator_display_name?.toLowerCase().includes(search))) {
       return true;
     }
 
-    // Check annotation content
-    if (citation.annotations && citation.annotations.length > 0) {
-      return citation.annotations.some(ann =>
-        ann.text?.toLowerCase().includes(search)
-      );
+    // Check annotation content (now directly on citation object)
+    if (citation.annotation_text?.toLowerCase().includes(search)) {
+      return true;
     }
 
     return false;
@@ -609,6 +614,13 @@ function formatDateTime(dateString) {
 
 function formatActionType(type) {
   return type.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function formatTimestamp(seconds) {
+  if (!seconds && seconds !== 0) return '-';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
 
 function escapeHtml(text) {
