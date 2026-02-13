@@ -5,7 +5,7 @@
 **Deployment**: ✅ Live on Railway
 **Backend URL**: `https://youtube-annotator-production.up.railway.app`
 **Database**: PostgreSQL on Railway
-**Current Phase**: Phase 3A Complete (Admin Backend)
+**Current Phase**: Phase 3B Complete (Admin Dashboard)
 
 ---
 
@@ -53,54 +53,48 @@
 - Citation soft delete (reversible)
 - Audit logging (`admin_actions` table)
 - Auto-unsuspend when suspension expires
-- **Admin authentication NOT enabled** (security - waiting for JWT-only setup)
+- JWT-only authentication for admin endpoints
+
+### Phase 3B: Admin Web Dashboard ✅
+- Login page with JWT authentication
+- Four tabs: Users | Citations | Analytics | Audit Log
+- **Users Tab**:
+  - Sort and filter on Auth Type, Status, Joined columns
+  - User Details modal with identifiers, citations list, admin action history
+  - Action buttons (View, Suspend, Block/Unblock)
+- **Citations Tab**:
+  - Sort and filter on Creator, Status, Created columns
+  - Renamed columns: "Citation Content", "Video Timestamp"
+  - Removed "Share Size" column
+  - Bulk delete with selection
+- **Analytics Tab**:
+  - User count cards (Total, Temporary, Verified, Unverified)
+  - User interventions (Suspended, Blocked)
+  - Citation status (Active, Deleted)
+  - Color-coded stat cards
+- **Audit Log Tab**:
+  - View all admin actions with search
+- **Filter UI**:
+  - Google Sheets-style dropdowns
+  - Sort A→Z / Z→A options
+  - Select All / Clear All buttons
+  - Fixed positioning (no clipping issues)
+- **User Details Modal**:
+  - Comprehensive user view with identifiers, account status
+  - Full citations list with video IDs
+  - Admin action history
+  - Multiple close options (X button, overlay click, ESC key)
+- Vanilla JS + fetch API, no framework
 
 ---
 
-## Current Phase: Phase 3A Security Setup
+## Next Improvements
 
-### ⚠️ Admin Authentication Required
-
-**Status**: Backend complete, admin access disabled for security
-
-**Issue**: Admin endpoints currently use anonymous ID authentication, which is insecure for high-privilege operations.
-
-**Solution**: Require JWT authentication for admin access
-
-**Options**:
-1. **JWT Authentication (Recommended)** - Register with email/password, use JWT tokens
-2. **IP Whitelist** - Restrict admin endpoints to specific IPs
-3. **Session Timeout** - Require re-auth every hour
-
-See CLAUDE.md Phase 3A section for detailed setup instructions.
-
-**Next Steps**:
-- [ ] Register admin account with email/password
-- [ ] Update `adminAuth.js` to require JWT (reject anonymous)
-- [ ] Test admin endpoints with JWT token
-- [ ] Optionally add IP whitelist
-
----
-
-## Next Phase: Phase 3B
-
-### Admin Web Dashboard
-
-**Goal**: GUI for admin moderation (no CLI/curl required)
-
-**Features**:
-- Simple HTML/CSS/JS admin page
-- Login with admin credentials
-- Tabs: Users | Citations | Audit Log
-- Tables with search/filter
-- Action buttons (suspend, block, delete, restore)
-- Modal forms for reasons/durations
-
-**Implementation**:
-- Serve from `backend/public/admin.html`
-- Vanilla JS + fetch API (no framework needed)
-- JWT authentication required
-- ~3-4 hours of work
+### Admin Dashboard Enhancements
+- **Citation Type Column**: Display citation type (Basic Note, YouTube Video, Movie, Article, etc.) in Citations tab to provide context for "Citation Content"
+- **Date Range Filters**: Implement date range filtering for Joined and Created columns (currently placeholders)
+- **Export Functionality**: Export user/citation data to CSV
+- **Advanced Search**: Full-text search across all fields
 
 ---
 
@@ -139,7 +133,31 @@ See CLAUDE.md Phase 3A section for detailed setup instructions.
 
 ## Recent Fixes & Improvements
 
-### User Profile Modal Feature (Session 2026-02-13)
+### Admin Dashboard Implementation (Session 2026-02-13 PM)
+- Built complete admin web dashboard (`/admin.html`)
+- Implemented JWT authentication with login page
+- Created four-tab interface (Users, Citations, Analytics, Audit Log)
+- **Filter Dropdown System**:
+  - Initially had clipping issues with short tables
+  - Fixed with `position: fixed` and dynamic positioning
+  - Added smart placement (above/below based on available space)
+  - Moved dropdown creation to document.body (eliminated parent container constraints)
+- **Column Configuration**:
+  - Made filters optional per column
+  - Added "Select All" / "Clear All" buttons
+  - Sort-only columns for Display Name, Email, Annotations, Title, Content, Timestamp
+  - Filter+Sort columns for Auth Type, Status, Creator, Joined, Created
+- **User Details Modal**:
+  - Comprehensive view with identifiers, account status, citations, admin actions
+  - Added new admin endpoint: `GET /api/admin/users/:userId`
+  - Multiple close methods (X button, overlay, ESC key, button)
+- **UI Polish**:
+  - Analytics cards with color-coded borders (Temporary=grey, Verified=green, Unverified=yellow)
+  - Removed "Share Size" column from Citations tab
+  - Renamed columns for clarity ("Citation Content", "Video Timestamp")
+- Files: `backend/public/admin.html`, `backend/public/admin.js`, `backend/src/routes/admin.js`
+
+### User Profile Modal Feature (Session 2026-02-13 AM)
 - Clickable badges showing user stats
 - Profile information: citations, videos, join date, recent activity
 - "YOU - pseudonym" format for own profile
@@ -176,16 +194,24 @@ See CLAUDE.md Phase 3A section for detailed setup instructions.
 
 ## Recent Commits
 
-1. `9984285` - Add admin testing helper script
-2. `fc15ff2` - Fix User model to include admin/moderation fields
-3. `b76a874` - Implement admin moderation system (Phase 3A backend)
-4. `a91867a` - Add placeholder message to Sign In modal
-5. `11b0538` - Use grey colors for other users' profile modals
-6. `bb47179` - Apply grey color to other users' display names in profile
-7. `4d9099e` - Update user profile modal with improved formatting
-8. `62967c6` - Fix profile modal to show user's pseudonym
-9. `ab88d9d` - Polish user profile modal based on feedback
-10. `5ef8990` - Add user profile modal - click badges to view stats
+### Today's Admin Dashboard Session (2026-02-13 PM)
+1. `a0ab989` - Add X button, overlay click, and ESC key to close user details modal
+2. `893c97b` - Add detailed User Details modal with identifiers, citations, and admin action history
+3. `a2e2ffa` - Add Select All and Clear All buttons to filter dropdowns
+4. `4e9a781` - Update analytics card border colors: Temporary=grey, Unverified=yellow
+5. `79973bd` - Update Citations tab columns: add/remove filters, rename columns, remove Share Size
+6. `1849f61` - Update column filtering: limit filters to Auth Type, Status, Joined only
+7. `d29deb3` - Improve filter dropdown positioning - attach to column header
+8. `9afcb4d` - Fix filter dropdown clipping issue
+9. `b607b75` - Fix admin dashboard filtering and sorting bugs
+10. `04ae387` - Implement Google Sheets-style column filters
+
+### Earlier Admin Dashboard Work (2026-02-13 AM)
+11. `f7a9a10` - Add filters and sortable columns to Users and Citations tabs
+12. `fb0f3da` - Add Analytics tab and simplify count displays
+13. `c0b0106` - Add dynamic user count display to Users tab
+14. `7a51598` - Add dynamic annotation count display to Citations tab
+15. `22d3358` - Reconcile annotation counts across Users and Citations tabs
 
 ---
 
@@ -232,6 +258,6 @@ node clear-data.js
 
 ---
 
-**Last Updated**: 2026-02-13
-**Status**: Phase 3A backend complete, admin auth setup pending
-**Next**: Enable JWT-only admin authentication → Build admin web dashboard
+**Last Updated**: 2026-02-13 (PM)
+**Status**: Phase 3B complete - Admin dashboard fully functional
+**Next**: Citation type display, date range filters, community moderation features
