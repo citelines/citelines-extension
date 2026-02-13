@@ -1,6 +1,8 @@
 // Admin Dashboard JavaScript
 // YouTube Annotator
 
+console.log('[DEBUG] ===== admin.js loaded at', new Date().toISOString(), '=====');
+
 const API_URL = window.location.origin;
 let JWT_TOKEN = localStorage.getItem('admin_jwt');
 let currentUser = null;
@@ -211,12 +213,11 @@ function renderUsers(users) {
   const columnHeader = (column, label) => {
     const hasFilter = usersFilters[column] && usersFilters[column].length > 0;
     return `
-      <th style="position: relative; user-select: none;">
+      <th style="user-select: none;">
         <span onclick="toggleUserColumnFilter(event, '${column}')" style="cursor: pointer;">
           ${label}
           <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
         </span>
-        <div id="userFilter_${column}" class="filter-dropdown"></div>
       </th>
     `;
   };
@@ -375,6 +376,14 @@ function getSortedFilteredUsers() {
 
 function applyUserFilter() {
   console.log('[DEBUG] Applying user filter, current filters:', JSON.parse(JSON.stringify(usersFilters)));
+
+  // Clean up any lingering dropdowns before re-render
+  if (activeFilterDropdown) {
+    console.log('[DEBUG] Cleaning up activeFilterDropdown before render');
+    activeFilterDropdown.remove();
+    activeFilterDropdown = null;
+  }
+
   const filtered = getSortedFilteredUsers();
   console.log('[DEBUG] Filtered users:', filtered.length, 'out of', usersData.length);
   renderUsers(filtered);
@@ -383,24 +392,49 @@ function applyUserFilter() {
 function toggleUserColumnFilter(event, column) {
   event.stopPropagation();
 
+  console.log('[DEBUG] toggleUserColumnFilter called for column:', column);
+
   const dropdownId = `userFilter_${column}`;
-  const dropdown = document.getElementById(dropdownId);
+
+  // Remove any existing dropdowns for this column
+  const existingDropdowns = document.querySelectorAll(`#${dropdownId}`);
+  existingDropdowns.forEach(d => d.remove());
+
+  let dropdown = document.getElementById(dropdownId);
 
   // Close other dropdowns
   if (activeFilterDropdown && activeFilterDropdown !== dropdown) {
     activeFilterDropdown.classList.remove('active');
+    if (activeFilterDropdown.parentElement === document.body) {
+      activeFilterDropdown.remove();
+    }
   }
 
   // Toggle current dropdown
-  const isActive = dropdown.classList.contains('active');
+  const isActive = dropdown && dropdown.classList.contains('active');
 
   if (isActive) {
     dropdown.classList.remove('active');
+    if (dropdown.parentElement === document.body) {
+      dropdown.remove();
+    }
     activeFilterDropdown = null;
   } else {
+    // Remove old dropdown if it exists
+    if (dropdown && dropdown.parentElement === document.body) {
+      dropdown.remove();
+    }
+
+    // Create new dropdown in body
+    dropdown = document.createElement('div');
+    dropdown.id = dropdownId;
+    dropdown.className = 'filter-dropdown';
+    document.body.appendChild(dropdown);
     // Get unique values for this column
     const uniqueValues = getUniqueUserColumnValues(column);
     const currentFilters = usersFilters[column] || [];
+
+    console.log('Column:', column, 'Unique values:', uniqueValues, 'Current filters:', currentFilters);
 
     // Build dropdown content
     dropdown.innerHTML = `
@@ -413,7 +447,7 @@ function toggleUserColumnFilter(event, column) {
           ${usersSortColumn === column && usersSortDirection === 'desc' ? '✓ ' : ''}Sort Z → A
         </div>
       </div>
-      <div class="filter-section" style="max-height: 300px; overflow-y: auto;">
+      <div class="filter-section">
         <div class="filter-section-title">Filter</div>
         ${uniqueValues.map(value => `
           <label class="filter-option">
@@ -431,8 +465,58 @@ function toggleUserColumnFilter(event, column) {
       </div>
     `;
 
+    console.log('Dropdown HTML length:', dropdown.innerHTML.length);
+    console.log('Dropdown children:', dropdown.children.length);
+    Array.from(dropdown.children).forEach((child, i) => {
+      console.log(`Child ${i}:`, child.className, child.children.length);
+    });
+
     dropdown.classList.add('active');
     activeFilterDropdown = dropdown;
+
+    // Wait for content to render, then position
+    requestAnimationFrame(() => {
+      const triggerElement = event.target.closest('th');
+      const rect = triggerElement.getBoundingClientRect();
+
+      // Get the actual height of dropdown content
+      dropdown.style.visibility = 'hidden';
+      dropdown.style.display = 'block';
+      dropdown.style.maxHeight = 'none';
+      const contentHeight = dropdown.scrollHeight;
+      dropdown.style.visibility = '';
+
+      // Calculate available space
+      const spaceBelow = window.innerHeight - rect.bottom - 20;
+      const spaceAbove = rect.top - 20;
+      const idealMaxHeight = Math.min(400, contentHeight);
+
+      // Decide positioning
+      if (spaceBelow >= idealMaxHeight) {
+        // Position below with full height
+        dropdown.style.top = `${rect.bottom + 5}px`;
+        dropdown.style.bottom = 'auto';
+        dropdown.style.maxHeight = `${idealMaxHeight}px`;
+      } else if (spaceAbove >= idealMaxHeight) {
+        // Position above with full height
+        dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+        dropdown.style.top = 'auto';
+        dropdown.style.maxHeight = `${idealMaxHeight}px`;
+      } else {
+        // Use whichever side has more space
+        if (spaceBelow >= spaceAbove) {
+          dropdown.style.top = `${rect.bottom + 5}px`;
+          dropdown.style.bottom = 'auto';
+          dropdown.style.maxHeight = `${Math.max(250, spaceBelow)}px`;
+        } else {
+          dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+          dropdown.style.top = 'auto';
+          dropdown.style.maxHeight = `${Math.max(250, spaceAbove)}px`;
+        }
+      }
+
+      dropdown.style.left = `${rect.left}px`;
+    });
   }
 }
 
@@ -506,6 +590,12 @@ function closeFilterDropdown() {
   console.log('[DEBUG] closeFilterDropdown called, activeFilterDropdown:', activeFilterDropdown);
   if (activeFilterDropdown) {
     activeFilterDropdown.classList.remove('active');
+
+    // Remove from body if it was appended there
+    if (activeFilterDropdown.parentElement === document.body) {
+      activeFilterDropdown.remove();
+    }
+
     activeFilterDropdown = null;
 
     // Apply filters after closing dropdown (apply both since only one tab is visible)
@@ -556,12 +646,11 @@ function renderCitations(citations) {
   const citationColumnHeader = (column, label) => {
     const hasFilter = citationsFilters[column] && citationsFilters[column].length > 0;
     return `
-      <th style="position: relative; user-select: none;">
+      <th style="user-select: none;">
         <span onclick="toggleCitationColumnFilter(event, '${column}')" style="cursor: pointer;">
           ${label}
           <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
         </span>
-        <div id="citationFilter_${column}" class="filter-dropdown"></div>
       </th>
     `;
   };
@@ -756,19 +845,35 @@ function toggleCitationColumnFilter(event, column) {
   event.stopPropagation();
 
   const dropdownId = `citationFilter_${column}`;
-  const dropdown = document.getElementById(dropdownId);
+  let dropdown = document.getElementById(dropdownId);
 
   // Close other dropdowns
   if (activeFilterDropdown && activeFilterDropdown !== dropdown) {
     activeFilterDropdown.classList.remove('active');
+    if (activeFilterDropdown.parentElement === document.body) {
+      activeFilterDropdown.remove();
+    }
   }
 
-  const isActive = dropdown.classList.contains('active');
+  const isActive = dropdown && dropdown.classList.contains('active');
 
   if (isActive) {
     dropdown.classList.remove('active');
+    if (dropdown.parentElement === document.body) {
+      dropdown.remove();
+    }
     activeFilterDropdown = null;
   } else {
+    // Remove old dropdown if it exists
+    if (dropdown && dropdown.parentElement === document.body) {
+      dropdown.remove();
+    }
+
+    // Create new dropdown in body
+    dropdown = document.createElement('div');
+    dropdown.id = dropdownId;
+    dropdown.className = 'filter-dropdown';
+    document.body.appendChild(dropdown);
     const uniqueValues = getUniqueCitationColumnValues(column);
     const currentFilters = citationsFilters[column] || [];
 
@@ -782,7 +887,7 @@ function toggleCitationColumnFilter(event, column) {
           ${citationsSortColumn === column && citationsSortDirection === 'desc' ? '✓ ' : ''}Sort Z → A
         </div>
       </div>
-      <div class="filter-section" style="max-height: 300px; overflow-y: auto;">
+      <div class="filter-section">
         <div class="filter-section-title">Filter</div>
         ${uniqueValues.map(value => `
           <label class="filter-option">
@@ -802,6 +907,50 @@ function toggleCitationColumnFilter(event, column) {
 
     dropdown.classList.add('active');
     activeFilterDropdown = dropdown;
+
+    // Wait for content to render, then position
+    requestAnimationFrame(() => {
+      const triggerElement = event.target.closest('th');
+      const rect = triggerElement.getBoundingClientRect();
+
+      // Get the actual height of dropdown content
+      dropdown.style.visibility = 'hidden';
+      dropdown.style.display = 'block';
+      dropdown.style.maxHeight = 'none';
+      const contentHeight = dropdown.scrollHeight;
+      dropdown.style.visibility = '';
+
+      // Calculate available space
+      const spaceBelow = window.innerHeight - rect.bottom - 20;
+      const spaceAbove = rect.top - 20;
+      const idealMaxHeight = Math.min(400, contentHeight);
+
+      // Decide positioning
+      if (spaceBelow >= idealMaxHeight) {
+        // Position below with full height
+        dropdown.style.top = `${rect.bottom + 5}px`;
+        dropdown.style.bottom = 'auto';
+        dropdown.style.maxHeight = `${idealMaxHeight}px`;
+      } else if (spaceAbove >= idealMaxHeight) {
+        // Position above with full height
+        dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+        dropdown.style.top = 'auto';
+        dropdown.style.maxHeight = `${idealMaxHeight}px`;
+      } else {
+        // Use whichever side has more space
+        if (spaceBelow >= spaceAbove) {
+          dropdown.style.top = `${rect.bottom + 5}px`;
+          dropdown.style.bottom = 'auto';
+          dropdown.style.maxHeight = `${Math.max(250, spaceBelow)}px`;
+        } else {
+          dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+          dropdown.style.top = 'auto';
+          dropdown.style.maxHeight = `${Math.max(250, spaceAbove)}px`;
+        }
+      }
+
+      dropdown.style.left = `${rect.left}px`;
+    });
   }
 }
 
@@ -1515,7 +1664,7 @@ function escapeHtml(text) {
 
 // Close filter dropdown when clicking outside
 document.addEventListener('click', function(event) {
-  if (activeFilterDropdown && !event.target.closest('.filter-dropdown') && !event.target.closest('.column-filter-btn')) {
+  if (activeFilterDropdown && !event.target.closest('.filter-dropdown') && !event.target.closest('th')) {
     closeFilterDropdown();
   }
 });
