@@ -190,7 +190,16 @@
 
   // Render all markers
   function renderMarkers() {
-    if (!markersContainer) return;
+    console.log(`[Markers] renderMarkers() called, sharedAnnotations count: ${sharedAnnotations.length}`);
+    console.log('[Markers] Breakdown:', {
+      own: sharedAnnotations.filter(a => a.isOwn).length,
+      others: sharedAnnotations.filter(a => !a.isOwn).length
+    });
+
+    if (!markersContainer) {
+      console.log('[Markers] No markers container, skipping render');
+      return;
+    }
 
     const video = document.querySelector('video');
     if (!video) {
