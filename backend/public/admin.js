@@ -1695,26 +1695,47 @@ async function bulkDeleteCitations(citationKeys, reason) {
     };
   });
 
-  // Delete in parallel (limit concurrency to avoid overwhelming server)
-  const batchSize = 3; // Reduced from 5 to avoid rate limiting
-  for (let i = 0; i < citationsToDelete.length; i += batchSize) {
-    const batch = citationsToDelete.slice(i, i + batchSize);
+  // Group citations by share token to avoid race conditions
+  // Citations from the same share must be processed sequentially
+  const citationsByToken = {};
+  citationsToDelete.forEach(citation => {
+    if (!citationsByToken[citation.token]) {
+      citationsByToken[citation.token] = [];
+    }
+    citationsByToken[citation.token].push(citation);
+  });
+
+  console.log('[Bulk Delete] Grouped by token:', Object.keys(citationsByToken).map(token =>
+    `${token}: ${citationsByToken[token].length} citations`
+  ));
+
+  // Process each share's citations sequentially to avoid race conditions
+  // Different shares can be processed in parallel (batch size 3)
+  const shareTokens = Object.keys(citationsByToken);
+  const batchSize = 3;
+
+  for (let i = 0; i < shareTokens.length; i += batchSize) {
+    const tokenBatch = shareTokens.slice(i, i + batchSize);
 
     await Promise.allSettled(
-      batch.map(citation =>
-        deleteCitationRequest(citation.token, reason, citation.annotationId)
-          .then(() => successCount++)
-          .catch(err => {
+      tokenBatch.map(async token => {
+        const citations = citationsByToken[token];
+        // Process this share's citations one at a time
+        for (const citation of citations) {
+          try {
+            await deleteCitationRequest(citation.token, reason, citation.annotationId);
+            successCount++;
+          } catch (err) {
             console.error(`Failed to delete ${citation.key}:`, err);
             failures.push({ citation, error: err.message });
-          })
-      )
+          }
+          confirmBtn.textContent = `Deleting... (${successCount + failures.length}/${totalCount})`;
+        }
+      })
     );
 
-    confirmBtn.textContent = `Deleting... (${successCount + failures.length}/${totalCount})`;
-
-    // Add small delay between batches to avoid rate limiting
-    if (i + batchSize < citationsToDelete.length) {
+    // Add small delay between batches
+    if (i + batchSize < shareTokens.length) {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
