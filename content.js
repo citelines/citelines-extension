@@ -79,9 +79,8 @@
 
         alert(message);
 
-        // Clear local annotations for suspended/blocked users
-        annotations[videoId] = [];
-        await saveAnnotations(videoId, []);
+        // Note: Don't clear existing annotations - they should remain visible locally
+        // The user just can't create new ones while suspended
       }
     }
   }
