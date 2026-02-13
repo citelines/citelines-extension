@@ -33,3 +33,4 @@ CLAUDE.md
 *.swp
 *.swo
 *~
+.admin-credentials.txt
