@@ -125,6 +125,11 @@ router.get('/:token', optionalAuth, asyncHandler(async (req, res) => {
     console.error('Error incrementing view count:', err);
   });
 
+  const isOwner = req.user && req.user.id === share.user_id;
+
+  // Debug logging for ownership issue
+  console.log(`[Share Debug] Token: ${share.share_token}, req.user: ${req.user?.id || 'NONE'}, share.user_id: ${share.user_id}, isOwner: ${isOwner}`);
+
   res.json({
     shareToken: share.share_token,
     videoId: share.video_id,
@@ -132,7 +137,7 @@ router.get('/:token', optionalAuth, asyncHandler(async (req, res) => {
     annotations: share.annotations,
     viewCount: share.view_count,
     createdAt: share.created_at,
-    isOwner: req.user && req.user.id === share.user_id,
+    isOwner,
     userId: share.user_id,
     creatorDisplayName: share.creator_display_name,
     creatorAuthType: share.creator_auth_type
