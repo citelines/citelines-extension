@@ -670,16 +670,22 @@ function renderCitations(citations) {
     </div>
   ` : '';
 
-  const citationColumnHeader = (column, label) => {
+  const citationColumnHeader = (column, label, options = {}) => {
+    const { showFilter = false, showSort = true } = options;
     const hasFilter = citationsFilters[column] && citationsFilters[column].length > 0;
-    return `
-      <th style="user-select: none;">
-        <span onclick="toggleCitationColumnFilter(event, '${column}')" style="cursor: pointer;">
-          ${label}
-          <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
-        </span>
-      </th>
-    `;
+
+    if (showSort || showFilter) {
+      return `
+        <th style="user-select: none;">
+          <span onclick="toggleCitationColumnFilter(event, '${column}')" style="cursor: pointer;">
+            ${label}
+            <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
+          </span>
+        </th>
+      `;
+    } else {
+      return `<th>${label}</th>`;
+    }
   };
 
   const html = countHtml + bulkActionsHtml + `
@@ -691,14 +697,13 @@ function renderCitations(citations) {
                    ${activeCitations.length === 0 ? 'disabled' : ''}>
           </th>
           <th>Token</th>
-          ${citationColumnHeader('video_id', 'Video ID')}
-          ${citationColumnHeader('title', 'Title')}
-          ${citationColumnHeader('creator_display_name', 'Creator')}
-          <th>Content</th>
-          <th>Timestamp</th>
-          <th>Share Size</th>
-          ${citationColumnHeader('status', 'Status')}
-          ${citationColumnHeader('created_at', 'Created')}
+          <th>Video ID</th>
+          ${citationColumnHeader('title', 'Title', { showSort: true, showFilter: false })}
+          ${citationColumnHeader('creator_display_name', 'Creator', { showSort: true, showFilter: true })}
+          ${citationColumnHeader('annotation_text', 'Citation Content', { showSort: true, showFilter: false })}
+          ${citationColumnHeader('annotation_timestamp', 'Video Timestamp', { showSort: true, showFilter: false })}
+          ${citationColumnHeader('status', 'Status', { showSort: true, showFilter: true })}
+          ${citationColumnHeader('created_at', 'Created', { showSort: true, showFilter: true })}
           <th>Actions</th>
         </tr>
       </thead>
@@ -733,7 +738,6 @@ function renderCitations(citations) {
               <td>${citation.creator_display_name || '-'}</td>
               <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(content)}">${escapeHtml(displayContent)}</td>
               <td>${timestamp}</td>
-              <td>${citation.annotation_count || 0}</td>
               <td>
                 ${isDeleted ?
                   '<span class="badge badge-deleted">Deleted</span>' :
@@ -835,13 +839,13 @@ function getSortedFilteredCitations() {
         valA = (a.creator_display_name || '').toLowerCase();
         valB = (b.creator_display_name || '').toLowerCase();
         break;
+      case 'annotation_text':
+        valA = (a.annotation_text || '').toLowerCase();
+        valB = (b.annotation_text || '').toLowerCase();
+        break;
       case 'annotation_timestamp':
         valA = a.annotation_timestamp || 0;
         valB = b.annotation_timestamp || 0;
-        break;
-      case 'annotation_count':
-        valA = a.annotation_count || 0;
-        valB = b.annotation_count || 0;
         break;
       case 'status':
         valA = (a.annotation_deleted_at || a.share_deleted_at) ? 1 : 0;
@@ -901,8 +905,42 @@ function toggleCitationColumnFilter(event, column) {
     dropdown.id = dropdownId;
     dropdown.className = 'filter-dropdown';
     document.body.appendChild(dropdown);
-    const uniqueValues = getUniqueCitationColumnValues(column);
+
+    // Determine if this column should show filter options
+    const filterableColumns = ['creator_display_name', 'status', 'created_at'];
+    const showFilter = filterableColumns.includes(column);
+
+    // Get unique values for this column if filterable
+    const uniqueValues = showFilter ? getUniqueCitationColumnValues(column) : [];
     const currentFilters = citationsFilters[column] || [];
+
+    // Build dropdown content
+    let filterSection = '';
+    if (showFilter && column === 'created_at') {
+      // Date range filter for Created column (placeholder)
+      filterSection = `
+        <div class="filter-section">
+          <div class="filter-section-title">Filter by Date</div>
+          <div style="padding: 10px; color: #666; font-size: 13px;">Date range filtering coming soon...</div>
+        </div>
+      `;
+    } else if (showFilter) {
+      // Standard checkbox filter
+      filterSection = `
+        <div class="filter-section">
+          <div class="filter-section-title">Filter</div>
+          ${uniqueValues.map(value => `
+            <label class="filter-option">
+              <input type="checkbox"
+                     value="${escapeHtml(value)}"
+                     ${currentFilters.includes(value) ? 'checked' : ''}
+                     onchange="updateCitationColumnFilter('${column}', this)">
+              <span>${escapeHtml(value || '(Empty)')}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+    }
 
     dropdown.innerHTML = `
       <div class="filter-section">
@@ -914,20 +952,9 @@ function toggleCitationColumnFilter(event, column) {
           ${citationsSortColumn === column && citationsSortDirection === 'desc' ? '✓ ' : ''}Sort Z → A
         </div>
       </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Filter</div>
-        ${uniqueValues.map(value => `
-          <label class="filter-option">
-            <input type="checkbox"
-                   value="${escapeHtml(value)}"
-                   ${currentFilters.includes(value) ? 'checked' : ''}
-                   onchange="updateCitationColumnFilter('${column}', this)">
-            <span>${escapeHtml(value || '(Empty)')}</span>
-          </label>
-        `).join('')}
-      </div>
+      ${filterSection}
       <div class="filter-actions">
-        <button onclick="clearCitationColumnFilter('${column}')" style="background: #f5f5f5; color: #333;">Clear</button>
+        ${showFilter ? '<button onclick="clearCitationColumnFilter(\'' + column + '\')" style="background: #f5f5f5; color: #333;">Clear</button>' : ''}
         <button onclick="closeFilterDropdown()" class="btn" style="background: #0497a6; color: white;">Done</button>
       </div>
     `;
