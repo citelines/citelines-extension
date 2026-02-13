@@ -1169,7 +1169,7 @@ function renderAnalytics(data) {
           <div class="stat-label">Total Users</div>
           <div class="stat-value">${data.users.total}</div>
         </div>
-        <div class="stat-card warning">
+        <div class="stat-card neutral">
           <div class="stat-label">Temporary</div>
           <div class="stat-value">${data.users.temporary}</div>
           <div class="stat-subtitle">Anonymous accounts</div>
@@ -1179,7 +1179,7 @@ function renderAnalytics(data) {
           <div class="stat-value">${data.users.verified}</div>
           <div class="stat-subtitle">Email verified</div>
         </div>
-        <div class="stat-card neutral">
+        <div class="stat-card caution">
           <div class="stat-label">Unverified</div>
           <div class="stat-value">${data.users.unverified}</div>
           <div class="stat-subtitle">Pending verification</div>
