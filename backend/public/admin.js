@@ -771,7 +771,10 @@ function renderCitations(citations) {
   const bulkActionsHtml = activeCitations.length > 0 ? `
     <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
       <button class="btn btn-danger" onclick="openBulkDeleteModal()" id="bulkDeleteBtn" disabled>
-        Delete Selected (<span id="selectedCount">0</span>)
+        Delete Selected (<span id="deleteSelectedCount">0</span>)
+      </button>
+      <button class="btn btn-success" onclick="openBulkRestoreModal()" id="bulkRestoreBtn" disabled>
+        Restore Selected (<span id="restoreSelectedCount">0</span>)
       </button>
       <button class="btn" onclick="clearSelection()">Clear Selection</button>
     </div>
@@ -836,8 +839,8 @@ function renderCitations(citations) {
                        data-share-token="${citation.share_token}"
                        data-annotation-id="${citation.annotation_id}"
                        data-title="${escapeHtml(citation.title || citation.video_id)}"
+                       data-deleted="${isDeleted ? 'true' : 'false'}"
                        onchange="toggleCitationSelection('${citationKey}')"
-                       ${isDeleted ? 'disabled' : ''}
                        ${isSelected ? 'checked' : ''}>
               </td>
               <td><code>${citation.share_token}</code></td>
@@ -1523,6 +1526,12 @@ async function confirmAction() {
           document.getElementById('bulkDeleteReason').value
         );
         break;
+      case 'bulkRestore':
+        await bulkRestoreCitations(
+          currentAction.citationKeys,
+          document.getElementById('bulkRestoreReason').value
+        );
+        break;
     }
 
     closeModal();
@@ -1692,7 +1701,7 @@ function toggleCitationSelection(citationKey) {
 
 function toggleSelectAll() {
   const selectAllCheckbox = document.getElementById('selectAll');
-  const checkboxes = document.querySelectorAll('.citation-checkbox:not([disabled])');
+  const checkboxes = document.querySelectorAll('.citation-checkbox');
 
   if (selectAllCheckbox.checked) {
     checkboxes.forEach(cb => {
@@ -1717,21 +1726,44 @@ function clearSelection() {
 }
 
 function updateBulkActionButtons() {
-  const count = selectedCitations.size;
-  const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
-  const selectedCountSpan = document.getElementById('selectedCount');
+  // Count active vs deleted selections
+  let activeCount = 0;
+  let deletedCount = 0;
 
+  selectedCitations.forEach(key => {
+    const checkbox = document.querySelector(`.citation-checkbox[data-citation-key="${key}"]`);
+    if (checkbox) {
+      if (checkbox.dataset.deleted === 'true') {
+        deletedCount++;
+      } else {
+        activeCount++;
+      }
+    }
+  });
+
+  // Update Delete Selected button (for active citations)
+  const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+  const deleteSelectedCountSpan = document.getElementById('deleteSelectedCount');
   if (bulkDeleteBtn) {
-    bulkDeleteBtn.disabled = count === 0;
+    bulkDeleteBtn.disabled = activeCount === 0;
+  }
+  if (deleteSelectedCountSpan) {
+    deleteSelectedCountSpan.textContent = activeCount;
   }
 
-  if (selectedCountSpan) {
-    selectedCountSpan.textContent = count;
+  // Update Restore Selected button (for deleted citations)
+  const bulkRestoreBtn = document.getElementById('bulkRestoreBtn');
+  const restoreSelectedCountSpan = document.getElementById('restoreSelectedCount');
+  if (bulkRestoreBtn) {
+    bulkRestoreBtn.disabled = deletedCount === 0;
+  }
+  if (restoreSelectedCountSpan) {
+    restoreSelectedCountSpan.textContent = deletedCount;
   }
 
   // Update "select all" checkbox state
   const selectAllCheckbox = document.getElementById('selectAll');
-  const checkboxes = document.querySelectorAll('.citation-checkbox:not([disabled])');
+  const checkboxes = document.querySelectorAll('.citation-checkbox');
   if (selectAllCheckbox && checkboxes.length > 0) {
     const allChecked = Array.from(checkboxes).every(cb => cb.checked);
     selectAllCheckbox.checked = allChecked;
@@ -1831,6 +1863,86 @@ async function bulkDeleteCitations(citationKeys, reason) {
     alert(`Deleted ${successCount} annotation(s). ${failures.length} failed:\n\n${failureDetails}`);
   } else {
     alert(`Successfully deleted ${successCount} annotation(s).`);
+  }
+
+  await loadCitations();
+  await loadAudit();
+}
+
+function openBulkRestoreModal() {
+  if (selectedCitations.size === 0) return;
+
+  // Filter to only deleted citations
+  const deletedKeys = Array.from(selectedCitations).filter(key => {
+    const checkbox = document.querySelector(`.citation-checkbox[data-citation-key="${key}"]`);
+    return checkbox && checkbox.dataset.deleted === 'true';
+  });
+
+  if (deletedKeys.length === 0) {
+    alert('No deleted citations selected.');
+    return;
+  }
+
+  currentAction = { type: 'bulkRestore', citationKeys: deletedKeys };
+
+  document.getElementById('modalTitle').textContent = 'Restore Multiple Annotations';
+  document.getElementById('modalDescription').textContent = `Restore ${deletedKeys.length} annotation(s)?`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group">
+      <label for="bulkRestoreReason">Reason</label>
+      <input type="text" id="bulkRestoreReason" class="search-box" placeholder="e.g., False positive" style="width: 100%;">
+    </div>
+    <p style="color: #666; font-size: 14px; margin-top: 10px;">This will restore ${deletedKeys.length} annotation(s).</p>
+  `;
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = 'Restore All';
+  confirmBtn.className = 'btn btn-success';
+  confirmBtn.disabled = false;
+  document.getElementById('actionModal').classList.add('active');
+}
+
+async function bulkRestoreCitations(citationKeys, reason) {
+  const totalCount = citationKeys.length;
+  let successCount = 0;
+  const failures = [];
+
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = `Restoring... (0/${totalCount})`;
+
+  // Get citation data from checkboxes
+  const citationsToRestore = citationKeys.map(key => {
+    const checkbox = document.querySelector(`[data-citation-key="${key}"]`);
+    return {
+      key,
+      token: checkbox.dataset.shareToken,
+      annotationId: checkbox.dataset.annotationId,
+      title: checkbox.dataset.title
+    };
+  });
+
+  // Process each citation
+  for (let i = 0; i < citationsToRestore.length; i++) {
+    const citation = citationsToRestore[i];
+    try {
+      await restoreAnnotation(citation.token, citation.annotationId, reason);
+      successCount++;
+      confirmBtn.textContent = `Restoring... (${successCount}/${totalCount})`;
+    } catch (error) {
+      console.error(`Failed to restore citation ${citation.token}:${citation.annotationId}:`, error);
+      failures.push({ citation, error: error.message });
+    }
+  }
+
+  closeModal();
+
+  // Clear selection
+  selectedCitations.clear();
+
+  if (failures.length > 0) {
+    const failureDetails = failures.map(f => `- ${f.citation.title} (${f.citation.token}): ${f.error}`).join('\n');
+    alert(`Restored ${successCount} annotation(s). ${failures.length} failed:\n\n${failureDetails}`);
+  } else {
+    alert(`Successfully restored ${successCount} annotation(s).`);
   }
 
   await loadCitations();
