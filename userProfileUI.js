@@ -116,6 +116,11 @@ class UserProfileUI {
     if (profile.displayName) {
       const displayName = this.isOwn ? `YOU - ${profile.displayName}` : profile.displayName;
       nameElement.textContent = displayName;
+
+      // Apply grey color for other users
+      if (!this.isOwn) {
+        nameElement.style.color = '#888';
+      }
     }
 
     // Update subtitle
