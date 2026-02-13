@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const sharesRoutes = require('./routes/shares');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
+const { setupCounterResetJobs } = require('./jobs/resetCounters');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -126,6 +127,9 @@ app.listen(PORT, () => {
   console.log(`YouTube Annotator API server running on port ${PORT}`);
   console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
+
+  // Setup cron jobs for resetting rate limit counters
+  setupCounterResetJobs();
 });
 
 // Handle unhandled promise rejections

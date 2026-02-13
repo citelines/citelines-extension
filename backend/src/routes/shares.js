@@ -10,6 +10,11 @@ const {
   sanitizeText
 } = require('../utils/validator');
 const { asyncHandler } = require('../middleware/errorHandler');
+const {
+  rateLimitCitations,
+  incrementCitationCount,
+  getRateLimitStats
+} = require('../middleware/rateLimiter');
 
 const router = express.Router();
 
@@ -18,7 +23,7 @@ const router = express.Router();
  * Create a new share
  * Requires authentication
  */
-router.post('/', authenticateAnonymous, asyncHandler(async (req, res) => {
+router.post('/', authenticateAnonymous, rateLimitCitations, asyncHandler(async (req, res) => {
   const { videoId, title, annotations, isPublic = true } = req.body;
 
   // Validate video ID
@@ -46,16 +51,6 @@ router.post('/', authenticateAnonymous, asyncHandler(async (req, res) => {
     });
   }
 
-  // Rate limiting: Check user's recent shares
-  const userShareCount = await Share.countByUserId(req.user.id);
-  if (userShareCount > 100) {
-    // Basic rate limiting - can be enhanced with time-based checks
-    return res.status(429).json({
-      error: 'Rate limit exceeded',
-      message: 'Too many shares created. Please try again later.'
-    });
-  }
-
   // Generate unique share token
   const shareToken = await generateUniqueShareToken(
     (token) => Share.exists(token)
@@ -72,6 +67,11 @@ router.post('/', authenticateAnonymous, asyncHandler(async (req, res) => {
     title: sanitizedTitle,
     annotations,
     isPublic
+  });
+
+  // Increment citation count (async, don't wait)
+  incrementCitationCount(req.user.id, videoId).catch(err => {
+    console.error('[Shares] Error incrementing citation count:', err);
   });
 
   res.status(201).json({
@@ -211,7 +211,7 @@ router.get('/me', authenticateAnonymous, asyncHandler(async (req, res) => {
  * Update share
  * Requires authentication and ownership
  */
-router.put('/:token', authenticateAnonymous, asyncHandler(async (req, res) => {
+router.put('/:token', authenticateAnonymous, rateLimitCitations, asyncHandler(async (req, res) => {
   const { token } = req.params;
   const { title, annotations, isPublic } = req.body;
 
@@ -251,6 +251,7 @@ router.put('/:token', authenticateAnonymous, asyncHandler(async (req, res) => {
     updates.title = sanitizeText(title);
   }
 
+  let addedNewCitation = false;
   if (annotations !== undefined) {
     const validation = validateAnnotations(annotations);
     if (!validation.valid) {
@@ -260,6 +261,11 @@ router.put('/:token', authenticateAnonymous, asyncHandler(async (req, res) => {
       });
     }
     updates.annotations = annotations;
+
+    // Check if new citations were added (more annotations than before)
+    if (annotations.length > share.annotations.length) {
+      addedNewCitation = true;
+    }
   }
 
   if (isPublic !== undefined) {
@@ -268,6 +274,13 @@ router.put('/:token', authenticateAnonymous, asyncHandler(async (req, res) => {
 
   // Update share
   const updatedShare = await Share.update(token, updates);
+
+  // Increment citation count if new citations were added (async, don't wait)
+  if (addedNewCitation) {
+    incrementCitationCount(req.user.id, share.video_id).catch(err => {
+      console.error('[Shares] Error incrementing citation count:', err);
+    });
+  }
 
   res.json({
     shareToken: updatedShare.share_token,
@@ -319,5 +332,11 @@ router.delete('/:token', authenticateAnonymous, asyncHandler(async (req, res) =>
     shareToken: token
   });
 }));
+
+/**
+ * GET /api/shares/admin/rate-limit/:userId
+ * Get rate limit statistics for a user (admin/debug endpoint)
+ */
+router.get('/admin/rate-limit/:userId', asyncHandler(getRateLimitStats));
 
 module.exports = router;
