@@ -155,7 +155,13 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
       shareToken: token,
       annotationId: annotation_id,
       deletedBy: req.user.display_name,
-      reason: reason.trim()
+      reason: reason.trim(),
+      debug: {
+        foundTarget: !!targetAnnotation,
+        targetId: targetAnnotation?.id,
+        arraysModified: !arraysEqual,
+        updateRowCount: updateResult.rowCount
+      }
     });
 
   } else {
