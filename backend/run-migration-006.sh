@@ -1,5 +1,21 @@
+#!/bin/bash
+# Run migration 006 on Railway database
+# This script executes the SQL directly
+
+echo "Running migration 006: Admin Moderation System"
+echo "=============================================="
+
+# Check if DATABASE_URL is set
+if [ -z "$DATABASE_URL" ]; then
+  echo "ERROR: DATABASE_URL not set"
+  echo "Get it from Railway: railway variables | grep DATABASE_URL"
+  exit 1
+fi
+
+# Run migration
+psql "$DATABASE_URL" << 'EOF'
+
 -- Migration 006: Admin Moderation System
--- Adds admin roles, user suspension/blocking, citation soft delete, and audit logging
 
 -- Enable UUID extension if not already enabled
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
@@ -34,16 +50,17 @@ CREATE TABLE IF NOT EXISTS admin_actions (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
--- Create indexes for admin_actions
+-- Create indexes
 CREATE INDEX IF NOT EXISTS idx_admin_actions_admin ON admin_actions(admin_id);
 CREATE INDEX IF NOT EXISTS idx_admin_actions_target ON admin_actions(target_type, target_id);
 CREATE INDEX IF NOT EXISTS idx_admin_actions_created ON admin_actions(created_at DESC);
 
--- Comment on columns
-COMMENT ON COLUMN users.is_admin IS 'True if user has admin privileges';
-COMMENT ON COLUMN users.is_suspended IS 'True if user is temporarily suspended';
-COMMENT ON COLUMN users.suspended_until IS 'When the suspension expires (NULL = not suspended)';
-COMMENT ON COLUMN users.is_blocked IS 'True if user is permanently blocked';
-COMMENT ON COLUMN shares.deleted_by_admin IS 'Admin user ID who deleted this citation';
-COMMENT ON COLUMN admin_actions.action_type IS 'delete_citation, restore_citation, suspend_user, unsuspend_user, block_user, unblock_user';
-COMMENT ON COLUMN admin_actions.target_type IS 'user or citation';
+-- Verify tables
+SELECT 'Migration complete!' as status;
+\dt admin_actions
+SELECT column_name, data_type FROM information_schema.columns WHERE table_name = 'admin_actions';
+
+EOF
+
+echo ""
+echo "Migration 006 complete!"

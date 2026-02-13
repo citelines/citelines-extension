@@ -28,7 +28,9 @@ class User {
    */
   static async findByAnonymousId(anonymousId) {
     const query = `
-      SELECT id, anonymous_id, auth_type, email, display_name, created_at
+      SELECT id, anonymous_id, auth_type, email, display_name, created_at,
+             is_admin, is_suspended, suspended_until, suspension_reason,
+             is_blocked, blocked_at, blocked_reason
       FROM users
       WHERE anonymous_id = $1
     `;
@@ -44,7 +46,9 @@ class User {
    */
   static async findById(userId) {
     const query = `
-      SELECT id, anonymous_id, auth_type, email, display_name, created_at
+      SELECT id, anonymous_id, auth_type, email, display_name, created_at,
+             is_admin, is_suspended, suspended_until, suspension_reason,
+             is_blocked, blocked_at, blocked_reason
       FROM users
       WHERE id = $1
     `;
