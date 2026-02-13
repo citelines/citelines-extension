@@ -1854,6 +1854,13 @@ document.addEventListener('click', function(event) {
   }
 });
 
+// Close filter dropdown when scrolling (prevents dropdown from floating)
+document.addEventListener('scroll', function(event) {
+  if (activeFilterDropdown) {
+    closeFilterDropdown();
+  }
+}, true); // Use capture phase to catch all scroll events including in scrollable containers
+
 // ============================================================================
 // User Details Modal
 // ============================================================================
