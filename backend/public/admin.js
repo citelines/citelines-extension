@@ -354,8 +354,10 @@ function openSuspendModal(userId, displayName) {
       <input type="text" id="suspendReason" class="search-box" placeholder="e.g., Spam" style="width: 100%;">
     </div>
   `;
-  document.getElementById('modalConfirmBtn').textContent = 'Suspend';
-  document.getElementById('modalConfirmBtn').className = 'btn btn-danger';
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = 'Suspend';
+  confirmBtn.className = 'btn btn-danger';
+  confirmBtn.disabled = false; // Ensure button is enabled
   document.getElementById('actionModal').classList.add('active');
 }
 
@@ -371,8 +373,10 @@ function openBlockModal(userId, displayName) {
     </div>
     <p style="color: #dc3545; font-size: 14px; margin-top: 10px;">⚠️ This action is permanent and cannot be undone easily.</p>
   `;
-  document.getElementById('modalConfirmBtn').textContent = 'Block User';
-  document.getElementById('modalConfirmBtn').className = 'btn btn-danger';
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = 'Block User';
+  confirmBtn.className = 'btn btn-danger';
+  confirmBtn.disabled = false; // Ensure button is enabled
   document.getElementById('actionModal').classList.add('active');
 }
 
@@ -388,14 +392,21 @@ function openDeleteCitationModal(token, title) {
     </div>
     <p style="color: #666; font-size: 14px; margin-top: 10px;">This is a soft delete and can be restored later.</p>
   `;
-  document.getElementById('modalConfirmBtn').textContent = 'Delete';
-  document.getElementById('modalConfirmBtn').className = 'btn btn-danger';
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = 'Delete';
+  confirmBtn.className = 'btn btn-danger';
+  confirmBtn.disabled = false; // Ensure button is enabled
   document.getElementById('actionModal').classList.add('active');
 }
 
 function closeModal() {
   document.getElementById('actionModal').classList.remove('active');
   currentAction = null;
+
+  // Reset button state
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.disabled = false;
+  confirmBtn.textContent = 'Confirm';
 }
 
 async function confirmAction() {
