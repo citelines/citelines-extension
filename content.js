@@ -483,13 +483,13 @@
 
     const deleteButton = isShared ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
 
-    // Show creator's display name for shared annotations
+    // Show creator's display name for all annotations
+    const creatorName = annotation.creatorDisplayName || 'Anonymous';
     let badge;
     if (isShared) {
-      const creatorName = annotation.creatorDisplayName || 'Anonymous';
       badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
     } else {
-      badge = '<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU</span>';
+      badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU - ${escapeHtml(creatorName)}</span>`;
     }
 
     const citationHTML = formatCitation(annotation.citation, !isShared);
@@ -1023,7 +1023,7 @@
       const ownerClass = annotation.isOwn ? 'own' : 'other';
       const creatorName = annotation.creatorDisplayName || 'Anonymous';
       const ownerBadge = annotation.isOwn ?
-        '<span class="yt-annotator-sidebar-badge own">YOU</span>' :
+        `<span class="yt-annotator-sidebar-badge own">YOU - ${escapeHtml(creatorName)}</span>` :
         `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
 
       return `
