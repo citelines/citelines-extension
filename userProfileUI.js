@@ -105,8 +105,14 @@ class UserProfileUI {
    * Render profile data
    */
   renderProfile(profile) {
+    const nameElement = this.modal.querySelector('#yt-annotator-profile-name');
     const subtitle = this.modal.querySelector('.yt-annotator-profile-subtitle');
     const body = this.modal.querySelector('#yt-annotator-profile-body');
+
+    // Update name with profile data
+    if (profile.displayName) {
+      nameElement.textContent = profile.displayName;
+    }
 
     // Update subtitle
     const accountType = profile.authType === 'password' ? 'Registered' : 'Anonymous';
