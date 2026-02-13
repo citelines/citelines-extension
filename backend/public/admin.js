@@ -10,6 +10,10 @@ let auditData = [];
 let analyticsData = null;
 let currentAction = null;
 let selectedCitations = new Set();
+let usersSortColumn = 'created_at';
+let usersSortDirection = 'desc';
+let citationsSortColumn = 'created_at';
+let citationsSortDirection = 'desc';
 
 // ============================================================================
 // Authentication
@@ -194,23 +198,37 @@ function renderUsers(users) {
   const suspendedUsers = users.filter(u => u.is_suspended && !u.is_blocked);
   const blockedUsers = users.filter(u => u.is_blocked);
 
-  // Count display (simplified)
+  // Count display and filter
   const countHtml = `
-    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
+    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
       <strong>Showing ${users.length} user(s)</strong>
+      <select id="userStatusFilter" onchange="applyUserFilter()" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+        <option value="all">All Users</option>
+        <option value="temporary">Temporary (Anonymous)</option>
+        <option value="unverified">Unverified (Pending)</option>
+        <option value="verified">Verified</option>
+        <option value="suspended">Suspended</option>
+        <option value="blocked">Blocked</option>
+        <option value="admin">Admins</option>
+      </select>
     </div>
   `;
+
+  const sortIcon = (column) => {
+    if (usersSortColumn !== column) return ' <span style="opacity: 0.3;">↕</span>';
+    return usersSortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
 
   const html = countHtml + `
     <table>
       <thead>
         <tr>
-          <th>Display Name</th>
-          <th>Email</th>
-          <th>Auth Type</th>
-          <th>Status</th>
-          <th>Annotations (Active/Total)</th>
-          <th>Joined</th>
+          <th style="cursor: pointer;" onclick="sortUsers('display_name')">Display Name${sortIcon('display_name')}</th>
+          <th style="cursor: pointer;" onclick="sortUsers('email')">Email${sortIcon('email')}</th>
+          <th style="cursor: pointer;" onclick="sortUsers('auth_type')">Auth Type${sortIcon('auth_type')}</th>
+          <th style="cursor: pointer;" onclick="sortUsers('status')">Status${sortIcon('status')}</th>
+          <th style="cursor: pointer;" onclick="sortUsers('total_annotations')">Annotations (Active/Total)${sortIcon('total_annotations')}</th>
+          <th style="cursor: pointer;" onclick="sortUsers('created_at')">Joined${sortIcon('created_at')}</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -250,6 +268,94 @@ function renderUsers(users) {
   container.innerHTML = html;
 }
 
+function sortUsers(column) {
+  if (usersSortColumn === column) {
+    usersSortDirection = usersSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    usersSortColumn = column;
+    usersSortDirection = 'asc';
+  }
+
+  applyUserFilter();
+}
+
+function getSortedFilteredUsers() {
+  const filter = document.getElementById('userStatusFilter')?.value || 'all';
+  const search = document.getElementById('userSearch')?.value.toLowerCase() || '';
+
+  let filtered = usersData.filter(user => {
+    // Apply search filter
+    const matchesSearch = !search ||
+      (user.display_name?.toLowerCase().includes(search)) ||
+      (user.email?.toLowerCase().includes(search));
+
+    if (!matchesSearch) return false;
+
+    // Apply status filter
+    switch (filter) {
+      case 'temporary':
+        return user.auth_type === 'anonymous' || user.auth_type === 'expired';
+      case 'unverified':
+        return user.auth_type === 'password' && !user.email_verified;
+      case 'verified':
+        return user.auth_type === 'password' && user.email_verified;
+      case 'suspended':
+        return user.is_suspended;
+      case 'blocked':
+        return user.is_blocked;
+      case 'admin':
+        return user.is_admin;
+      case 'all':
+      default:
+        return true;
+    }
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    let valA, valB;
+
+    switch (column) {
+      case 'display_name':
+        valA = (a.display_name || '').toLowerCase();
+        valB = (b.display_name || '').toLowerCase();
+        break;
+      case 'email':
+        valA = (a.email || '').toLowerCase();
+        valB = (b.email || '').toLowerCase();
+        break;
+      case 'auth_type':
+        valA = a.auth_type || '';
+        valB = b.auth_type || '';
+        break;
+      case 'status':
+        valA = a.is_blocked ? 2 : a.is_suspended ? 1 : 0;
+        valB = b.is_blocked ? 2 : b.is_suspended ? 1 : 0;
+        break;
+      case 'total_annotations':
+        valA = a.total_annotations || 0;
+        valB = b.total_annotations || 0;
+        break;
+      case 'created_at':
+        valA = new Date(a.created_at || 0);
+        valB = new Date(b.created_at || 0);
+        break;
+      default:
+        return 0;
+    }
+
+    if (valA < valB) return usersSortDirection === 'asc' ? -1 : 1;
+    if (valA > valB) return usersSortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  return sorted;
+}
+
+function applyUserFilter() {
+  const filtered = getSortedFilteredUsers();
+  renderUsers(filtered);
+}
+
 function renderCitations(citations) {
   const container = document.getElementById('citationsTable');
 
@@ -263,10 +369,15 @@ function renderCitations(citations) {
   const activeCitations = citations.filter(c => !c.annotation_deleted_at && !c.share_deleted_at);
   const deletedCitations = citations.filter(c => c.annotation_deleted_at || c.share_deleted_at);
 
-  // Count display (simplified)
+  // Count display and filter
   const countHtml = `
-    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
+    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
       <strong>Showing ${citations.length} annotation(s)</strong>
+      <select id="citationStatusFilter" onchange="applyCitationFilter()" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+        <option value="all">All Citations</option>
+        <option value="active">Active</option>
+        <option value="deleted">Deleted</option>
+      </select>
     </div>
   `;
 
@@ -280,6 +391,11 @@ function renderCitations(citations) {
     </div>
   ` : '';
 
+  const sortIcon = (column) => {
+    if (citationsSortColumn !== column) return ' <span style="opacity: 0.3;">↕</span>';
+    return citationsSortDirection === 'asc' ? ' ↑' : ' ↓';
+  };
+
   const html = countHtml + bulkActionsHtml + `
     <table>
       <thead>
@@ -288,15 +404,15 @@ function renderCitations(citations) {
             <input type="checkbox" id="selectAll" onchange="toggleSelectAll()"
                    ${activeCitations.length === 0 ? 'disabled' : ''}>
           </th>
-          <th>Token</th>
-          <th>Video ID</th>
-          <th>Title</th>
-          <th>Creator</th>
+          <th style="cursor: pointer;" onclick="sortCitations('share_token')">Token${sortIcon('share_token')}</th>
+          <th style="cursor: pointer;" onclick="sortCitations('video_id')">Video ID${sortIcon('video_id')}</th>
+          <th style="cursor: pointer;" onclick="sortCitations('title')">Title${sortIcon('title')}</th>
+          <th style="cursor: pointer;" onclick="sortCitations('creator_display_name')">Creator${sortIcon('creator_display_name')}</th>
           <th>Content</th>
-          <th>Timestamp</th>
-          <th>Share Size</th>
-          <th>Status</th>
-          <th>Created</th>
+          <th style="cursor: pointer;" onclick="sortCitations('annotation_timestamp')">Timestamp${sortIcon('annotation_timestamp')}</th>
+          <th style="cursor: pointer;" onclick="sortCitations('annotation_count')">Share Size${sortIcon('annotation_count')}</th>
+          <th style="cursor: pointer;" onclick="sortCitations('status')">Status${sortIcon('status')}</th>
+          <th style="cursor: pointer;" onclick="sortCitations('created_at')">Created${sortIcon('created_at')}</th>
           <th>Actions</th>
         </tr>
       </thead>
@@ -353,6 +469,97 @@ function renderCitations(citations) {
   `;
 
   container.innerHTML = html;
+}
+
+function sortCitations(column) {
+  if (citationsSortColumn === column) {
+    citationsSortDirection = citationsSortDirection === 'asc' ? 'desc' : 'asc';
+  } else {
+    citationsSortColumn = column;
+    citationsSortDirection = 'asc';
+  }
+
+  applyCitationFilter();
+}
+
+function getSortedFilteredCitations() {
+  const filter = document.getElementById('citationStatusFilter')?.value || 'all';
+  const search = document.getElementById('citationSearch')?.value.toLowerCase() || '';
+
+  let filtered = citationsData.filter(citation => {
+    // Apply search filter
+    const matchesSearch = !search ||
+      (citation.share_token?.toLowerCase().includes(search)) ||
+      (citation.video_id?.toLowerCase().includes(search)) ||
+      (citation.title?.toLowerCase().includes(search)) ||
+      (citation.creator_display_name?.toLowerCase().includes(search)) ||
+      (citation.annotation_text?.toLowerCase().includes(search));
+
+    if (!matchesSearch) return false;
+
+    // Apply status filter
+    switch (filter) {
+      case 'active':
+        return !citation.annotation_deleted_at && !citation.share_deleted_at;
+      case 'deleted':
+        return citation.annotation_deleted_at || citation.share_deleted_at;
+      case 'all':
+      default:
+        return true;
+    }
+  });
+
+  const sorted = [...filtered].sort((a, b) => {
+    let valA, valB;
+
+    switch (column) {
+      case 'share_token':
+        valA = (a.share_token || '').toLowerCase();
+        valB = (b.share_token || '').toLowerCase();
+        break;
+      case 'video_id':
+        valA = (a.video_id || '').toLowerCase();
+        valB = (b.video_id || '').toLowerCase();
+        break;
+      case 'title':
+        valA = (a.title || '').toLowerCase();
+        valB = (b.title || '').toLowerCase();
+        break;
+      case 'creator_display_name':
+        valA = (a.creator_display_name || '').toLowerCase();
+        valB = (b.creator_display_name || '').toLowerCase();
+        break;
+      case 'annotation_timestamp':
+        valA = a.annotation_timestamp || 0;
+        valB = b.annotation_timestamp || 0;
+        break;
+      case 'annotation_count':
+        valA = a.annotation_count || 0;
+        valB = b.annotation_count || 0;
+        break;
+      case 'status':
+        valA = (a.annotation_deleted_at || a.share_deleted_at) ? 1 : 0;
+        valB = (b.annotation_deleted_at || b.share_deleted_at) ? 1 : 0;
+        break;
+      case 'created_at':
+        valA = new Date(a.created_at || 0);
+        valB = new Date(b.created_at || 0);
+        break;
+      default:
+        return 0;
+    }
+
+    if (valA < valB) return citationsSortDirection === 'asc' ? -1 : 1;
+    if (valA > valB) return citationsSortDirection === 'asc' ? 1 : -1;
+    return 0;
+  });
+
+  return sorted;
+}
+
+function applyCitationFilter() {
+  const filtered = getSortedFilteredCitations();
+  renderCitations(filtered);
 }
 
 function renderAudit(actions) {
@@ -953,33 +1160,11 @@ async function bulkDeleteCitations(citationKeys, reason) {
 // ============================================================================
 
 function filterUsers() {
-  const search = document.getElementById('userSearch').value.toLowerCase();
-  const filtered = usersData.filter(user =>
-    (user.display_name?.toLowerCase().includes(search)) ||
-    (user.email?.toLowerCase().includes(search))
-  );
-  renderUsers(filtered);
+  applyUserFilter();
 }
 
 function filterCitations() {
-  const search = document.getElementById('citationSearch').value.toLowerCase();
-  const filtered = citationsData.filter(citation => {
-    // Check token, video ID, title, creator
-    if ((citation.share_token?.toLowerCase().includes(search)) ||
-        (citation.video_id?.toLowerCase().includes(search)) ||
-        (citation.title?.toLowerCase().includes(search)) ||
-        (citation.creator_display_name?.toLowerCase().includes(search))) {
-      return true;
-    }
-
-    // Check annotation content (now directly on citation object)
-    if (citation.annotation_text?.toLowerCase().includes(search)) {
-      return true;
-    }
-
-    return false;
-  });
-  renderCitations(filtered);
+  applyCitationFilter();
 }
 
 function filterAudit() {
