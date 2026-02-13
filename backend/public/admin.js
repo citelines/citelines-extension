@@ -19,6 +19,7 @@ let citationsSortDirection = 'desc';
 let usersFilters = {}; // { columnName: [selectedValues] }
 let citationsFilters = {}; // { columnName: [selectedValues] }
 let activeFilterDropdown = null;
+let activeFilterTrigger = null; // Track the th element that opened the dropdown
 
 // ============================================================================
 // Authentication
@@ -546,10 +547,11 @@ function toggleUserColumnFilter(event, column) {
 
     dropdown.classList.add('active');
     activeFilterDropdown = dropdown;
+    activeFilterTrigger = event.target.closest('th'); // Store trigger for repositioning on scroll
 
     // Wait for content to render, then position
     requestAnimationFrame(() => {
-      const triggerElement = event.target.closest('th');
+      const triggerElement = activeFilterTrigger;
       const rect = triggerElement.getBoundingClientRect();
 
       // Get the actual height of dropdown content
@@ -692,6 +694,7 @@ function closeFilterDropdown() {
     }
 
     activeFilterDropdown = null;
+    activeFilterTrigger = null;
 
     // Apply filters after closing dropdown (apply both since only one tab is visible)
     const usersTabActive = document.getElementById('usersTab').classList.contains('active');
@@ -706,6 +709,41 @@ function closeFilterDropdown() {
       applyCitationFilter();
     }
   }
+}
+
+// Reposition filter dropdown to stay aligned with trigger element
+function repositionFilterDropdown() {
+  if (!activeFilterDropdown || !activeFilterTrigger) return;
+
+  const dropdown = activeFilterDropdown;
+  const rect = activeFilterTrigger.getBoundingClientRect();
+
+  // Calculate available space
+  const spaceBelow = window.innerHeight - rect.bottom - 10;
+  const spaceAbove = rect.top - 10;
+
+  // Get current max height (or use a default)
+  const currentMaxHeight = parseInt(dropdown.style.maxHeight) || 400;
+
+  // Decide positioning (similar logic to initial positioning)
+  if (spaceBelow >= currentMaxHeight) {
+    dropdown.style.top = `${rect.bottom}px`;
+    dropdown.style.bottom = 'auto';
+  } else if (spaceAbove >= currentMaxHeight) {
+    dropdown.style.bottom = `${window.innerHeight - rect.top}px`;
+    dropdown.style.top = 'auto';
+  } else {
+    if (spaceBelow >= spaceAbove) {
+      dropdown.style.top = `${rect.bottom}px`;
+      dropdown.style.bottom = 'auto';
+    } else {
+      dropdown.style.bottom = `${window.innerHeight - rect.top}px`;
+      dropdown.style.top = 'auto';
+    }
+  }
+
+  dropdown.style.left = `${rect.left}px`;
+  dropdown.style.minWidth = `${rect.width}px`;
 }
 
 function renderCitations(citations) {
@@ -1038,10 +1076,11 @@ function toggleCitationColumnFilter(event, column) {
 
     dropdown.classList.add('active');
     activeFilterDropdown = dropdown;
+    activeFilterTrigger = event.target.closest('th'); // Store trigger for repositioning on scroll
 
     // Wait for content to render, then position
     requestAnimationFrame(() => {
-      const triggerElement = event.target.closest('th');
+      const triggerElement = activeFilterTrigger;
       const rect = triggerElement.getBoundingClientRect();
 
       // Get the actual height of dropdown content
@@ -1854,10 +1893,10 @@ document.addEventListener('click', function(event) {
   }
 });
 
-// Close filter dropdown when scrolling (prevents dropdown from floating)
+// Reposition filter dropdown when scrolling (keeps it aligned with column header)
 document.addEventListener('scroll', function(event) {
   if (activeFilterDropdown) {
-    closeFilterDropdown();
+    repositionFilterDropdown();
   }
 }, true); // Use capture phase to catch all scroll events including in scrollable containers
 
