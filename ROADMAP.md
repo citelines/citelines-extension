@@ -202,21 +202,18 @@ See CLAUDE.md Phase 3A section for detailed setup instructions.
 
 ## Database Maintenance
 
-**Connection String**:
-```
-postgresql://postgres:***REMOVED***@gondola.proxy.rlwy.net:46483/railway
-```
+**⚠️ SECURITY**: Never commit database credentials. Get `DATABASE_URL` from Railway dashboard.
 
 **Common Operations**:
 ```bash
 # Check admin status
-psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM users WHERE is_admin = true;"
+railway run psql $DATABASE_URL -c "SELECT COUNT(*) FROM users WHERE is_admin = true;"
 
 # List recent users
-psql "$DATABASE_URL" -c "SELECT display_name, auth_type, created_at FROM users ORDER BY created_at DESC LIMIT 10;"
+railway run psql $DATABASE_URL -c "SELECT display_name, auth_type, created_at FROM users ORDER BY created_at DESC LIMIT 10;"
 
 # View audit log
-psql "$DATABASE_URL" -c "SELECT * FROM admin_actions ORDER BY created_at DESC LIMIT 20;"
+railway run psql $DATABASE_URL -c "SELECT * FROM admin_actions ORDER BY created_at DESC LIMIT 20;"
 ```
 
 **Clear Test Data**:
