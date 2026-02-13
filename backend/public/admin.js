@@ -320,7 +320,12 @@ function getSortedFilteredUsers() {
           columnValue = '';
       }
 
-      if (!values.includes(columnValue)) {
+      const isMatch = values.includes(columnValue);
+      if (column === 'auth_type') {
+        console.log('[DEBUG] Checking auth_type:', columnValue, 'against', values, '=> match:', isMatch);
+      }
+
+      if (!isMatch) {
         return false;
       }
     }
@@ -331,7 +336,7 @@ function getSortedFilteredUsers() {
   const sorted = [...filtered].sort((a, b) => {
     let valA, valB;
 
-    switch (column) {
+    switch (usersSortColumn) {
       case 'display_name':
         valA = (a.display_name || '').toLowerCase();
         valB = (b.display_name || '').toLowerCase();
@@ -369,7 +374,9 @@ function getSortedFilteredUsers() {
 }
 
 function applyUserFilter() {
+  console.log('[DEBUG] Applying user filter, current filters:', JSON.parse(JSON.stringify(usersFilters)));
   const filtered = getSortedFilteredUsers();
+  console.log('[DEBUG] Filtered users:', filtered.length, 'out of', usersData.length);
   renderUsers(filtered);
 }
 
@@ -477,7 +484,9 @@ function updateUserColumnFilter(column, checkbox) {
     usersFilters[column] = usersFilters[column].filter(v => v !== value);
   }
 
-  applyUserFilter();
+  console.log('[DEBUG] Filter updated:', column, 'values:', usersFilters[column]);
+  // Don't apply filter immediately - wait for user to click Done
+  // This prevents the dropdown from being destroyed while they're using it
 }
 
 function clearUserColumnFilter(column) {
@@ -494,9 +503,23 @@ function sortUsersFromFilter(column, direction) {
 }
 
 function closeFilterDropdown() {
+  console.log('[DEBUG] closeFilterDropdown called, activeFilterDropdown:', activeFilterDropdown);
   if (activeFilterDropdown) {
     activeFilterDropdown.classList.remove('active');
     activeFilterDropdown = null;
+
+    // Apply filters after closing dropdown (apply both since only one tab is visible)
+    const usersTabActive = document.getElementById('usersTab').classList.contains('active');
+    const citationsTabActive = document.getElementById('citationsTab').classList.contains('active');
+    console.log('[DEBUG] usersTab active:', usersTabActive, 'citationsTab active:', citationsTabActive);
+
+    if (usersTabActive) {
+      console.log('[DEBUG] Applying user filter from closeFilterDropdown');
+      applyUserFilter();
+    } else if (citationsTabActive) {
+      console.log('[DEBUG] Applying citation filter from closeFilterDropdown');
+      applyCitationFilter();
+    }
   }
 }
 
@@ -551,10 +574,13 @@ function renderCitations(citations) {
             <input type="checkbox" id="selectAll" onchange="toggleSelectAll()"
                    ${activeCitations.length === 0 ? 'disabled' : ''}>
           </th>
+          <th>Token</th>
           ${citationColumnHeader('video_id', 'Video ID')}
           ${citationColumnHeader('title', 'Title')}
           ${citationColumnHeader('creator_display_name', 'Creator')}
           <th>Content</th>
+          <th>Timestamp</th>
+          <th>Share Size</th>
           ${citationColumnHeader('status', 'Status')}
           ${citationColumnHeader('created_at', 'Created')}
           <th>Actions</th>
@@ -676,7 +702,7 @@ function getSortedFilteredCitations() {
   const sorted = [...filtered].sort((a, b) => {
     let valA, valB;
 
-    switch (column) {
+    switch (citationsSortColumn) {
       case 'share_token':
         valA = (a.share_token || '').toLowerCase();
         valB = (b.share_token || '').toLowerCase();
@@ -824,7 +850,7 @@ function updateCitationColumnFilter(column, checkbox) {
     citationsFilters[column] = citationsFilters[column].filter(v => v !== value);
   }
 
-  applyCitationFilter();
+  // Don't apply filter immediately - wait for user to click Done
 }
 
 function clearCitationColumnFilter(column) {
