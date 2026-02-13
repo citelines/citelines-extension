@@ -59,14 +59,22 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
   // If specific annotation_id provided, soft-delete just that annotation
   if (annotation_id) {
     const annotations = share.annotations || [];
+
+    // DEBUG: Log what we're looking for and what exists
+    console.log('[DELETE] Looking for annotation_id:', annotation_id, 'type:', typeof annotation_id);
+    console.log('[DELETE] Available annotation IDs:', annotations.map(a => ({ id: a.id, type: typeof a.id })));
+
     const targetAnnotation = annotations.find(ann => ann.id === annotation_id);
 
     if (!targetAnnotation) {
+      console.log('[DELETE] Annotation NOT FOUND - this will return 404');
       return res.status(404).json({
         error: 'Annotation not found',
         message: 'The specified annotation does not exist in this share'
       });
     }
+
+    console.log('[DELETE] Found target annotation:', targetAnnotation.id);
 
     // Check if already deleted
     if (targetAnnotation.deleted_at) {
@@ -89,12 +97,15 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
       return ann;
     });
 
-    await db.query(
+    const updateResult = await db.query(
       `UPDATE shares
        SET annotations = $1
        WHERE share_token = $2`,
       [JSON.stringify(updatedAnnotations), token]
     );
+
+    console.log('[DELETE] UPDATE executed, rows affected:', updateResult.rowCount);
+    console.log('[DELETE] Updated annotation should now have deleted_at');
 
     await logAdminAction(
       req.user.id,
