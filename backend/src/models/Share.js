@@ -35,9 +35,14 @@ class Share {
    */
   static async findByToken(shareToken) {
     const query = `
-      SELECT id, share_token, user_id, video_id, title, annotations, is_public, view_count, created_at, updated_at
-      FROM shares
-      WHERE share_token = $1
+      SELECT
+        s.id, s.share_token, s.user_id, s.video_id, s.title,
+        s.annotations, s.is_public, s.view_count, s.created_at, s.updated_at,
+        u.display_name as creator_display_name,
+        u.auth_type as creator_auth_type
+      FROM shares s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.share_token = $1
     `;
 
     const result = await db.query(query, [shareToken]);
@@ -67,10 +72,15 @@ class Share {
    */
   static async findByVideoId(videoId, limit = 50, offset = 0) {
     const query = `
-      SELECT id, share_token, user_id, video_id, title, annotations, is_public, view_count, created_at, updated_at
-      FROM shares
-      WHERE video_id = $1 AND is_public = true
-      ORDER BY created_at DESC
+      SELECT
+        s.id, s.share_token, s.user_id, s.video_id, s.title,
+        s.annotations, s.is_public, s.view_count, s.created_at, s.updated_at,
+        u.display_name as creator_display_name,
+        u.auth_type as creator_auth_type
+      FROM shares s
+      LEFT JOIN users u ON s.user_id = u.id
+      WHERE s.video_id = $1 AND s.is_public = true
+      ORDER BY s.created_at DESC
       LIMIT $2 OFFSET $3
     `;
 

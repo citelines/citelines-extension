@@ -120,7 +120,8 @@
               return shareData.annotations.map(ann => ({
                 ...ann,
                 shareToken: share.shareToken,
-                isOwn: isOwn
+                isOwn: isOwn,
+                creatorDisplayName: shareData.creator_display_name || shareData.creatorDisplayName
               }));
             }
             return [];
@@ -481,7 +482,15 @@
     popup.className = 'yt-annotator-popup';
 
     const deleteButton = isShared ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
-    const badge = isShared ? '<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">OTHER USER</span>' : '<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU</span>';
+
+    // Show creator's display name for shared annotations
+    let badge;
+    if (isShared) {
+      const creatorName = annotation.creatorDisplayName || 'Anonymous';
+      badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
+    } else {
+      badge = '<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU</span>';
+    }
 
     const citationHTML = formatCitation(annotation.citation, !isShared);
     const creationTime = formatCreationTime(annotation.createdAt);
@@ -1012,7 +1021,10 @@
         `<div class="yt-annotator-sidebar-text">${escapeHtml(annotation.text.substring(0, 100))}${annotation.text.length > 100 ? '...' : ''}</div>` : '';
 
       const ownerClass = annotation.isOwn ? 'own' : 'other';
-      const ownerBadge = annotation.isOwn ? '<span class="yt-annotator-sidebar-badge own">YOU</span>' : '<span class="yt-annotator-sidebar-badge other">OTHER</span>';
+      const creatorName = annotation.creatorDisplayName || 'Anonymous';
+      const ownerBadge = annotation.isOwn ?
+        '<span class="yt-annotator-sidebar-badge own">YOU</span>' :
+        `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
 
       return `
         <div class="yt-annotator-sidebar-item ${ownerClass}" data-timestamp="${annotation.timestamp}">
