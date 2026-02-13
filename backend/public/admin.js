@@ -8,6 +8,7 @@ let usersData = [];
 let citationsData = [];
 let auditData = [];
 let currentAction = null;
+let selectedCitations = new Set();
 
 // ============================================================================
 // Authentication
@@ -239,13 +240,29 @@ function renderCitations(citations) {
 
   if (citations.length === 0) {
     container.innerHTML = '<div class="empty-state">No citations found</div>';
+    selectedCitations.clear();
     return;
   }
 
-  const html = `
+  // Count active (non-deleted) citations for bulk actions
+  const activeCitations = citations.filter(c => !c.annotation_deleted_at && !c.share_deleted_at);
+  const bulkActionsHtml = activeCitations.length > 0 ? `
+    <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
+      <button class="btn btn-danger" onclick="openBulkDeleteModal()" id="bulkDeleteBtn" disabled>
+        Delete Selected (<span id="selectedCount">0</span>)
+      </button>
+      <button class="btn" onclick="clearSelection()">Clear Selection</button>
+    </div>
+  ` : '';
+
+  const html = bulkActionsHtml + `
     <table>
       <thead>
         <tr>
+          <th style="width: 40px;">
+            <input type="checkbox" id="selectAll" onchange="toggleSelectAll()"
+                   ${activeCitations.length === 0 ? 'disabled' : ''}>
+          </th>
           <th>Token</th>
           <th>Video ID</th>
           <th>Title</th>
@@ -267,9 +284,22 @@ function renderCitations(citations) {
 
           // Check if annotation or share is deleted
           const isDeleted = citation.annotation_deleted_at || citation.share_deleted_at;
+          const citationKey = `${citation.share_token}:${citation.annotation_id}`;
+          const isSelected = selectedCitations.has(citationKey);
 
           return `
             <tr>
+              <td>
+                <input type="checkbox"
+                       class="citation-checkbox"
+                       data-citation-key="${citationKey}"
+                       data-share-token="${citation.share_token}"
+                       data-annotation-id="${citation.annotation_id}"
+                       data-title="${escapeHtml(citation.title || citation.video_id)}"
+                       onchange="toggleCitationSelection('${citationKey}')"
+                       ${isDeleted ? 'disabled' : ''}
+                       ${isSelected ? 'checked' : ''}>
+              </td>
               <td><code>${citation.share_token}</code></td>
               <td>${citation.video_id}</td>
               <td>${citation.title || '-'}</td>
@@ -465,6 +495,12 @@ async function confirmAction() {
           document.getElementById('restoreReason').value
         );
         break;
+      case 'bulkDelete':
+        await bulkDeleteCitations(
+          currentAction.citationKeys,
+          document.getElementById('bulkDeleteReason').value
+        );
+        break;
     }
 
     closeModal();
@@ -542,7 +578,7 @@ async function unblockUser(userId) {
   await loadAudit();
 }
 
-async function deleteCitation(token, reason, annotationId) {
+async function deleteCitationRequest(token, reason, annotationId) {
   const body = { reason };
 
   // Include annotation_id if provided (for annotation-level deletion)
@@ -564,6 +600,11 @@ async function deleteCitation(token, reason, annotationId) {
     throw new Error(data.error || 'Failed to delete citation');
   }
 
+  return await response.json();
+}
+
+async function deleteCitation(token, reason, annotationId) {
+  await deleteCitationRequest(token, reason, annotationId);
   await loadCitations();
   await loadAudit();
 }
@@ -595,6 +636,136 @@ async function restoreAnnotation(token, annotationId, reason) {
   if (!response.ok) {
     const data = await response.json();
     throw new Error(data.error || 'Failed to restore annotation');
+  }
+
+  await loadCitations();
+  await loadAudit();
+}
+
+// ============================================================================
+// Bulk Actions
+// ============================================================================
+
+function toggleCitationSelection(citationKey) {
+  if (selectedCitations.has(citationKey)) {
+    selectedCitations.delete(citationKey);
+  } else {
+    selectedCitations.add(citationKey);
+  }
+  updateBulkActionButtons();
+}
+
+function toggleSelectAll() {
+  const selectAllCheckbox = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.citation-checkbox:not([disabled])');
+
+  if (selectAllCheckbox.checked) {
+    checkboxes.forEach(cb => {
+      selectedCitations.add(cb.dataset.citationKey);
+      cb.checked = true;
+    });
+  } else {
+    checkboxes.forEach(cb => {
+      selectedCitations.delete(cb.dataset.citationKey);
+      cb.checked = false;
+    });
+  }
+
+  updateBulkActionButtons();
+}
+
+function clearSelection() {
+  selectedCitations.clear();
+  document.querySelectorAll('.citation-checkbox').forEach(cb => cb.checked = false);
+  document.getElementById('selectAll').checked = false;
+  updateBulkActionButtons();
+}
+
+function updateBulkActionButtons() {
+  const count = selectedCitations.size;
+  const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+  const selectedCountSpan = document.getElementById('selectedCount');
+
+  if (bulkDeleteBtn) {
+    bulkDeleteBtn.disabled = count === 0;
+  }
+
+  if (selectedCountSpan) {
+    selectedCountSpan.textContent = count;
+  }
+
+  // Update "select all" checkbox state
+  const selectAllCheckbox = document.getElementById('selectAll');
+  const checkboxes = document.querySelectorAll('.citation-checkbox:not([disabled])');
+  if (selectAllCheckbox && checkboxes.length > 0) {
+    const allChecked = Array.from(checkboxes).every(cb => cb.checked);
+    selectAllCheckbox.checked = allChecked;
+  }
+}
+
+function openBulkDeleteModal() {
+  if (selectedCitations.size === 0) return;
+
+  currentAction = { type: 'bulkDelete', citationKeys: Array.from(selectedCitations) };
+
+  document.getElementById('modalTitle').textContent = 'Delete Multiple Annotations';
+  document.getElementById('modalDescription').textContent = `Delete ${selectedCitations.size} annotation(s)?`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group">
+      <label for="bulkDeleteReason">Reason</label>
+      <input type="text" id="bulkDeleteReason" class="search-box" placeholder="e.g., Spam" style="width: 100%;">
+    </div>
+    <p style="color: #666; font-size: 14px; margin-top: 10px;">This will delete ${selectedCitations.size} annotation(s).</p>
+  `;
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = 'Delete All';
+  confirmBtn.className = 'btn btn-danger';
+  confirmBtn.disabled = false;
+  document.getElementById('actionModal').classList.add('active');
+}
+
+async function bulkDeleteCitations(citationKeys, reason) {
+  const totalCount = citationKeys.length;
+  let successCount = 0;
+  let failCount = 0;
+
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = `Deleting... (0/${totalCount})`;
+
+  // Get citation data from checkboxes
+  const citationsToDelete = citationKeys.map(key => {
+    const checkbox = document.querySelector(`[data-citation-key="${key}"]`);
+    return {
+      key,
+      token: checkbox.dataset.shareToken,
+      annotationId: checkbox.dataset.annotationId
+    };
+  });
+
+  // Delete in parallel (limit concurrency to avoid overwhelming server)
+  const batchSize = 5;
+  for (let i = 0; i < citationsToDelete.length; i += batchSize) {
+    const batch = citationsToDelete.slice(i, i + batchSize);
+
+    await Promise.allSettled(
+      batch.map(citation =>
+        deleteCitationRequest(citation.token, reason, citation.annotationId)
+          .then(() => successCount++)
+          .catch(err => {
+            console.error(`Failed to delete ${citation.key}:`, err);
+            failCount++;
+          })
+      )
+    );
+
+    confirmBtn.textContent = `Deleting... (${successCount + failCount}/${totalCount})`;
+  }
+
+  // Clear selection
+  selectedCitations.clear();
+
+  if (failCount > 0) {
+    alert(`Deleted ${successCount} annotation(s). ${failCount} failed.`);
   }
 
   await loadCitations();
