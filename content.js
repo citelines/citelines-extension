@@ -184,15 +184,43 @@
 
     if (!video.duration || video.duration === 0) {
       console.log('[Markers] Video duration not ready yet, waiting...');
-      // Retry when duration is available
+      // Retry when duration is available (handles ads and slow loading)
       const retryRender = () => {
         if (video.duration && video.duration > 0) {
-          console.log('[Markers] Video duration now available, rendering markers');
+          console.log('[Markers] Video duration now available:', video.duration);
           renderMarkers();
-          video.removeEventListener('durationchange', retryRender);
         }
       };
+
+      // Listen for multiple events to catch when video is ready
       video.addEventListener('durationchange', retryRender, { once: true });
+      video.addEventListener('loadedmetadata', retryRender, { once: true });
+      video.addEventListener('canplay', retryRender, { once: true });
+
+      return;
+    }
+
+    // Check if we're in an ad by comparing duration to known ad lengths
+    // Ads are usually 6s, 15s, 30s, or 60s exactly
+    const isLikelyAd = video.duration && (
+      Math.abs(video.duration - 6) < 0.1 ||
+      Math.abs(video.duration - 15) < 0.1 ||
+      Math.abs(video.duration - 30) < 0.1 ||
+      Math.abs(video.duration - 60) < 0.1
+    );
+
+    if (isLikelyAd) {
+      console.log('[Markers] Detected ad playing, waiting for actual video...');
+      // Wait for ad to finish and actual video to load
+      const waitForActualVideo = () => {
+        const newVideo = document.querySelector('video');
+        if (newVideo && newVideo.duration > 60) {
+          console.log('[Markers] Actual video loaded after ad');
+          renderMarkers();
+        }
+      };
+      video.addEventListener('ended', waitForActualVideo, { once: true });
+      video.addEventListener('durationchange', waitForActualVideo, { once: true });
       return;
     }
 
