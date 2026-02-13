@@ -64,7 +64,12 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
     console.log('[DELETE] Looking for annotation_id:', annotation_id, 'type:', typeof annotation_id);
     console.log('[DELETE] Available annotation IDs:', annotations.map(a => ({ id: a.id, type: typeof a.id })));
 
-    const targetAnnotation = annotations.find(ann => ann.id === annotation_id);
+    // Try to match annotation ID - handle both string and number types
+    // IDs might be stored as numbers in JSONB but sent as strings from frontend
+    const targetAnnotation = annotations.find(ann => {
+      // Use loose equality (==) to match "123" with 123
+      return ann.id == annotation_id || ann.id === annotation_id;
+    });
 
     if (!targetAnnotation) {
       console.log('[DELETE] Annotation NOT FOUND - this will return 404');
@@ -86,7 +91,8 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
 
     // Mark annotation as deleted (soft delete within JSONB)
     const updatedAnnotations = annotations.map(ann => {
-      if (ann.id === annotation_id) {
+      // Use loose equality to handle type mismatch (number vs string)
+      if (ann.id == annotation_id || ann.id === annotation_id) {
         return {
           ...ann,
           deleted_at: new Date().toISOString(),
