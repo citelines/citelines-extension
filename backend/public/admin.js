@@ -2153,7 +2153,6 @@ function renderUserDetails(data) {
                     </td>
                   </tr>`;
                 }).join('')}
-                `).join('')}
               </tbody>
             </table>
           </div>
