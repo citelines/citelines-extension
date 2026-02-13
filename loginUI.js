@@ -48,7 +48,7 @@ class LoginUI {
           </h2>
           <p class="yt-annotator-auth-subtitle">
             ${this.currentMode === 'login'
-              ? 'Sign in to sync your citations across devices'
+              ? 'Placeholder - Does Not Work Yet (2/12/2026)'
               : 'Create an account to preserve your citations permanently'}
           </p>
         </div>
