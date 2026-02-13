@@ -108,7 +108,26 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
     });
 
     console.log('[DELETE] Updated annotations:', JSON.stringify(updatedAnnotations, null, 2));
-    console.log('[DELETE] Arrays equal?', JSON.stringify(annotations) === JSON.stringify(updatedAnnotations));
+
+    const arraysEqual = JSON.stringify(annotations) === JSON.stringify(updatedAnnotations);
+    console.log('[DELETE] Arrays equal?', arraysEqual);
+
+    // If arrays are equal, the annotation wasn't found/modified - this is a bug!
+    if (arraysEqual) {
+      console.error('[DELETE] ERROR: Annotations array unchanged! ID not matched despite finding target.');
+      console.error('[DELETE] Annotation ID being searched:', annotation_id, typeof annotation_id);
+      console.error('[DELETE] Target annotation ID found earlier:', targetAnnotation.id, typeof targetAnnotation.id);
+      return res.status(500).json({
+        error: 'Deletion failed',
+        message: 'Annotation was found but could not be modified. Possible type mismatch.',
+        debug: {
+          searchingFor: annotation_id,
+          searchingForType: typeof annotation_id,
+          foundId: targetAnnotation.id,
+          foundIdType: typeof targetAnnotation.id
+        }
+      });
+    }
 
     const updateResult = await db.query(
       `UPDATE shares
