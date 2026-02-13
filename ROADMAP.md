@@ -91,7 +91,8 @@
 ## Next Improvements
 
 ### Admin Dashboard Enhancements
-- **Citation Type Column**: Display citation type (Basic Note, YouTube Video, Movie, Article, etc.) in Citations tab to provide context for "Citation Content"
+- **Citation Type Column**: Display citation type (Basic Note, YouTube Video, Movie, Article, etc.) in Citations tab to provide context for "Citation Content" - matches front-end UI types
+- **Citation Status Column**: Add "Citation Status" column showing lifecycle state (Proposed, Rejected, Approved, User-Deleted) - prepares for moderation workflow
 - **Date Range Filters**: Implement date range filtering for Joined and Created columns (currently placeholders)
 - **Export Functionality**: Export user/citation data to CSV
 - **Advanced Search**: Full-text search across all fields
