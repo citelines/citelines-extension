@@ -12,6 +12,11 @@ yarn-debug.log*
 .env.local
 .env.*.local
 
+# Google OAuth credentials (NEVER commit these!)
+*client_secret*.json
+*credentials*.json
+.gdrive-server-credentials.json
+
 # Claude AI files (sensitive project context)
 CLAUDE.md
 .claude/
