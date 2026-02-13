@@ -176,10 +176,13 @@
 - Proper `waitForPlayer()` call on navigation
 - Clean DOM element removal on video change
 
-### Ad Detection & Marker Rendering
-- Detect YouTube ads by standard durations (6s, 15s, 30s, 60s)
-- Retry marker rendering after ads complete
-- Multiple event listeners (durationchange, loadedmetadata, canplay)
+### Ad Detection & Marker Rendering (Fixed 2026-02-13)
+- Fixed false positive ad detection for videos with durations close to 6s/15s/30s/60s
+- Improved retry logic: checks if duration changed (not just if > 60s)
+- Added 2-second timeout fallback to ensure markers always render
+- Better logging for debugging ad detection behavior
+- Bug: Markers wouldn't appear on first load in incognito, but worked after refresh
+- Root cause: Videos incorrectly flagged as ads, retry logic assumed duration > 60s
 
 ### Sidebar Persistence Bug Fix
 - Explicitly remove DOM elements on navigation
@@ -195,24 +198,28 @@
 
 ## Recent Commits
 
-### Today's Admin Dashboard Session (2026-02-13 PM)
-1. `a0ab989` - Add X button, overlay click, and ESC key to close user details modal
-2. `893c97b` - Add detailed User Details modal with identifiers, citations, and admin action history
-3. `a2e2ffa` - Add Select All and Clear All buttons to filter dropdowns
-4. `4e9a781` - Update analytics card border colors: Temporary=grey, Unverified=yellow
-5. `79973bd` - Update Citations tab columns: add/remove filters, rename columns, remove Share Size
-6. `1849f61` - Update column filtering: limit filters to Auth Type, Status, Joined only
-7. `d29deb3` - Improve filter dropdown positioning - attach to column header
-8. `9afcb4d` - Fix filter dropdown clipping issue
-9. `b607b75` - Fix admin dashboard filtering and sorting bugs
-10. `04ae387` - Implement Google Sheets-style column filters
+### Today's Session (2026-02-13 PM)
+1. `d6d230d` - Fix ad detection false positives causing missing markers on first load
+2. `3ccf641` - Add debug logging to renderMarkers to diagnose first-load marker issue
+3. `2ea0cf8` - Add Citation Type and Citation Status columns to future improvements
+4. `a85c10c` - Update roadmap: Phase 3B complete, document admin dashboard implementation
+5. `a0ab989` - Add X button, overlay click, and ESC key to close user details modal
+6. `893c97b` - Add detailed User Details modal with identifiers, citations, and admin action history
+7. `a2e2ffa` - Add Select All and Clear All buttons to filter dropdowns
+8. `4e9a781` - Update analytics card border colors: Temporary=grey, Unverified=yellow
+9. `79973bd` - Update Citations tab columns: add/remove filters, rename columns, remove Share Size
+10. `1849f61` - Update column filtering: limit filters to Auth Type, Status, Joined only
+11. `d29deb3` - Improve filter dropdown positioning - attach to column header
+12. `9afcb4d` - Fix filter dropdown clipping issue
+13. `b607b75` - Fix admin dashboard filtering and sorting bugs
+14. `04ae387` - Implement Google Sheets-style column filters
 
 ### Earlier Admin Dashboard Work (2026-02-13 AM)
-11. `f7a9a10` - Add filters and sortable columns to Users and Citations tabs
-12. `fb0f3da` - Add Analytics tab and simplify count displays
-13. `c0b0106` - Add dynamic user count display to Users tab
-14. `7a51598` - Add dynamic annotation count display to Citations tab
-15. `22d3358` - Reconcile annotation counts across Users and Citations tabs
+15. `f7a9a10` - Add filters and sortable columns to Users and Citations tabs
+16. `fb0f3da` - Add Analytics tab and simplify count displays
+17. `c0b0106` - Add dynamic user count display to Users tab
+18. `7a51598` - Add dynamic annotation count display to Citations tab
+19. `22d3358` - Reconcile annotation counts across Users and Citations tabs
 
 ---
 
