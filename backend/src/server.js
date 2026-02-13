@@ -4,6 +4,7 @@ const cors = require('cors');
 const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const sharesRoutes = require('./routes/shares');
+const usersRoutes = require('./routes/users');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { setupCounterResetJobs } = require('./jobs/resetCounters');
 
@@ -27,7 +28,7 @@ app.use((req, res, next) => {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Anonymous-ID');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, X-Anonymous-ID, Authorization');
     res.setHeader('Access-Control-Allow-Private-Network', 'true');
   }
 
@@ -73,7 +74,7 @@ const corsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'X-Anonymous-ID']
+  allowedHeaders: ['Content-Type', 'X-Anonymous-ID', 'Authorization']
 };
 
 app.use(cors(corsOptions));
@@ -115,6 +116,7 @@ app.get('/api/health', (req, res) => {
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/shares', sharesRoutes);
+app.use('/api/users', usersRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

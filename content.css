@@ -853,3 +853,198 @@ a.yt-annotator-citation-title:hover {
 .yt-annotator-expiry-warning button:hover {
   background: #333;
 }
+
+/* User Profile Modal */
+.yt-annotator-user-profile-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100001;
+  font-family: 'Roboto', Arial, sans-serif;
+}
+
+.yt-annotator-user-profile-content {
+  background: #1a1a1a;
+  border: 2px solid #0497a6;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6);
+  position: relative;
+}
+
+.yt-annotator-user-profile-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 28px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.yt-annotator-user-profile-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.yt-annotator-user-profile-header {
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #333;
+}
+
+.yt-annotator-user-profile-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #0497a6;
+}
+
+.yt-annotator-profile-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #aaa;
+}
+
+.yt-annotator-profile-body {
+  color: #fff;
+}
+
+.yt-annotator-profile-loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px;
+}
+
+.yt-annotator-spinner {
+  border: 3px solid #333;
+  border-top: 3px solid #0497a6;
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.yt-annotator-profile-error {
+  color: #f44336;
+  padding: 20px;
+  text-align: center;
+}
+
+.yt-annotator-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.yt-annotator-profile-stat {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 16px;
+  text-align: center;
+}
+
+.yt-annotator-profile-stat-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #0497a6;
+  margin-bottom: 4px;
+}
+
+.yt-annotator-profile-stat-label {
+  font-size: 12px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.yt-annotator-profile-section {
+  margin-bottom: 24px;
+}
+
+.yt-annotator-profile-section h3 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 12px 0;
+}
+
+.yt-annotator-profile-videos {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.yt-annotator-profile-video {
+  display: block;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 12px;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.yt-annotator-profile-video:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: #0497a6;
+  transform: translateX(4px);
+}
+
+.yt-annotator-profile-video-title {
+  font-size: 14px;
+  color: #fff;
+  margin-bottom: 4px;
+  font-weight: 500;
+}
+
+.yt-annotator-profile-video-stats {
+  font-size: 12px;
+  color: #888;
+}
+
+.yt-annotator-profile-empty {
+  text-align: center;
+  color: #666;
+  padding: 20px;
+  font-style: italic;
+}
+
+/* Make badges clickable */
+.yt-annotator-popup-header span,
+.yt-annotator-sidebar-badge {
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.yt-annotator-popup-header span:hover,
+.yt-annotator-sidebar-badge:hover {
+  opacity: 0.8;
+}

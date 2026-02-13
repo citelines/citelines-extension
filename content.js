@@ -121,7 +121,8 @@
                 ...ann,
                 shareToken: share.shareToken,
                 isOwn: isOwn,
-                creatorDisplayName: shareData.creator_display_name || shareData.creatorDisplayName
+                creatorDisplayName: shareData.creator_display_name || shareData.creatorDisplayName,
+                creatorUserId: shareData.user_id || shareData.userId
               }));
             }
             return [];
@@ -557,6 +558,17 @@
 
     // Event listeners
     popup.querySelector('.yt-annotator-popup-close').addEventListener('click', closePopup);
+
+    // Badge click handler - show user profile
+    const badgeElement = popup.querySelector('.yt-annotator-popup-header span');
+    if (badgeElement && annotation.creatorUserId) {
+      badgeElement.style.cursor = 'pointer';
+      badgeElement.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const userProfileUI = new UserProfileUI();
+        userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User');
+      });
+    }
 
     if (!isShared) {
       popup.querySelector('[data-action="delete"]').addEventListener('click', async () => {
@@ -1087,14 +1099,30 @@
 
     // Add click handlers to show annotation popup
     contentDiv.querySelectorAll('.yt-annotator-sidebar-item').forEach((item, index) => {
+      const annotation = filtered[index];
+
+      // Click on item (but not badge) shows popup
       item.addEventListener('click', (e) => {
+        // Don't show popup if clicking on badge
+        if (e.target.classList.contains('yt-annotator-sidebar-badge')) {
+          return;
+        }
         e.stopPropagation();
-        const annotation = filtered[index];
         const video = document.querySelector('video');
         if (video && annotation) {
           showAnnotationPopup(annotation, video, !annotation.isOwn);
         }
       });
+
+      // Click on badge shows user profile
+      const badge = item.querySelector('.yt-annotator-sidebar-badge');
+      if (badge && annotation.creatorUserId) {
+        badge.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const userProfileUI = new UserProfileUI();
+          userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User');
+        });
+      }
     });
   }
 
