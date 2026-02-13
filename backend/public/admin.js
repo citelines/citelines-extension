@@ -727,7 +727,7 @@ function openBulkDeleteModal() {
 async function bulkDeleteCitations(citationKeys, reason) {
   const totalCount = citationKeys.length;
   let successCount = 0;
-  let failCount = 0;
+  const failures = [];
 
   const confirmBtn = document.getElementById('modalConfirmBtn');
   confirmBtn.textContent = `Deleting... (0/${totalCount})`;
@@ -738,12 +738,13 @@ async function bulkDeleteCitations(citationKeys, reason) {
     return {
       key,
       token: checkbox.dataset.shareToken,
-      annotationId: checkbox.dataset.annotationId
+      annotationId: checkbox.dataset.annotationId,
+      title: checkbox.dataset.title
     };
   });
 
   // Delete in parallel (limit concurrency to avoid overwhelming server)
-  const batchSize = 5;
+  const batchSize = 3; // Reduced from 5 to avoid rate limiting
   for (let i = 0; i < citationsToDelete.length; i += batchSize) {
     const batch = citationsToDelete.slice(i, i + batchSize);
 
@@ -753,19 +754,27 @@ async function bulkDeleteCitations(citationKeys, reason) {
           .then(() => successCount++)
           .catch(err => {
             console.error(`Failed to delete ${citation.key}:`, err);
-            failCount++;
+            failures.push({ citation, error: err.message });
           })
       )
     );
 
-    confirmBtn.textContent = `Deleting... (${successCount + failCount}/${totalCount})`;
+    confirmBtn.textContent = `Deleting... (${successCount + failures.length}/${totalCount})`;
+
+    // Add small delay between batches to avoid rate limiting
+    if (i + batchSize < citationsToDelete.length) {
+      await new Promise(resolve => setTimeout(resolve, 500));
+    }
   }
 
   // Clear selection
   selectedCitations.clear();
 
-  if (failCount > 0) {
-    alert(`Deleted ${successCount} annotation(s). ${failCount} failed.`);
+  if (failures.length > 0) {
+    const failureDetails = failures.map(f => `- ${f.citation.title} (${f.citation.token}): ${f.error}`).join('\n');
+    alert(`Deleted ${successCount} annotation(s). ${failures.length} failed:\n\n${failureDetails}`);
+  } else {
+    alert(`Successfully deleted ${successCount} annotation(s).`);
   }
 
   await loadCitations();
