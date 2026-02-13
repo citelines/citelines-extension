@@ -83,16 +83,20 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
 
     // Check if already deleted
     if (targetAnnotation.deleted_at) {
+      console.log('[DELETE] Annotation already deleted, returning 400');
       return res.status(400).json({
         error: 'Already deleted',
         message: 'This annotation is already deleted'
       });
     }
 
+    console.log('[DELETE] Original annotations:', JSON.stringify(annotations, null, 2));
+
     // Mark annotation as deleted (soft delete within JSONB)
     const updatedAnnotations = annotations.map(ann => {
       // Use loose equality to handle type mismatch (number vs string)
       if (ann.id == annotation_id || ann.id === annotation_id) {
+        console.log('[DELETE] MATCH FOUND! Marking annotation', ann.id, 'as deleted');
         return {
           ...ann,
           deleted_at: new Date().toISOString(),
@@ -102,6 +106,9 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
       }
       return ann;
     });
+
+    console.log('[DELETE] Updated annotations:', JSON.stringify(updatedAnnotations, null, 2));
+    console.log('[DELETE] Arrays equal?', JSON.stringify(annotations) === JSON.stringify(updatedAnnotations));
 
     const updateResult = await db.query(
       `UPDATE shares
