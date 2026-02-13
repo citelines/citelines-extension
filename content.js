@@ -127,6 +127,14 @@
               if (isOwn && !userShareId) {
                 userShareId = share.shareToken;
                 console.log('[DEBUG] Found user share:', userShareId);
+
+                // CRITICAL: Update local storage to match backend state
+                // This prevents deleted annotations from being resurrected when creating new ones
+                const nonDeletedAnnotations = shareData.annotations.filter(ann => !ann.deleted_at);
+                annotations[videoId] = nonDeletedAnnotations;
+                const storageKey = getAnnotationsStorageKey(videoId);
+                chrome.storage.local.set({ [storageKey]: nonDeletedAnnotations });
+                console.log('[DEBUG] Updated local storage: removed deleted annotations');
               }
 
               return shareData.annotations
