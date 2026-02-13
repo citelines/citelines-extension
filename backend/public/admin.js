@@ -210,28 +210,34 @@ function renderUsers(users) {
     </div>
   `;
 
-  const columnHeader = (column, label) => {
+  const columnHeader = (column, label, options = {}) => {
+    const { showFilter = false, showSort = true } = options;
     const hasFilter = usersFilters[column] && usersFilters[column].length > 0;
-    return `
-      <th style="user-select: none;">
-        <span onclick="toggleUserColumnFilter(event, '${column}')" style="cursor: pointer;">
-          ${label}
-          <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
-        </span>
-      </th>
-    `;
+
+    if (showSort || showFilter) {
+      return `
+        <th style="user-select: none;">
+          <span onclick="toggleUserColumnFilter(event, '${column}')" style="cursor: pointer;">
+            ${label}
+            <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
+          </span>
+        </th>
+      `;
+    } else {
+      return `<th>${label}</th>`;
+    }
   };
 
   const html = countHtml + `
     <table>
       <thead>
         <tr>
-          ${columnHeader('display_name', 'Display Name')}
-          ${columnHeader('email', 'Email')}
-          ${columnHeader('auth_type', 'Auth Type')}
-          ${columnHeader('status', 'Status')}
-          ${columnHeader('total_annotations', 'Annotations')}
-          ${columnHeader('created_at', 'Joined')}
+          ${columnHeader('display_name', 'Display Name', { showSort: true, showFilter: false })}
+          ${columnHeader('email', 'Email', { showSort: true, showFilter: false })}
+          ${columnHeader('auth_type', 'Auth Type', { showSort: true, showFilter: true })}
+          ${columnHeader('status', 'Status', { showSort: true, showFilter: true })}
+          ${columnHeader('total_annotations', 'Annotations', { showSort: true, showFilter: false })}
+          ${columnHeader('created_at', 'Joined', { showSort: true, showFilter: true })}
           <th>Actions</th>
         </tr>
       </thead>
@@ -430,13 +436,44 @@ function toggleUserColumnFilter(event, column) {
     dropdown.id = dropdownId;
     dropdown.className = 'filter-dropdown';
     document.body.appendChild(dropdown);
-    // Get unique values for this column
-    const uniqueValues = getUniqueUserColumnValues(column);
+    // Determine if this column should show filter options
+    const filterableColumns = ['auth_type', 'status', 'created_at'];
+    const showFilter = filterableColumns.includes(column);
+
+    // Get unique values for this column if filterable
+    const uniqueValues = showFilter ? getUniqueUserColumnValues(column) : [];
     const currentFilters = usersFilters[column] || [];
 
-    console.log('Column:', column, 'Unique values:', uniqueValues, 'Current filters:', currentFilters);
+    console.log('Column:', column, 'Show filter:', showFilter, 'Unique values:', uniqueValues, 'Current filters:', currentFilters);
 
     // Build dropdown content
+    let filterSection = '';
+    if (showFilter && column === 'created_at') {
+      // Date range filter for Joined column (TODO: implement date range picker)
+      filterSection = `
+        <div class="filter-section">
+          <div class="filter-section-title">Filter by Date</div>
+          <div style="padding: 10px; color: #666; font-size: 13px;">Date range filtering coming soon...</div>
+        </div>
+      `;
+    } else if (showFilter) {
+      // Standard checkbox filter
+      filterSection = `
+        <div class="filter-section">
+          <div class="filter-section-title">Filter</div>
+          ${uniqueValues.map(value => `
+            <label class="filter-option">
+              <input type="checkbox"
+                     value="${escapeHtml(value)}"
+                     ${currentFilters.includes(value) ? 'checked' : ''}
+                     onchange="updateUserColumnFilter('${column}', this)">
+              <span>${escapeHtml(value || '(Empty)')}</span>
+            </label>
+          `).join('')}
+        </div>
+      `;
+    }
+
     dropdown.innerHTML = `
       <div class="filter-section">
         <div class="filter-section-title">Sort</div>
@@ -447,20 +484,9 @@ function toggleUserColumnFilter(event, column) {
           ${usersSortColumn === column && usersSortDirection === 'desc' ? '✓ ' : ''}Sort Z → A
         </div>
       </div>
-      <div class="filter-section">
-        <div class="filter-section-title">Filter</div>
-        ${uniqueValues.map(value => `
-          <label class="filter-option">
-            <input type="checkbox"
-                   value="${escapeHtml(value)}"
-                   ${currentFilters.includes(value) ? 'checked' : ''}
-                   onchange="updateUserColumnFilter('${column}', this)">
-            <span>${escapeHtml(value || '(Empty)')}</span>
-          </label>
-        `).join('')}
-      </div>
+      ${filterSection}
       <div class="filter-actions">
-        <button onclick="clearUserColumnFilter('${column}')" style="background: #f5f5f5; color: #333;">Clear</button>
+        ${showFilter ? '<button onclick="clearUserColumnFilter(\'' + column + '\')" style="background: #f5f5f5; color: #333;">Clear</button>' : ''}
         <button onclick="closeFilterDropdown()" class="btn" style="background: #0497a6; color: white;">Done</button>
       </div>
     `;
