@@ -194,7 +194,7 @@ function renderUsers(users) {
           <th>Email</th>
           <th>Auth Type</th>
           <th>Status</th>
-          <th>Citations</th>
+          <th>Annotations (Active/Total)</th>
           <th>Joined</th>
           <th>Actions</th>
         </tr>
@@ -213,7 +213,7 @@ function renderUsers(users) {
                 user.is_suspended ? '<span class="badge badge-suspended">Suspended</span>' :
                 '<span class="badge badge-active">Active</span>'}
             </td>
-            <td>${user.citation_count || 0}</td>
+            <td>${user.active_annotations || 0} / ${user.total_annotations || 0}</td>
             <td>${formatDate(user.created_at)}</td>
             <td>
               <div class="action-buttons">
@@ -269,7 +269,7 @@ function renderCitations(citations) {
           <th>Creator</th>
           <th>Content</th>
           <th>Timestamp</th>
-          <th>Count</th>
+          <th>Share Size</th>
           <th>Status</th>
           <th>Created</th>
           <th>Actions</th>

@@ -552,7 +552,11 @@ router.get('/users', authenticateAdmin, asyncHandler(async (req, res) => {
       id, display_name, auth_type, email, created_at,
       is_admin, is_suspended, suspended_until, suspension_reason,
       is_blocked, blocked_at, blocked_reason,
-      (SELECT COUNT(*) FROM shares WHERE user_id = users.id) as citation_count
+      (SELECT COALESCE(SUM(jsonb_array_length(annotations)), 0) FROM shares WHERE user_id = users.id) as total_annotations,
+      (SELECT COALESCE(SUM(
+        (SELECT COUNT(*) FROM jsonb_array_elements(annotations) AS ann
+         WHERE (ann->>'deleted_at') IS NULL)
+      ), 0) FROM shares WHERE user_id = users.id) as active_annotations
      FROM users
      ${whereClause}
      ORDER BY created_at DESC
