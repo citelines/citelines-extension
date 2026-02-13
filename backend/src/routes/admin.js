@@ -573,6 +573,81 @@ router.get('/users', authenticateAdmin, asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/admin/users/:userId
+ * Get detailed user information for admin view
+ */
+router.get('/users/:userId', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  // Get user info
+  const userResult = await db.query(
+    `SELECT
+      id, anonymous_id, display_name, email, email_verified, auth_type,
+      created_at, expires_at, is_admin, is_suspended, suspended_until,
+      suspension_reason, is_blocked, blocked_at, blocked_reason
+     FROM users
+     WHERE id = $1`,
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const user = userResult.rows[0];
+
+  // Get user's citations
+  const citationsResult = await db.query(
+    `SELECT
+      s.share_token, s.video_id, s.title, s.annotations,
+      s.created_at, s.deleted_at, s.deletion_reason
+     FROM shares s
+     WHERE s.user_id = $1
+     ORDER BY s.created_at DESC`,
+    [userId]
+  );
+
+  // Expand annotations
+  const citations = [];
+  citationsResult.rows.forEach(share => {
+    if (share.annotations && Array.isArray(share.annotations)) {
+      share.annotations.forEach(annotation => {
+        citations.push({
+          share_token: share.share_token,
+          video_id: share.video_id,
+          title: share.title,
+          annotation_id: annotation.id,
+          text: annotation.text,
+          timestamp: annotation.timestamp,
+          created_at: annotation.createdAt || share.created_at,
+          deleted_at: annotation.deleted_at,
+          deleted_by: annotation.deleted_by,
+          deletion_reason: annotation.deletion_reason
+        });
+      });
+    }
+  });
+
+  // Get admin actions taken on this user
+  const actionsResult = await db.query(
+    `SELECT
+      aa.action_type, aa.reason, aa.created_at,
+      u.display_name as admin_display_name
+     FROM admin_actions aa
+     LEFT JOIN users u ON aa.admin_id = u.id
+     WHERE aa.target_type = 'user' AND aa.target_id = $1
+     ORDER BY aa.created_at DESC`,
+    [userId]
+  );
+
+  res.json({
+    user,
+    citations,
+    adminActions: actionsResult.rows
+  });
+}));
+
+/**
  * GET /api/admin/citations
  * List citations with delete status
  */

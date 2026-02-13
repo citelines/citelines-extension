@@ -259,6 +259,7 @@ function renderUsers(users) {
             <td>${formatDate(user.created_at)}</td>
             <td>
               <div class="action-buttons">
+                <button class="action-btn" onclick="openUserDetailsModal('${user.id}')" style="background: #0497a6; color: white;">View</button>
                 ${!user.is_blocked && !user.is_suspended ?
                   `<button class="action-btn btn-danger" onclick="openSuspendModal('${user.id}', '${escapeHtml(user.display_name)}')">Suspend</button>` : ''}
                 ${user.is_suspended && !user.is_blocked ?
@@ -1779,3 +1780,163 @@ document.addEventListener('click', function(event) {
     closeFilterDropdown();
   }
 });
+
+// ============================================================================
+// User Details Modal
+// ============================================================================
+
+async function openUserDetailsModal(userId) {
+  const modal = document.getElementById('userDetailsModal');
+  const body = document.getElementById('userDetailsBody');
+
+  body.innerHTML = '<div class="loading">Loading user details...</div>';
+  modal.classList.add('active');
+
+  try {
+    const response = await fetch(`${API_URL}/api/admin/users/${userId}`, {
+      headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+    });
+
+    if (!response.ok) throw new Error('Failed to load user details');
+
+    const data = await response.json();
+    renderUserDetails(data);
+
+  } catch (error) {
+    body.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+  }
+}
+
+function renderUserDetails(data) {
+  const { user, citations, adminActions } = data;
+  const body = document.getElementById('userDetailsBody');
+
+  // Determine account type
+  let accountType = 'Unknown';
+  let accountTypeBadge = '';
+  if (user.auth_type === 'anonymous' || user.auth_type === 'expired') {
+    accountType = 'Temporary';
+    accountTypeBadge = '<span class="badge" style="background: #9e9e9e; color: white;">Temporary</span>';
+  } else if (user.auth_type === 'password' && user.email_verified) {
+    accountType = 'Verified';
+    accountTypeBadge = '<span class="badge" style="background: #4caf50; color: white;">Verified</span>';
+  } else if (user.auth_type === 'password' && !user.email_verified) {
+    accountType = 'Unverified';
+    accountTypeBadge = '<span class="badge" style="background: #ffc107; color: black;">Unverified</span>';
+  }
+
+  // Status badges
+  const statusBadges = [];
+  if (user.is_admin) statusBadges.push('<span class="badge badge-admin">Admin</span>');
+  if (user.is_blocked) statusBadges.push('<span class="badge badge-blocked">Blocked</span>');
+  else if (user.is_suspended) statusBadges.push('<span class="badge badge-suspended">Suspended</span>');
+  else statusBadges.push('<span class="badge badge-active">Active</span>');
+
+  const html = `
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+      <!-- User Identifiers -->
+      <div class="analytics-section" style="margin: 0;">
+        <h2>User Identifiers</h2>
+        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 14px;">
+          <strong>Display Name:</strong> <span>${user.display_name}</span>
+          <strong>User ID:</strong> <span><code>${user.id}</code></span>
+          <strong>Anonymous ID:</strong> <span><code>${user.anonymous_id || '-'}</code></span>
+          <strong>Email:</strong> <span>${user.email || '-'}</span>
+        </div>
+      </div>
+
+      <!-- Account Status -->
+      <div class="analytics-section" style="margin: 0;">
+        <h2>Account Status</h2>
+        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 14px;">
+          <strong>Account Type:</strong> <span>${accountTypeBadge}</span>
+          <strong>Status:</strong> <span>${statusBadges.join(' ')}</span>
+          <strong>Created:</strong> <span>${formatDateTime(user.created_at)}</span>
+          <strong>Expires:</strong> <span>${user.expires_at ? formatDateTime(user.expires_at) : 'Never'}</span>
+          ${user.is_suspended ? `
+            <strong>Suspended Until:</strong> <span>${formatDateTime(user.suspended_until)}</span>
+            <strong>Suspension Reason:</strong> <span>${user.suspension_reason || '-'}</span>
+          ` : ''}
+          ${user.is_blocked ? `
+            <strong>Blocked At:</strong> <span>${formatDateTime(user.blocked_at)}</span>
+            <strong>Block Reason:</strong> <span>${user.blocked_reason || '-'}</span>
+          ` : ''}
+        </div>
+      </div>
+
+      <!-- Citations -->
+      <div class="analytics-section" style="margin: 0;">
+        <h2>Citations (${citations.length})</h2>
+        ${citations.length === 0 ? '<p style="color: #999;">No citations yet</p>' : `
+          <div style="max-height: 300px; overflow-y: auto;">
+            <table style="width: 100%; font-size: 13px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left;">Video ID</th>
+                  <th style="text-align: left;">Text</th>
+                  <th style="text-align: left;">Timestamp</th>
+                  <th style="text-align: left;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${citations.map(c => `
+                  <tr>
+                    <td><code>${c.video_id}</code></td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(c.text)}">${escapeHtml(c.text.substring(0, 50))}${c.text.length > 50 ? '...' : ''}</td>
+                    <td>${c.timestamp ? formatTimestamp(c.timestamp) : '-'}</td>
+                    <td>${c.deleted_at ? '<span class="badge badge-deleted">Deleted</span>' : '<span class="badge badge-active">Active</span>'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+
+      <!-- Future Features Placeholders -->
+      <div class="analytics-section" style="margin: 0; opacity: 0.5;">
+        <h2>Future Features</h2>
+        <div style="display: grid; grid-template-columns: 120px 1fr; gap: 10px; font-size: 14px; color: #999;">
+          <strong>Proposed Citations:</strong> <span>Coming soon...</span>
+          <strong>Approved Citations:</strong> <span>Coming soon...</span>
+          <strong>Approval Rate:</strong> <span>Coming soon...</span>
+        </div>
+      </div>
+
+      <!-- Admin Actions -->
+      <div class="analytics-section" style="margin: 0;">
+        <h2>Admin Action History (${adminActions.length})</h2>
+        ${adminActions.length === 0 ? '<p style="color: #999;">No admin actions taken</p>' : `
+          <div style="max-height: 200px; overflow-y: auto;">
+            <table style="width: 100%; font-size: 13px;">
+              <thead>
+                <tr>
+                  <th style="text-align: left;">Date</th>
+                  <th style="text-align: left;">Admin</th>
+                  <th style="text-align: left;">Action</th>
+                  <th style="text-align: left;">Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${adminActions.map(action => `
+                  <tr>
+                    <td>${formatDateTime(action.created_at)}</td>
+                    <td>${action.admin_display_name || 'Unknown'}</td>
+                    <td>${formatActionType(action.action_type)}</td>
+                    <td>${action.reason || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+        `}
+      </div>
+    </div>
+  `;
+
+  body.innerHTML = html;
+}
+
+function closeUserDetailsModal() {
+  document.getElementById('userDetailsModal').classList.remove('active');
+}
