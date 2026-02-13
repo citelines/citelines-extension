@@ -177,7 +177,24 @@
     if (!markersContainer) return;
 
     const video = document.querySelector('video');
-    if (!video || !video.duration) return;
+    if (!video) {
+      console.log('[Markers] Video element not found, skipping render');
+      return;
+    }
+
+    if (!video.duration || video.duration === 0) {
+      console.log('[Markers] Video duration not ready yet, waiting...');
+      // Retry when duration is available
+      const retryRender = () => {
+        if (video.duration && video.duration > 0) {
+          console.log('[Markers] Video duration now available, rendering markers');
+          renderMarkers();
+          video.removeEventListener('durationchange', retryRender);
+        }
+      };
+      video.addEventListener('durationchange', retryRender, { once: true });
+      return;
+    }
 
     // Clear existing markers
     markersContainer.innerHTML = '';
