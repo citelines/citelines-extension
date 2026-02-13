@@ -20,6 +20,7 @@ let usersFilters = {}; // { columnName: [selectedValues] }
 let citationsFilters = {}; // { columnName: [selectedValues] }
 let activeFilterDropdown = null;
 let activeFilterTrigger = null; // Track the th element that opened the dropdown
+let currentUserDetailsId = null; // Track the user ID being viewed in modal
 
 // ============================================================================
 // Authentication
@@ -1639,6 +1640,7 @@ async function deleteCitation(token, reason, annotationId) {
   await deleteCitationRequest(token, reason, annotationId);
   await loadCitations();
   await loadAudit();
+  await refreshUserDetailsModalIfOpen();
 }
 
 async function restoreCitation(token) {
@@ -1672,6 +1674,7 @@ async function restoreAnnotation(token, annotationId, reason) {
 
   await loadCitations();
   await loadAudit();
+  await refreshUserDetailsModalIfOpen();
 }
 
 // ============================================================================
@@ -1910,6 +1913,7 @@ async function openUserDetailsModal(userId) {
   const modal = document.getElementById('userDetailsModal');
   const body = document.getElementById('userDetailsBody');
 
+  currentUserDetailsId = userId; // Track which user is being viewed
   body.innerHTML = '<div class="loading">Loading user details...</div>';
   modal.classList.add('active');
 
@@ -1925,6 +1929,26 @@ async function openUserDetailsModal(userId) {
 
   } catch (error) {
     body.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+  }
+}
+
+// Refresh the User Details modal if it's currently open
+async function refreshUserDetailsModalIfOpen() {
+  const modal = document.getElementById('userDetailsModal');
+  if (modal && modal.classList.contains('active') && currentUserDetailsId) {
+    const body = document.getElementById('userDetailsBody');
+    try {
+      const response = await fetch(`${API_URL}/api/admin/users/${currentUserDetailsId}`, {
+        headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+      });
+
+      if (!response.ok) throw new Error('Failed to refresh user details');
+
+      const data = await response.json();
+      renderUserDetails(data);
+    } catch (error) {
+      console.error('Failed to refresh user details:', error);
+    }
   }
 }
 
@@ -1997,16 +2021,26 @@ function renderUserDetails(data) {
                   <th style="text-align: left;">Text</th>
                   <th style="text-align: left;">Timestamp</th>
                   <th style="text-align: left;">Status</th>
+                  <th style="text-align: left; width: 100px;">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                ${citations.map(c => `
+                ${citations.map(c => {
+                  const isDeleted = c.deleted_at;
+                  const titleForModal = escapeHtml(c.title || c.video_id);
+                  return `
                   <tr>
                     <td><code>${c.video_id}</code></td>
                     <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(c.text)}">${escapeHtml(c.text.substring(0, 50))}${c.text.length > 50 ? '...' : ''}</td>
                     <td>${c.timestamp ? formatTimestamp(c.timestamp) : '-'}</td>
-                    <td>${c.deleted_at ? '<span class="badge badge-deleted">Deleted</span>' : '<span class="badge badge-active">Active</span>'}</td>
-                  </tr>
+                    <td>${isDeleted ? '<span class="badge badge-deleted">Deleted</span>' : '<span class="badge badge-active">Active</span>'}</td>
+                    <td>
+                      ${!isDeleted ?
+                        `<button class="action-btn btn-danger" onclick="openDeleteCitationModal('${c.share_token}', '${titleForModal}', '${c.annotation_id}'); event.stopPropagation();" style="font-size: 11px; padding: 4px 8px;">Delete</button>` :
+                        `<button class="action-btn btn-success" onclick="openRestoreAnnotationModal('${c.share_token}', '${titleForModal}', '${c.annotation_id}'); event.stopPropagation();" style="font-size: 11px; padding: 4px 8px;">Restore</button>`}
+                    </td>
+                  </tr>`;
+                }).join('')}
                 `).join('')}
               </tbody>
             </table>
@@ -2060,6 +2094,7 @@ function renderUserDetails(data) {
 
 function closeUserDetailsModal() {
   document.getElementById('userDetailsModal').classList.remove('active');
+  currentUserDetailsId = null; // Clear tracked user ID
 }
 
 function closeUserDetailsModalOnOverlay(event) {
