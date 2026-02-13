@@ -66,9 +66,11 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
 
     // Try to match annotation ID - handle both string and number types
     // IDs might be stored as numbers in JSONB but sent as strings from frontend
+    // Convert both to strings for guaranteed match
     const targetAnnotation = annotations.find(ann => {
-      // Use loose equality (==) to match "123" with 123
-      return ann.id == annotation_id || ann.id === annotation_id;
+      const match = String(ann.id) === String(annotation_id);
+      console.log('[DELETE] Comparing:', String(ann.id), '===', String(annotation_id), '→', match);
+      return match;
     });
 
     if (!targetAnnotation) {
@@ -94,8 +96,8 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
 
     // Mark annotation as deleted (soft delete within JSONB)
     const updatedAnnotations = annotations.map(ann => {
-      // Use loose equality to handle type mismatch (number vs string)
-      if (ann.id == annotation_id || ann.id === annotation_id) {
+      // Convert both to strings for guaranteed match
+      if (String(ann.id) === String(annotation_id)) {
         console.log('[DELETE] MATCH FOUND! Marking annotation', ann.id, 'as deleted');
         return {
           ...ann,
