@@ -244,8 +244,21 @@ function renderCitations(citations) {
     return;
   }
 
-  // Count active (non-deleted) citations for bulk actions
+  // Count statistics
   const activeCitations = citations.filter(c => !c.annotation_deleted_at && !c.share_deleted_at);
+  const deletedCitations = citations.filter(c => c.annotation_deleted_at || c.share_deleted_at);
+
+  // Count display
+  const countHtml = `
+    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
+      <strong>Showing ${citations.length} annotation(s)</strong>
+      <span style="color: #666; margin-left: 10px;">
+        (${activeCitations.length} active, ${deletedCitations.length} deleted)
+      </span>
+    </div>
+  `;
+
+  // Bulk actions
   const bulkActionsHtml = activeCitations.length > 0 ? `
     <div style="margin-bottom: 15px; display: flex; gap: 10px; align-items: center;">
       <button class="btn btn-danger" onclick="openBulkDeleteModal()" id="bulkDeleteBtn" disabled>
@@ -255,7 +268,7 @@ function renderCitations(citations) {
     </div>
   ` : '';
 
-  const html = bulkActionsHtml + `
+  const html = countHtml + bulkActionsHtml + `
     <table>
       <thead>
         <tr>
