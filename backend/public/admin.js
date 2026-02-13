@@ -1525,6 +1525,14 @@ async function deleteCitationRequest(token, reason, annotationId) {
     body.annotation_id = annotationId;
   }
 
+  // DEBUG: Log exactly what we're sending
+  console.log('[Frontend DELETE] Sending request:', {
+    token,
+    annotationId,
+    annotationIdType: typeof annotationId,
+    body
+  });
+
   const response = await fetch(`${API_URL}/api/admin/citations/${token}`, {
     method: 'DELETE',
     headers: {
@@ -1536,10 +1544,13 @@ async function deleteCitationRequest(token, reason, annotationId) {
 
   if (!response.ok) {
     const data = await response.json();
+    console.error('[Frontend DELETE] Failed:', data);
     throw new Error(data.error || 'Failed to delete citation');
   }
 
-  return await response.json();
+  const result = await response.json();
+  console.log('[Frontend DELETE] Success:', result);
+  return result;
 }
 
 async function deleteCitation(token, reason, annotationId) {
