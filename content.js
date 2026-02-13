@@ -566,7 +566,7 @@
       badgeElement.addEventListener('click', (e) => {
         e.stopPropagation();
         const userProfileUI = new UserProfileUI();
-        userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User');
+        userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User', annotation.isOwn);
       });
     }
 
@@ -1120,7 +1120,7 @@
         badge.addEventListener('click', (e) => {
           e.stopPropagation();
           const userProfileUI = new UserProfileUI();
-          userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User');
+          userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User', annotation.isOwn);
         });
       }
     });

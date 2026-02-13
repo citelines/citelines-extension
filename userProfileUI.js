@@ -12,9 +12,12 @@ class UserProfileUI {
    * Show user profile modal
    * @param {string} userId - User ID to fetch profile for
    * @param {string} displayName - Display name (for immediate display)
+   * @param {boolean} isOwn - Whether this is the current user's profile
    */
-  async show(userId, displayName) {
-    this.createModal(displayName);
+  async show(userId, displayName, isOwn = false) {
+    this.isOwn = isOwn;
+    const headerName = isOwn ? `YOU - ${displayName}` : displayName;
+    this.createModal(headerName);
     document.body.appendChild(this.modal);
     this.modal.style.display = 'flex';
 
@@ -111,17 +114,14 @@ class UserProfileUI {
 
     // Update name with profile data
     if (profile.displayName) {
-      nameElement.textContent = profile.displayName;
+      const displayName = this.isOwn ? `YOU - ${profile.displayName}` : profile.displayName;
+      nameElement.textContent = displayName;
     }
 
     // Update subtitle
-    const accountType = profile.authType === 'password' ? 'Registered' : 'Anonymous';
-    if (profile.authType === 'password') {
-      const accountAge = this.getAccountAge(profile.accountCreated);
-      subtitle.textContent = `${accountType} • Member for ${accountAge}`;
-    } else {
-      subtitle.textContent = accountType;
-    }
+    const accountType = profile.authType === 'password' ? 'Registered' : 'Temporary account';
+    const joinDate = this.formatJoinDate(profile.accountCreated);
+    subtitle.textContent = `${accountType} • Contributor since ${joinDate}`;
 
     // Render stats
     body.className = 'yt-annotator-profile-body';
@@ -183,6 +183,15 @@ class UserProfileUI {
     const body = this.modal.querySelector('#yt-annotator-profile-body');
     body.className = 'yt-annotator-profile-error';
     body.innerHTML = `<p>${this.escapeHtml(message)}</p>`;
+  }
+
+  /**
+   * Format join date as "Month Year"
+   */
+  formatJoinDate(createdAt) {
+    const created = new Date(createdAt);
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${months[created.getMonth()]} ${created.getFullYear()}`;
   }
 
   /**
