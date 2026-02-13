@@ -29,6 +29,34 @@ async function authenticateUser(req, res, next) {
         const user = await User.findById(payload.userId);
 
         if (user) {
+          // Check if user is blocked
+          if (user.is_blocked) {
+            return res.status(403).json({
+              error: 'Account blocked',
+              message: 'Your account has been blocked. Reason: ' + (user.blocked_reason || 'No reason provided'),
+              blocked: true
+            });
+          }
+
+          // Check if user is suspended
+          if (user.is_suspended) {
+            const suspendedUntil = user.suspended_until ? new Date(user.suspended_until) : null;
+
+            // Check if suspension has expired
+            if (suspendedUntil && suspendedUntil < new Date()) {
+              // Suspension expired - auto-unsuspend
+              await User.unsuspend(user.id);
+              user.is_suspended = false;
+            } else {
+              return res.status(403).json({
+                error: 'Account suspended',
+                message: 'Your account is temporarily suspended. Reason: ' + (user.suspension_reason || 'No reason provided'),
+                suspended: true,
+                suspendedUntil: suspendedUntil
+              });
+            }
+          }
+
           req.user = user;
           req.authType = 'jwt';
           req.authMethod = 'token';
@@ -47,6 +75,34 @@ async function authenticateUser(req, res, next) {
       const user = await User.findByAnonymousId(anonymousId);
 
       if (user) {
+        // Check if user is blocked
+        if (user.is_blocked) {
+          return res.status(403).json({
+            error: 'Account blocked',
+            message: 'Your account has been blocked. Reason: ' + (user.blocked_reason || 'No reason provided'),
+            blocked: true
+          });
+        }
+
+        // Check if user is suspended
+        if (user.is_suspended) {
+          const suspendedUntil = user.suspended_until ? new Date(user.suspended_until) : null;
+
+          // Check if suspension has expired
+          if (suspendedUntil && suspendedUntil < new Date()) {
+            // Suspension expired - auto-unsuspend
+            await User.unsuspend(user.id);
+            user.is_suspended = false;
+          } else {
+            return res.status(403).json({
+              error: 'Account suspended',
+              message: 'Your account is temporarily suspended. Reason: ' + (user.suspension_reason || 'No reason provided'),
+              suspended: true,
+              suspendedUntil: suspendedUntil
+            });
+          }
+        }
+
         req.user = user;
         req.authType = 'anonymous';
         req.authMethod = 'anonymous_id';

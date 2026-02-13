@@ -5,6 +5,7 @@ const rateLimit = require('express-rate-limit');
 const authRoutes = require('./routes/auth');
 const sharesRoutes = require('./routes/shares');
 const usersRoutes = require('./routes/users');
+const adminRoutes = require('./routes/admin');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { setupCounterResetJobs } = require('./jobs/resetCounters');
 
@@ -117,6 +118,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/users', usersRoutes);
+app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

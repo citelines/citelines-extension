@@ -1,0 +1,496 @@
+/**
+ * Admin Moderation Routes
+ * Endpoints for admin-level moderation actions
+ */
+
+const express = require('express');
+const { authenticateAdmin } = require('../middleware/adminAuth');
+const { asyncHandler } = require('../middleware/errorHandler');
+const db = require('../config/database');
+
+const router = express.Router();
+
+/**
+ * Log admin action to audit trail
+ */
+async function logAdminAction(adminId, actionType, targetType, targetId, reason, metadata = {}) {
+  await db.query(
+    `INSERT INTO admin_actions (admin_id, action_type, target_type, target_id, reason, metadata)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [adminId, actionType, targetType, targetId, reason, JSON.stringify(metadata)]
+  );
+}
+
+// ============================================================================
+// CITATION MANAGEMENT
+// ============================================================================
+
+/**
+ * DELETE /api/admin/citations/:token
+ * Soft delete a citation (admin only)
+ */
+router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { token } = req.params;
+  const { reason } = req.body;
+
+  if (!reason || reason.trim().length === 0) {
+    return res.status(400).json({
+      error: 'Reason required',
+      message: 'You must provide a reason for deleting this citation'
+    });
+  }
+
+  // Find citation
+  const result = await db.query(
+    'SELECT id, share_token FROM shares WHERE share_token = $1',
+    [token]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({
+      error: 'Citation not found'
+    });
+  }
+
+  const citation = result.rows[0];
+
+  // Soft delete
+  await db.query(
+    `UPDATE shares
+     SET deleted_by_admin = $1, deleted_at = NOW(), deletion_reason = $2
+     WHERE share_token = $3`,
+    [req.user.id, reason.trim(), token]
+  );
+
+  // Log action
+  await logAdminAction(
+    req.user.id,
+    'delete_citation',
+    'citation',
+    citation.id,
+    reason.trim()
+  );
+
+  res.json({
+    message: 'Citation deleted successfully',
+    shareToken: token,
+    deletedBy: req.user.display_name,
+    reason: reason.trim()
+  });
+}));
+
+/**
+ * POST /api/admin/citations/:token/restore
+ * Restore a deleted citation
+ */
+router.post('/citations/:token/restore', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { token } = req.params;
+
+  // Find citation
+  const result = await db.query(
+    'SELECT id, share_token, deleted_by_admin FROM shares WHERE share_token = $1',
+    [token]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({
+      error: 'Citation not found'
+    });
+  }
+
+  const citation = result.rows[0];
+
+  if (!citation.deleted_by_admin) {
+    return res.status(400).json({
+      error: 'Citation not deleted',
+      message: 'This citation is not currently deleted'
+    });
+  }
+
+  // Restore
+  await db.query(
+    `UPDATE shares
+     SET deleted_by_admin = NULL, deleted_at = NULL, deletion_reason = NULL
+     WHERE share_token = $1`,
+    [token]
+  );
+
+  // Log action
+  await logAdminAction(
+    req.user.id,
+    'restore_citation',
+    'citation',
+    citation.id,
+    'Citation restored'
+  );
+
+  res.json({
+    message: 'Citation restored successfully',
+    shareToken: token,
+    restoredBy: req.user.display_name
+  });
+}));
+
+// ============================================================================
+// USER SUSPENSION (Temporary)
+// ============================================================================
+
+/**
+ * POST /api/admin/users/:userId/suspend
+ * Suspend user for a designated period
+ */
+router.post('/users/:userId/suspend', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { duration, reason } = req.body;
+
+  if (!duration || duration <= 0) {
+    return res.status(400).json({
+      error: 'Invalid duration',
+      message: 'Duration must be a positive number of days'
+    });
+  }
+
+  if (!reason || reason.trim().length === 0) {
+    return res.status(400).json({
+      error: 'Reason required',
+      message: 'You must provide a reason for suspending this user'
+    });
+  }
+
+  // Find user
+  const userResult = await db.query(
+    'SELECT id, display_name, is_admin FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).json({
+      error: 'User not found'
+    });
+  }
+
+  const user = userResult.rows[0];
+
+  // Cannot suspend admins
+  if (user.is_admin) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Cannot suspend admin users'
+    });
+  }
+
+  // Calculate suspension end time
+  const suspendedUntil = new Date();
+  suspendedUntil.setDate(suspendedUntil.getDate() + duration);
+
+  // Suspend user
+  await db.query(
+    `UPDATE users
+     SET is_suspended = true, suspended_until = $1, suspension_reason = $2
+     WHERE id = $3`,
+    [suspendedUntil, reason.trim(), userId]
+  );
+
+  // Log action
+  await logAdminAction(
+    req.user.id,
+    'suspend_user',
+    'user',
+    userId,
+    reason.trim(),
+    { duration, suspendedUntil }
+  );
+
+  res.json({
+    message: 'User suspended successfully',
+    userId,
+    displayName: user.display_name,
+    suspendedUntil,
+    duration,
+    reason: reason.trim(),
+    suspendedBy: req.user.display_name
+  });
+}));
+
+/**
+ * POST /api/admin/users/:userId/unsuspend
+ * Lift user suspension
+ */
+router.post('/users/:userId/unsuspend', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  // Find user
+  const userResult = await db.query(
+    'SELECT id, display_name, is_suspended FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).json({
+      error: 'User not found'
+    });
+  }
+
+  const user = userResult.rows[0];
+
+  if (!user.is_suspended) {
+    return res.status(400).json({
+      error: 'User not suspended',
+      message: 'This user is not currently suspended'
+    });
+  }
+
+  // Unsuspend
+  await db.query(
+    `UPDATE users
+     SET is_suspended = false, suspended_until = NULL, suspension_reason = NULL
+     WHERE id = $1`,
+    [userId]
+  );
+
+  // Log action
+  await logAdminAction(
+    req.user.id,
+    'unsuspend_user',
+    'user',
+    userId,
+    'Suspension lifted'
+  );
+
+  res.json({
+    message: 'User suspension lifted',
+    userId,
+    displayName: user.display_name,
+    unsuspendedBy: req.user.display_name
+  });
+}));
+
+// ============================================================================
+// USER BLOCKING (Permanent)
+// ============================================================================
+
+/**
+ * POST /api/admin/users/:userId/block
+ * Permanently block a user
+ */
+router.post('/users/:userId/block', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+  const { reason } = req.body;
+
+  if (!reason || reason.trim().length === 0) {
+    return res.status(400).json({
+      error: 'Reason required',
+      message: 'You must provide a reason for blocking this user'
+    });
+  }
+
+  // Find user
+  const userResult = await db.query(
+    'SELECT id, display_name, is_admin FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).json({
+      error: 'User not found'
+    });
+  }
+
+  const user = userResult.rows[0];
+
+  // Cannot block admins
+  if (user.is_admin) {
+    return res.status(403).json({
+      error: 'Forbidden',
+      message: 'Cannot block admin users'
+    });
+  }
+
+  // Block user
+  await db.query(
+    `UPDATE users
+     SET is_blocked = true, blocked_at = NOW(), blocked_reason = $1
+     WHERE id = $2`,
+    [reason.trim(), userId]
+  );
+
+  // Log action
+  await logAdminAction(
+    req.user.id,
+    'block_user',
+    'user',
+    userId,
+    reason.trim()
+  );
+
+  res.json({
+    message: 'User blocked permanently',
+    userId,
+    displayName: user.display_name,
+    reason: reason.trim(),
+    blockedBy: req.user.display_name
+  });
+}));
+
+/**
+ * POST /api/admin/users/:userId/unblock
+ * Unblock a user
+ */
+router.post('/users/:userId/unblock', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { userId } = req.params;
+
+  // Find user
+  const userResult = await db.query(
+    'SELECT id, display_name, is_blocked FROM users WHERE id = $1',
+    [userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    return res.status(404).json({
+      error: 'User not found'
+    });
+  }
+
+  const user = userResult.rows[0];
+
+  if (!user.is_blocked) {
+    return res.status(400).json({
+      error: 'User not blocked',
+      message: 'This user is not currently blocked'
+    });
+  }
+
+  // Unblock
+  await db.query(
+    `UPDATE users
+     SET is_blocked = false, blocked_at = NULL, blocked_reason = NULL
+     WHERE id = $1`,
+    [userId]
+  );
+
+  // Log action
+  await logAdminAction(
+    req.user.id,
+    'unblock_user',
+    'user',
+    userId,
+    'Block removed'
+  );
+
+  res.json({
+    message: 'User unblocked successfully',
+    userId,
+    displayName: user.display_name,
+    unblockedBy: req.user.display_name
+  });
+}));
+
+// ============================================================================
+// LISTING & SEARCH
+// ============================================================================
+
+/**
+ * GET /api/admin/users
+ * List users with moderation status
+ */
+router.get('/users', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { status, limit = 100, offset = 0 } = req.query;
+
+  let whereClause = '';
+  const params = [];
+
+  if (status === 'suspended') {
+    whereClause = 'WHERE is_suspended = true';
+  } else if (status === 'blocked') {
+    whereClause = 'WHERE is_blocked = true';
+  } else if (status === 'active') {
+    whereClause = 'WHERE is_suspended = false AND is_blocked = false';
+  }
+
+  const result = await db.query(
+    `SELECT
+      id, display_name, auth_type, email, created_at,
+      is_admin, is_suspended, suspended_until, suspension_reason,
+      is_blocked, blocked_at, blocked_reason,
+      (SELECT COUNT(*) FROM shares WHERE user_id = users.id) as citation_count
+     FROM users
+     ${whereClause}
+     ORDER BY created_at DESC
+     LIMIT $1 OFFSET $2`,
+    [parseInt(limit), parseInt(offset)]
+  );
+
+  res.json({
+    users: result.rows,
+    count: result.rows.length,
+    limit: parseInt(limit),
+    offset: parseInt(offset)
+  });
+}));
+
+/**
+ * GET /api/admin/citations
+ * List citations with delete status
+ */
+router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { deleted, limit = 100, offset = 0 } = req.query;
+
+  let whereClause = '';
+  if (deleted === 'true') {
+    whereClause = 'WHERE s.deleted_by_admin IS NOT NULL';
+  } else if (deleted === 'false') {
+    whereClause = 'WHERE s.deleted_by_admin IS NULL';
+  }
+
+  const result = await db.query(
+    `SELECT
+      s.id, s.share_token, s.video_id, s.title, s.user_id,
+      s.annotations, s.view_count, s.created_at,
+      s.deleted_by_admin, s.deleted_at, s.deletion_reason,
+      u.display_name as creator_display_name,
+      admin_user.display_name as deleted_by_display_name
+     FROM shares s
+     LEFT JOIN users u ON s.user_id = u.id
+     LEFT JOIN users admin_user ON s.deleted_by_admin = admin_user.id
+     ${whereClause}
+     ORDER BY s.created_at DESC
+     LIMIT $1 OFFSET $2`,
+    [parseInt(limit), parseInt(offset)]
+  );
+
+  res.json({
+    citations: result.rows,
+    count: result.rows.length,
+    limit: parseInt(limit),
+    offset: parseInt(offset)
+  });
+}));
+
+/**
+ * GET /api/admin/actions
+ * Get audit log of moderation actions
+ */
+router.get('/actions', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { limit = 100, offset = 0 } = req.query;
+
+  const result = await db.query(
+    `SELECT
+      a.id, a.action_type, a.target_type, a.target_id, a.reason,
+      a.metadata, a.created_at,
+      u.display_name as admin_display_name
+     FROM admin_actions a
+     LEFT JOIN users u ON a.admin_id = u.id
+     ORDER BY a.created_at DESC
+     LIMIT $1 OFFSET $2`,
+    [parseInt(limit), parseInt(offset)]
+  );
+
+  res.json({
+    actions: result.rows,
+    count: result.rows.length,
+    limit: parseInt(limit),
+    offset: parseInt(offset)
+  });
+}));
+
+module.exports = router;

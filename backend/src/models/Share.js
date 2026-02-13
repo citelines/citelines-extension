@@ -43,6 +43,7 @@ class Share {
       FROM shares s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.share_token = $1
+        AND s.deleted_by_admin IS NULL
     `;
 
     const result = await db.query(query, [shareToken]);
@@ -79,7 +80,9 @@ class Share {
         u.auth_type as creator_auth_type
       FROM shares s
       LEFT JOIN users u ON s.user_id = u.id
-      WHERE s.video_id = $1 AND s.is_public = true
+      WHERE s.video_id = $1
+        AND s.is_public = true
+        AND s.deleted_by_admin IS NULL
       ORDER BY s.created_at DESC
       LIMIT $2 OFFSET $3
     `;

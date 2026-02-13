@@ -280,6 +280,23 @@ class User {
 
     await db.query(query, [passwordHash, userId]);
   }
+
+  /**
+   * Auto-unsuspend user (called when suspension expires)
+   * @param {string} userId
+   * @returns {Promise<void>}
+   */
+  static async unsuspend(userId) {
+    const query = `
+      UPDATE users
+      SET is_suspended = false,
+          suspended_until = NULL,
+          suspension_reason = NULL
+      WHERE id = $1
+    `;
+
+    await db.query(query, [userId]);
+  }
 }
 
 module.exports = User;
