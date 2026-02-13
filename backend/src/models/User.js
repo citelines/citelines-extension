@@ -1,5 +1,6 @@
 const db = require('../config/database');
 const { hashPassword, generateToken } = require('../utils/password');
+const { generateAnonymousId } = require('../utils/tokenGenerator');
 
 /**
  * User model for database operations
@@ -116,17 +117,19 @@ class User {
     const passwordHash = await hashPassword(password);
     const verificationToken = generateToken();
     const verificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    const anonymousId = generateAnonymousId();
 
     const query = `
       INSERT INTO users
-        (email, password_hash, display_name, email_verification_token,
+        (anonymous_id, email, password_hash, display_name, email_verification_token,
          email_verification_expires, auth_type, email_verified, created_at)
-      VALUES ($1, $2, $3, $4, $5, 'password', false, NOW())
-      RETURNING id, email, display_name, auth_type, email_verified, created_at,
+      VALUES ($1, $2, $3, $4, $5, $6, 'password', false, NOW())
+      RETURNING id, anonymous_id, email, display_name, auth_type, email_verified, created_at,
                 email_verification_token, email_verification_expires
     `;
 
     const result = await db.query(query, [
+      anonymousId,
       email.toLowerCase(),
       passwordHash,
       displayName,
