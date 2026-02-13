@@ -7,6 +7,7 @@ let currentUser = null;
 let usersData = [];
 let citationsData = [];
 let auditData = [];
+let analyticsData = null;
 let currentAction = null;
 let selectedCitations = new Set();
 
@@ -101,6 +102,8 @@ function switchTab(tabName) {
     loadUsers();
   } else if (tabName === 'citations' && citationsData.length === 0) {
     loadCitations();
+  } else if (tabName === 'analytics' && !analyticsData) {
+    loadAnalytics();
   } else if (tabName === 'audit' && auditData.length === 0) {
     loadAudit();
   }
@@ -191,13 +194,10 @@ function renderUsers(users) {
   const suspendedUsers = users.filter(u => u.is_suspended && !u.is_blocked);
   const blockedUsers = users.filter(u => u.is_blocked);
 
-  // Count display
+  // Count display (simplified)
   const countHtml = `
     <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
       <strong>Showing ${users.length} user(s)</strong>
-      <span style="color: #666; margin-left: 10px;">
-        (${activeUsers.length} active, ${suspendedUsers.length} suspended, ${blockedUsers.length} blocked)
-      </span>
     </div>
   `;
 
@@ -263,13 +263,10 @@ function renderCitations(citations) {
   const activeCitations = citations.filter(c => !c.annotation_deleted_at && !c.share_deleted_at);
   const deletedCitations = citations.filter(c => c.annotation_deleted_at || c.share_deleted_at);
 
-  // Count display
+  // Count display (simplified)
   const countHtml = `
     <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
       <strong>Showing ${citations.length} annotation(s)</strong>
-      <span style="color: #666; margin-left: 10px;">
-        (${activeCitations.length} active, ${deletedCitations.length} deleted)
-      </span>
     </div>
   `;
 
@@ -389,6 +386,148 @@ function renderAudit(actions) {
         `).join('')}
       </tbody>
     </table>
+  `;
+
+  container.innerHTML = html;
+}
+
+async function loadAnalytics() {
+  const container = document.getElementById('analyticsContent');
+  container.innerHTML = '<div class="loading">Loading analytics...</div>';
+
+  try {
+    // Load users and citations data if not already loaded
+    if (usersData.length === 0) {
+      const usersResponse = await fetch(`${API_URL}/api/admin/users?limit=1000`, {
+        headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+      });
+      if (!usersResponse.ok) throw new Error('Failed to load users');
+      const usersResult = await usersResponse.json();
+      usersData = usersResult.users || [];
+    }
+
+    if (citationsData.length === 0) {
+      const citationsResponse = await fetch(`${API_URL}/api/admin/citations?limit=10000`, {
+        headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+      });
+      if (!citationsResponse.ok) throw new Error('Failed to load citations');
+      const citationsResult = await citationsResponse.json();
+      citationsData = citationsResult.citations || [];
+    }
+
+    // Calculate analytics
+    analyticsData = {
+      users: {
+        temporary: usersData.filter(u => u.auth_type === 'anonymous' || u.auth_type === 'expired').length,
+        verified: usersData.filter(u => u.auth_type === 'password' && u.email_verified).length,
+        unverified: usersData.filter(u => u.auth_type === 'password' && !u.email_verified).length,
+        total: usersData.length
+      },
+      interventions: {
+        suspended: usersData.filter(u => u.is_suspended).length,
+        blocked: usersData.filter(u => u.is_blocked).length,
+        total: usersData.filter(u => u.is_suspended || u.is_blocked).length
+      },
+      citations: {
+        active: citationsData.filter(c => !c.annotation_deleted_at && !c.share_deleted_at).length,
+        deleted: citationsData.filter(c => c.annotation_deleted_at || c.share_deleted_at).length,
+        total: citationsData.length
+      }
+    };
+
+    renderAnalytics(analyticsData);
+
+  } catch (error) {
+    container.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+  }
+}
+
+function renderAnalytics(data) {
+  const container = document.getElementById('analyticsContent');
+
+  const html = `
+    <!-- User Count Section -->
+    <div class="analytics-section">
+      <h2>User Count</h2>
+      <div class="analytics-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Users</div>
+          <div class="stat-value">${data.users.total}</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">Temporary</div>
+          <div class="stat-value">${data.users.temporary}</div>
+          <div class="stat-subtitle">Anonymous accounts</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Verified</div>
+          <div class="stat-value">${data.users.verified}</div>
+          <div class="stat-subtitle">Email verified</div>
+        </div>
+        <div class="stat-card neutral">
+          <div class="stat-label">Unverified</div>
+          <div class="stat-value">${data.users.unverified}</div>
+          <div class="stat-subtitle">Pending verification</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- User Interventions Section -->
+    <div class="analytics-section">
+      <h2>User Interventions</h2>
+      <div class="analytics-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Interventions</div>
+          <div class="stat-value">${data.interventions.total}</div>
+        </div>
+        <div class="stat-card warning">
+          <div class="stat-label">Suspended</div>
+          <div class="stat-value">${data.interventions.suspended}</div>
+          <div class="stat-subtitle">Temporary suspension</div>
+        </div>
+        <div class="stat-card danger">
+          <div class="stat-label">Blocked</div>
+          <div class="stat-value">${data.interventions.blocked}</div>
+          <div class="stat-subtitle">Permanent block</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Citation Status Section -->
+    <div class="analytics-section">
+      <h2>Citation Status</h2>
+      <div class="analytics-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Citations</div>
+          <div class="stat-value">${data.citations.total}</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Active</div>
+          <div class="stat-value">${data.citations.active}</div>
+          <div class="stat-subtitle">Visible to users</div>
+        </div>
+        <div class="stat-card neutral">
+          <div class="stat-label">Deleted</div>
+          <div class="stat-value">${data.citations.deleted}</div>
+          <div class="stat-subtitle">Soft deleted</div>
+        </div>
+        <div class="stat-card neutral" style="opacity: 0.5;">
+          <div class="stat-label">Edited</div>
+          <div class="stat-value">—</div>
+          <div class="stat-subtitle">Future capability</div>
+        </div>
+        <div class="stat-card neutral" style="opacity: 0.5;">
+          <div class="stat-label">Proposed</div>
+          <div class="stat-value">—</div>
+          <div class="stat-subtitle">Future capability</div>
+        </div>
+        <div class="stat-card neutral" style="opacity: 0.5;">
+          <div class="stat-label">Approved</div>
+          <div class="stat-value">—</div>
+          <div class="stat-subtitle">Future capability</div>
+        </div>
+      </div>
+    </div>
   `;
 
   container.innerHTML = html;

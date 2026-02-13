@@ -385,6 +385,70 @@
       margin-bottom: 16px;
       opacity: 0.5;
     }
+
+    /* Analytics */
+    .analytics-section {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 25px;
+      margin-bottom: 30px;
+    }
+
+    .analytics-section h2 {
+      font-size: 18px;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .analytics-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .stat-card {
+      padding: 20px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      border-left: 4px solid #0497a6;
+    }
+
+    .stat-card.warning {
+      border-left-color: #ff9800;
+    }
+
+    .stat-card.danger {
+      border-left-color: #f44336;
+    }
+
+    .stat-card.success {
+      border-left-color: #4caf50;
+    }
+
+    .stat-card.neutral {
+      border-left-color: #9e9e9e;
+    }
+
+    .stat-label {
+      font-size: 12px;
+      color: #666;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .stat-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #333;
+    }
+
+    .stat-subtitle {
+      font-size: 13px;
+      color: #999;
+      margin-top: 5px;
+    }
   </style>
 </head>
 <body>
@@ -427,6 +491,7 @@
       <div class="tabs">
         <button class="tab active" onclick="switchTab('users')">Users</button>
         <button class="tab" onclick="switchTab('citations')">Citations</button>
+        <button class="tab" onclick="switchTab('analytics')">Analytics</button>
         <button class="tab" onclick="switchTab('audit')">Audit Log</button>
       </div>
 
@@ -450,6 +515,11 @@
           </div>
           <div id="citationsTable"></div>
         </div>
+      </div>
+
+      <!-- Analytics Tab -->
+      <div id="analyticsTab" class="tab-content">
+        <div id="analyticsContent"></div>
       </div>
 
       <!-- Audit Log Tab -->
