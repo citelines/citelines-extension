@@ -564,3 +564,292 @@ a.yt-annotator-citation-title:hover {
   color: #aaa;
   line-height: 1.4;
 }
+
+/* Authentication Modal */
+.yt-annotator-auth-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 100000;
+  font-family: 'Roboto', Arial, sans-serif;
+}
+
+.yt-annotator-auth-content {
+  background: #1a1a1a;
+  border: 2px solid #0497a6;
+  border-radius: 12px;
+  padding: 32px;
+  max-width: 440px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(4, 151, 166, 0.3);
+  position: relative;
+}
+
+.yt-annotator-auth-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 28px;
+  cursor: pointer;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  line-height: 1;
+}
+
+.yt-annotator-auth-close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+
+.yt-annotator-auth-header {
+  margin-bottom: 24px;
+}
+
+.yt-annotator-auth-header h2 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  font-weight: 600;
+  color: #0497a6;
+}
+
+.yt-annotator-auth-subtitle {
+  margin: 0;
+  font-size: 14px;
+  color: #aaa;
+  line-height: 1.4;
+}
+
+.yt-annotator-auth-message {
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.yt-annotator-auth-message-info {
+  background: rgba(4, 151, 166, 0.1);
+  border: 1px solid rgba(4, 151, 166, 0.3);
+  color: #0497a6;
+}
+
+.yt-annotator-auth-message-success {
+  background: rgba(76, 175, 80, 0.1);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  color: #4caf50;
+}
+
+.yt-annotator-auth-message-error {
+  background: rgba(244, 67, 54, 0.1);
+  border: 1px solid rgba(244, 67, 54, 0.3);
+  color: #f44336;
+}
+
+.yt-annotator-form-group {
+  margin-bottom: 18px;
+}
+
+.yt-annotator-form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #ccc;
+  margin-bottom: 6px;
+}
+
+.yt-annotator-form-group input {
+  width: 100%;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: border-color 0.15s ease;
+}
+
+.yt-annotator-form-group input:focus {
+  outline: none;
+  border-color: #0497a6;
+  box-shadow: 0 0 0 3px rgba(4, 151, 166, 0.1);
+}
+
+.yt-annotator-form-group small {
+  display: block;
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+.yt-annotator-auth-button {
+  width: 100%;
+  padding: 12px;
+  background: #0497a6;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-top: 8px;
+}
+
+.yt-annotator-auth-button:hover {
+  background: #05b3c4;
+  box-shadow: 0 2px 8px rgba(4, 151, 166, 0.3);
+  transform: translateY(-1px);
+}
+
+.yt-annotator-auth-button:active {
+  transform: translateY(0);
+}
+
+.yt-annotator-auth-links {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #333;
+}
+
+.yt-annotator-auth-links a {
+  color: #0497a6;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 500;
+  transition: color 0.15s ease;
+}
+
+.yt-annotator-auth-links a:hover {
+  color: #05b3c4;
+  text-decoration: underline;
+}
+
+/* Login Button */
+.yt-annotator-login-btn {
+  position: absolute;
+  right: 12px;
+  bottom: 168px;
+  background: rgba(4, 151, 166, 0.9);
+  color: #000;
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10002;
+  transition: transform 0.15s ease, background-color 0.15s ease, right 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(4, 151, 166, 0.4);
+}
+
+.yt-annotator-login-btn.sidebar-open {
+  right: 362px;
+}
+
+.yt-annotator-login-btn:hover {
+  transform: scale(1.1);
+  background: #05b3c4;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(4, 151, 166, 0.6);
+}
+
+/* User info badge (when logged in) */
+.yt-annotator-user-badge {
+  position: absolute;
+  right: 12px;
+  bottom: 168px;
+  background: rgba(4, 151, 166, 0.9);
+  color: #000;
+  border: none;
+  border-radius: 18px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  z-index: 10002;
+  transition: transform 0.15s ease, background-color 0.15s ease, right 0.3s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(4, 151, 166, 0.4);
+  max-width: 150px;
+}
+
+.yt-annotator-user-badge.sidebar-open {
+  right: 362px;
+}
+
+.yt-annotator-user-badge:hover {
+  transform: scale(1.05);
+  background: #05b3c4;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(4, 151, 166, 0.6);
+}
+
+.yt-annotator-user-name {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Expiry Warning Banner */
+.yt-annotator-expiry-warning {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(255, 152, 0, 0.95);
+  color: #000;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  z-index: 10001;
+  max-width: 500px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.yt-annotator-expiry-warning-text {
+  flex: 1;
+}
+
+.yt-annotator-expiry-warning button {
+  background: #000;
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.yt-annotator-expiry-warning button:hover {
+  background: #333;
+}

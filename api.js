@@ -8,6 +8,39 @@ class AnnotatorAPI {
     // Production Railway backend
     this.baseUrl = 'https://youtube-annotator-production.up.railway.app/api';
     this.anonymousId = null;
+    this.authManager = null; // Will be set after authManager is initialized
+  }
+
+  /**
+   * Set auth manager reference
+   * @param {AuthManager} manager
+   */
+  setAuthManager(manager) {
+    this.authManager = manager;
+  }
+
+  /**
+   * Get authentication headers (JWT or anonymous ID)
+   * @returns {Promise<Object>} Headers object
+   */
+  async getAuthHeaders() {
+    const headers = {
+      'Content-Type': 'application/json'
+    };
+
+    // Priority 1: Use JWT token if logged in
+    if (this.authManager && this.authManager.isLoggedIn()) {
+      headers['Authorization'] = `Bearer ${this.authManager.getToken()}`;
+      return headers;
+    }
+
+    // Priority 2: Use anonymous ID
+    await this.initialize();
+    if (this.anonymousId) {
+      headers['X-Anonymous-ID'] = this.anonymousId;
+    }
+
+    return headers;
   }
 
   /**
@@ -86,14 +119,11 @@ class AnnotatorAPI {
    * @returns {Promise<Object>} Share data with token and URL
    */
   async createShare(videoId, annotations, title = null) {
-    await this.initialize();
+    const headers = await this.getAuthHeaders();
 
     const response = await fetch(`${this.baseUrl}/shares`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Anonymous-ID': this.anonymousId
-      },
+      headers,
       body: JSON.stringify({
         videoId,
         title,
@@ -133,12 +163,11 @@ class AnnotatorAPI {
    * @returns {Promise<Object>} Share data with annotations
    */
   async getShare(shareToken) {
-    await this.initialize();
+    const headers = await this.getAuthHeaders();
+    delete headers['Content-Type']; // Not needed for GET
 
     const response = await fetch(`${this.baseUrl}/shares/${shareToken}`, {
-      headers: {
-        'X-Anonymous-ID': this.anonymousId
-      }
+      headers
     });
 
     if (!response.ok) {
@@ -176,14 +205,13 @@ class AnnotatorAPI {
    * @returns {Promise<Object>} List of user's shares
    */
   async getMyShares(limit = 50, offset = 0) {
-    await this.initialize();
+    const headers = await this.getAuthHeaders();
+    delete headers['Content-Type']; // Not needed for GET
 
     const response = await fetch(
       `${this.baseUrl}/shares/me?limit=${limit}&offset=${offset}`,
       {
-        headers: {
-          'X-Anonymous-ID': this.anonymousId
-        }
+        headers
       }
     );
 
@@ -202,14 +230,11 @@ class AnnotatorAPI {
    * @returns {Promise<Object>} Updated share data
    */
   async updateShare(shareToken, updates) {
-    await this.initialize();
+    const headers = await this.getAuthHeaders();
 
     const response = await fetch(`${this.baseUrl}/shares/${shareToken}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-        'X-Anonymous-ID': this.anonymousId
-      },
+      headers,
       body: JSON.stringify(updates)
     });
 
@@ -227,13 +252,12 @@ class AnnotatorAPI {
    * @returns {Promise<Object>} Deletion confirmation
    */
   async deleteShare(shareToken) {
-    await this.initialize();
+    const headers = await this.getAuthHeaders();
+    delete headers['Content-Type']; // Not needed for DELETE
 
     const response = await fetch(`${this.baseUrl}/shares/${shareToken}`, {
       method: 'DELETE',
-      headers: {
-        'X-Anonymous-ID': this.anonymousId
-      }
+      headers
     });
 
     if (!response.ok) {

@@ -14,6 +14,9 @@
   let sidebarFilter = 'all'; // 'all', 'mine', 'others'
   let activePopup = null;
   let userShareId = null; // Your share ID for current video
+  let loginButton = null; // Login/user badge button
+  let loginUI = null; // Login UI instance
+  let expiryWarning = null; // Expiry warning banner
 
   // Get video ID from URL
   function getVideoId() {
@@ -764,6 +767,119 @@
     playerContainer.appendChild(addButton);
   }
 
+  // Create the login/user button
+  function createLoginButton() {
+    if (loginButton) return;
+
+    const playerContainer = document.querySelector('#movie_player');
+    if (!playerContainer) return;
+
+    loginButton = document.createElement('button');
+
+    // Check if user is logged in
+    if (authManager.isLoggedIn()) {
+      const user = authManager.getCurrentUser();
+      loginButton.className = 'yt-annotator-user-badge';
+      loginButton.innerHTML = `<span class="yt-annotator-user-name">${escapeHtml(user.displayName)}</span>`;
+      loginButton.title = `Logged in as ${user.displayName} - Click to logout`;
+    } else {
+      loginButton.className = 'yt-annotator-login-btn';
+      loginButton.innerHTML = '👤';
+      loginButton.title = 'Sign in or create account';
+    }
+
+    loginButton.addEventListener('click', (e) => {
+      e.stopPropagation();
+      handleLoginButtonClick();
+    });
+
+    playerContainer.appendChild(loginButton);
+  }
+
+  // Handle login button click
+  function handleLoginButtonClick() {
+    if (authManager.isLoggedIn()) {
+      // Show logout confirmation
+      if (confirm('Sign out?')) {
+        authManager.logout().then(() => {
+          // Recreate button
+          if (loginButton) {
+            loginButton.remove();
+            loginButton = null;
+          }
+          createLoginButton();
+        });
+      }
+    } else {
+      // Show login modal
+      if (!loginUI) {
+        loginUI = new LoginUI(authManager, handleLoginSuccess);
+      }
+      loginUI.show('login');
+    }
+  }
+
+  // Handle successful login
+  async function handleLoginSuccess() {
+    console.log('[Auth] Login successful, refreshing UI...');
+
+    // Recreate login button to show user badge
+    if (loginButton) {
+      loginButton.remove();
+      loginButton = null;
+    }
+    createLoginButton();
+
+    // Re-fetch annotations to update ownership
+    if (currentVideoId) {
+      await fetchAllAnnotations(currentVideoId);
+    }
+  }
+
+  // Check and show expiry warning if needed
+  async function checkExpiryWarning() {
+    if (authManager.isLoggedIn()) {
+      // No warning for logged-in users
+      return;
+    }
+
+    try {
+      const expiryInfo = await authManager.getExpiryInfo();
+      if (expiryInfo && expiryInfo.daysUntilExpiry !== null && expiryInfo.daysUntilExpiry <= 10) {
+        showExpiryWarning(expiryInfo.daysUntilExpiry);
+      }
+    } catch (error) {
+      console.error('[Auth] Failed to check expiry:', error);
+    }
+  }
+
+  // Show expiry warning banner
+  function showExpiryWarning(daysLeft) {
+    if (expiryWarning) return; // Already showing
+
+    const playerContainer = document.querySelector('#movie_player');
+    if (!playerContainer) return;
+
+    expiryWarning = document.createElement('div');
+    expiryWarning.className = 'yt-annotator-expiry-warning';
+    expiryWarning.innerHTML = `
+      <div class="yt-annotator-expiry-warning-text">
+        ⚠️ Your account expires in ${daysLeft} day${daysLeft === 1 ? '' : 's'}.
+        Create an account to preserve your citations permanently.
+      </div>
+      <button>Sign Up</button>
+    `;
+
+    expiryWarning.querySelector('button').addEventListener('click', () => {
+      if (!loginUI) {
+        loginUI = new LoginUI(authManager, handleLoginSuccess);
+      }
+      loginUI.show('register');
+    });
+
+    playerContainer.appendChild(expiryWarning);
+  }
+
   // Create the sidebar toggle button
   function createSidebarButton() {
     if (sidebarButton) return;
@@ -797,6 +913,7 @@
       // Move buttons to the left when sidebar opens
       if (addButton) addButton.classList.add('sidebar-open');
       if (sidebarButton) sidebarButton.classList.add('sidebar-open');
+      if (loginButton) loginButton.classList.add('sidebar-open');
     } else {
       if (sidebar) {
         sidebar.classList.remove('yt-annotator-sidebar-open');
@@ -805,6 +922,7 @@
       // Move buttons back when sidebar closes
       if (addButton) addButton.classList.remove('sidebar-open');
       if (sidebarButton) sidebarButton.classList.remove('sidebar-open');
+      if (loginButton) loginButton.classList.remove('sidebar-open');
     }
   }
 
@@ -1090,6 +1208,19 @@
     createMarkersContainer();
     createAddButton();
     createSidebarButton();
+    createLoginButton();
+
+    // Initialize authentication
+    try {
+      await authManager.initialize();
+      api.setAuthManager(authManager);
+      console.log('[Auth] Initialized');
+
+      // Check for expiry warning (only for anonymous users)
+      checkExpiryWarning();
+    } catch (err) {
+      console.error('[Auth] Failed to initialize:', err);
+    }
 
     // Initialize API and fetch all annotations
     try {
@@ -1162,12 +1293,19 @@
         markersContainer = null;
         addButton = null;
         sidebarButton = null;
+        loginButton = null;
         sidebar = null;
         sidebarOpen = false;
         sharedAnnotations = [];
         userShareId = null;
         initialized = false;
         closePopup();
+
+        // Remove expiry warning if exists
+        if (expiryWarning) {
+          expiryWarning.remove();
+          expiryWarning = null;
+        }
 
         // Disconnect previous observer if exists
         if (playerObserver) {
