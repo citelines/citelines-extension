@@ -109,9 +109,13 @@ class UserProfileUI {
     const body = this.modal.querySelector('#yt-annotator-profile-body');
 
     // Update subtitle
-    const accountAge = this.getAccountAge(profile.accountCreated);
     const accountType = profile.authType === 'password' ? 'Registered' : 'Anonymous';
-    subtitle.textContent = `${accountType} • Member for ${accountAge}`;
+    if (profile.authType === 'password') {
+      const accountAge = this.getAccountAge(profile.accountCreated);
+      subtitle.textContent = `${accountType} • Member for ${accountAge}`;
+    } else {
+      subtitle.textContent = accountType;
+    }
 
     // Render stats
     body.className = 'yt-annotator-profile-body';
@@ -124,10 +128,6 @@ class UserProfileUI {
         <div class="yt-annotator-profile-stat">
           <div class="yt-annotator-profile-stat-value">${profile.stats.totalVideos}</div>
           <div class="yt-annotator-profile-stat-label">Videos</div>
-        </div>
-        <div class="yt-annotator-profile-stat">
-          <div class="yt-annotator-profile-stat-value">${profile.stats.citationsPerVideo}</div>
-          <div class="yt-annotator-profile-stat-label">Per Video</div>
         </div>
       </div>
 
