@@ -14,6 +14,9 @@ let usersSortColumn = 'created_at';
 let usersSortDirection = 'desc';
 let citationsSortColumn = 'created_at';
 let citationsSortDirection = 'desc';
+let usersFilters = {}; // { columnName: [selectedValues] }
+let citationsFilters = {}; // { columnName: [selectedValues] }
+let activeFilterDropdown = null;
 
 // ============================================================================
 // Authentication
@@ -198,37 +201,36 @@ function renderUsers(users) {
   const suspendedUsers = users.filter(u => u.is_suspended && !u.is_blocked);
   const blockedUsers = users.filter(u => u.is_blocked);
 
-  // Count display and filter
+  // Count display
   const countHtml = `
-    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
       <strong>Showing ${users.length} user(s)</strong>
-      <select id="userStatusFilter" onchange="applyUserFilter()" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-        <option value="all">All Users</option>
-        <option value="temporary">Temporary (Anonymous)</option>
-        <option value="unverified">Unverified (Pending)</option>
-        <option value="verified">Verified</option>
-        <option value="suspended">Suspended</option>
-        <option value="blocked">Blocked</option>
-        <option value="admin">Admins</option>
-      </select>
     </div>
   `;
 
-  const sortIcon = (column) => {
-    if (usersSortColumn !== column) return ' <span style="opacity: 0.3;">↕</span>';
-    return usersSortDirection === 'asc' ? ' ↑' : ' ↓';
+  const columnHeader = (column, label) => {
+    const hasFilter = usersFilters[column] && usersFilters[column].length > 0;
+    return `
+      <th style="position: relative; user-select: none;">
+        <span onclick="toggleUserColumnFilter(event, '${column}')" style="cursor: pointer;">
+          ${label}
+          <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
+        </span>
+        <div id="userFilter_${column}" class="filter-dropdown"></div>
+      </th>
+    `;
   };
 
   const html = countHtml + `
     <table>
       <thead>
         <tr>
-          <th style="cursor: pointer;" onclick="sortUsers('display_name')">Display Name${sortIcon('display_name')}</th>
-          <th style="cursor: pointer;" onclick="sortUsers('email')">Email${sortIcon('email')}</th>
-          <th style="cursor: pointer;" onclick="sortUsers('auth_type')">Auth Type${sortIcon('auth_type')}</th>
-          <th style="cursor: pointer;" onclick="sortUsers('status')">Status${sortIcon('status')}</th>
-          <th style="cursor: pointer;" onclick="sortUsers('total_annotations')">Annotations (Active/Total)${sortIcon('total_annotations')}</th>
-          <th style="cursor: pointer;" onclick="sortUsers('created_at')">Joined${sortIcon('created_at')}</th>
+          ${columnHeader('display_name', 'Display Name')}
+          ${columnHeader('email', 'Email')}
+          ${columnHeader('auth_type', 'Auth Type')}
+          ${columnHeader('status', 'Status')}
+          ${columnHeader('total_annotations', 'Annotations')}
+          ${columnHeader('created_at', 'Joined')}
           <th>Actions</th>
         </tr>
       </thead>
@@ -280,7 +282,6 @@ function sortUsers(column) {
 }
 
 function getSortedFilteredUsers() {
-  const filter = document.getElementById('userStatusFilter')?.value || 'all';
   const search = document.getElementById('userSearch')?.value.toLowerCase() || '';
 
   let filtered = usersData.filter(user => {
@@ -291,24 +292,40 @@ function getSortedFilteredUsers() {
 
     if (!matchesSearch) return false;
 
-    // Apply status filter
-    switch (filter) {
-      case 'temporary':
-        return user.auth_type === 'anonymous' || user.auth_type === 'expired';
-      case 'unverified':
-        return user.auth_type === 'password' && !user.email_verified;
-      case 'verified':
-        return user.auth_type === 'password' && user.email_verified;
-      case 'suspended':
-        return user.is_suspended;
-      case 'blocked':
-        return user.is_blocked;
-      case 'admin':
-        return user.is_admin;
-      case 'all':
-      default:
-        return true;
+    // Apply column filters
+    for (const [column, values] of Object.entries(usersFilters)) {
+      if (values.length === 0) continue;
+
+      let columnValue;
+      switch (column) {
+        case 'display_name':
+          columnValue = user.display_name || '';
+          break;
+        case 'email':
+          columnValue = user.email || '';
+          break;
+        case 'auth_type':
+          columnValue = user.auth_type || '';
+          break;
+        case 'status':
+          columnValue = user.is_blocked ? 'Blocked' : user.is_suspended ? 'Suspended' : 'Active';
+          break;
+        case 'total_annotations':
+          columnValue = (user.total_annotations || 0).toString();
+          break;
+        case 'created_at':
+          columnValue = formatDate(user.created_at);
+          break;
+        default:
+          columnValue = '';
+      }
+
+      if (!values.includes(columnValue)) {
+        return false;
+      }
     }
+
+    return true;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -356,6 +373,133 @@ function applyUserFilter() {
   renderUsers(filtered);
 }
 
+function toggleUserColumnFilter(event, column) {
+  event.stopPropagation();
+
+  const dropdownId = `userFilter_${column}`;
+  const dropdown = document.getElementById(dropdownId);
+
+  // Close other dropdowns
+  if (activeFilterDropdown && activeFilterDropdown !== dropdown) {
+    activeFilterDropdown.classList.remove('active');
+  }
+
+  // Toggle current dropdown
+  const isActive = dropdown.classList.contains('active');
+
+  if (isActive) {
+    dropdown.classList.remove('active');
+    activeFilterDropdown = null;
+  } else {
+    // Get unique values for this column
+    const uniqueValues = getUniqueUserColumnValues(column);
+    const currentFilters = usersFilters[column] || [];
+
+    // Build dropdown content
+    dropdown.innerHTML = `
+      <div class="filter-section">
+        <div class="filter-section-title">Sort</div>
+        <div class="sort-option" onclick="sortUsersFromFilter('${column}', 'asc')">
+          ${usersSortColumn === column && usersSortDirection === 'asc' ? '✓ ' : ''}Sort A → Z
+        </div>
+        <div class="sort-option" onclick="sortUsersFromFilter('${column}', 'desc')">
+          ${usersSortColumn === column && usersSortDirection === 'desc' ? '✓ ' : ''}Sort Z → A
+        </div>
+      </div>
+      <div class="filter-section" style="max-height: 300px; overflow-y: auto;">
+        <div class="filter-section-title">Filter</div>
+        ${uniqueValues.map(value => `
+          <label class="filter-option">
+            <input type="checkbox"
+                   value="${escapeHtml(value)}"
+                   ${currentFilters.includes(value) ? 'checked' : ''}
+                   onchange="updateUserColumnFilter('${column}', this)">
+            <span>${escapeHtml(value || '(Empty)')}</span>
+          </label>
+        `).join('')}
+      </div>
+      <div class="filter-actions">
+        <button onclick="clearUserColumnFilter('${column}')" style="background: #f5f5f5; color: #333;">Clear</button>
+        <button onclick="closeFilterDropdown()" class="btn" style="background: #0497a6; color: white;">Done</button>
+      </div>
+    `;
+
+    dropdown.classList.add('active');
+    activeFilterDropdown = dropdown;
+  }
+}
+
+function getUniqueUserColumnValues(column) {
+  const values = new Set();
+
+  usersData.forEach(user => {
+    let value;
+    switch (column) {
+      case 'display_name':
+        value = user.display_name || '';
+        break;
+      case 'email':
+        value = user.email || '';
+        break;
+      case 'auth_type':
+        value = user.auth_type || '';
+        break;
+      case 'status':
+        value = user.is_blocked ? 'Blocked' : user.is_suspended ? 'Suspended' : 'Active';
+        break;
+      case 'total_annotations':
+        value = (user.total_annotations || 0).toString();
+        break;
+      case 'created_at':
+        value = formatDate(user.created_at);
+        break;
+      default:
+        value = '';
+    }
+    values.add(value);
+  });
+
+  return Array.from(values).sort();
+}
+
+function updateUserColumnFilter(column, checkbox) {
+  if (!usersFilters[column]) {
+    usersFilters[column] = [];
+  }
+
+  const value = checkbox.value;
+
+  if (checkbox.checked) {
+    if (!usersFilters[column].includes(value)) {
+      usersFilters[column].push(value);
+    }
+  } else {
+    usersFilters[column] = usersFilters[column].filter(v => v !== value);
+  }
+
+  applyUserFilter();
+}
+
+function clearUserColumnFilter(column) {
+  delete usersFilters[column];
+  applyUserFilter();
+  closeFilterDropdown();
+}
+
+function sortUsersFromFilter(column, direction) {
+  usersSortColumn = column;
+  usersSortDirection = direction;
+  applyUserFilter();
+  closeFilterDropdown();
+}
+
+function closeFilterDropdown() {
+  if (activeFilterDropdown) {
+    activeFilterDropdown.classList.remove('active');
+    activeFilterDropdown = null;
+  }
+}
+
 function renderCitations(citations) {
   const container = document.getElementById('citationsTable');
 
@@ -369,15 +513,10 @@ function renderCitations(citations) {
   const activeCitations = citations.filter(c => !c.annotation_deleted_at && !c.share_deleted_at);
   const deletedCitations = citations.filter(c => c.annotation_deleted_at || c.share_deleted_at);
 
-  // Count display and filter
+  // Count display
   const countHtml = `
-    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px; display: flex; justify-content: space-between; align-items: center;">
+    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
       <strong>Showing ${citations.length} annotation(s)</strong>
-      <select id="citationStatusFilter" onchange="applyCitationFilter()" style="padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-        <option value="all">All Citations</option>
-        <option value="active">Active</option>
-        <option value="deleted">Deleted</option>
-      </select>
     </div>
   `;
 
@@ -391,9 +530,17 @@ function renderCitations(citations) {
     </div>
   ` : '';
 
-  const sortIcon = (column) => {
-    if (citationsSortColumn !== column) return ' <span style="opacity: 0.3;">↕</span>';
-    return citationsSortDirection === 'asc' ? ' ↑' : ' ↓';
+  const citationColumnHeader = (column, label) => {
+    const hasFilter = citationsFilters[column] && citationsFilters[column].length > 0;
+    return `
+      <th style="position: relative; user-select: none;">
+        <span onclick="toggleCitationColumnFilter(event, '${column}')" style="cursor: pointer;">
+          ${label}
+          <span class="column-filter-btn ${hasFilter ? 'active' : ''}">▼</span>
+        </span>
+        <div id="citationFilter_${column}" class="filter-dropdown"></div>
+      </th>
+    `;
   };
 
   const html = countHtml + bulkActionsHtml + `
@@ -404,15 +551,12 @@ function renderCitations(citations) {
             <input type="checkbox" id="selectAll" onchange="toggleSelectAll()"
                    ${activeCitations.length === 0 ? 'disabled' : ''}>
           </th>
-          <th style="cursor: pointer;" onclick="sortCitations('share_token')">Token${sortIcon('share_token')}</th>
-          <th style="cursor: pointer;" onclick="sortCitations('video_id')">Video ID${sortIcon('video_id')}</th>
-          <th style="cursor: pointer;" onclick="sortCitations('title')">Title${sortIcon('title')}</th>
-          <th style="cursor: pointer;" onclick="sortCitations('creator_display_name')">Creator${sortIcon('creator_display_name')}</th>
+          ${citationColumnHeader('video_id', 'Video ID')}
+          ${citationColumnHeader('title', 'Title')}
+          ${citationColumnHeader('creator_display_name', 'Creator')}
           <th>Content</th>
-          <th style="cursor: pointer;" onclick="sortCitations('annotation_timestamp')">Timestamp${sortIcon('annotation_timestamp')}</th>
-          <th style="cursor: pointer;" onclick="sortCitations('annotation_count')">Share Size${sortIcon('annotation_count')}</th>
-          <th style="cursor: pointer;" onclick="sortCitations('status')">Status${sortIcon('status')}</th>
-          <th style="cursor: pointer;" onclick="sortCitations('created_at')">Created${sortIcon('created_at')}</th>
+          ${citationColumnHeader('status', 'Status')}
+          ${citationColumnHeader('created_at', 'Created')}
           <th>Actions</th>
         </tr>
       </thead>
@@ -483,7 +627,6 @@ function sortCitations(column) {
 }
 
 function getSortedFilteredCitations() {
-  const filter = document.getElementById('citationStatusFilter')?.value || 'all';
   const search = document.getElementById('citationSearch')?.value.toLowerCase() || '';
 
   let filtered = citationsData.filter(citation => {
@@ -497,16 +640,37 @@ function getSortedFilteredCitations() {
 
     if (!matchesSearch) return false;
 
-    // Apply status filter
-    switch (filter) {
-      case 'active':
-        return !citation.annotation_deleted_at && !citation.share_deleted_at;
-      case 'deleted':
-        return citation.annotation_deleted_at || citation.share_deleted_at;
-      case 'all':
-      default:
-        return true;
+    // Apply column filters
+    for (const [column, values] of Object.entries(citationsFilters)) {
+      if (values.length === 0) continue;
+
+      let columnValue;
+      switch (column) {
+        case 'video_id':
+          columnValue = citation.video_id || '';
+          break;
+        case 'title':
+          columnValue = citation.title || '';
+          break;
+        case 'creator_display_name':
+          columnValue = citation.creator_display_name || '';
+          break;
+        case 'status':
+          columnValue = (citation.annotation_deleted_at || citation.share_deleted_at) ? 'Deleted' : 'Active';
+          break;
+        case 'created_at':
+          columnValue = formatDate(citation.created_at);
+          break;
+        default:
+          columnValue = '';
+      }
+
+      if (!values.includes(columnValue)) {
+        return false;
+      }
     }
+
+    return true;
   });
 
   const sorted = [...filtered].sort((a, b) => {
@@ -560,6 +724,120 @@ function getSortedFilteredCitations() {
 function applyCitationFilter() {
   const filtered = getSortedFilteredCitations();
   renderCitations(filtered);
+}
+
+function toggleCitationColumnFilter(event, column) {
+  event.stopPropagation();
+
+  const dropdownId = `citationFilter_${column}`;
+  const dropdown = document.getElementById(dropdownId);
+
+  // Close other dropdowns
+  if (activeFilterDropdown && activeFilterDropdown !== dropdown) {
+    activeFilterDropdown.classList.remove('active');
+  }
+
+  const isActive = dropdown.classList.contains('active');
+
+  if (isActive) {
+    dropdown.classList.remove('active');
+    activeFilterDropdown = null;
+  } else {
+    const uniqueValues = getUniqueCitationColumnValues(column);
+    const currentFilters = citationsFilters[column] || [];
+
+    dropdown.innerHTML = `
+      <div class="filter-section">
+        <div class="filter-section-title">Sort</div>
+        <div class="sort-option" onclick="sortCitationsFromFilter('${column}', 'asc')">
+          ${citationsSortColumn === column && citationsSortDirection === 'asc' ? '✓ ' : ''}Sort A → Z
+        </div>
+        <div class="sort-option" onclick="sortCitationsFromFilter('${column}', 'desc')">
+          ${citationsSortColumn === column && citationsSortDirection === 'desc' ? '✓ ' : ''}Sort Z → A
+        </div>
+      </div>
+      <div class="filter-section" style="max-height: 300px; overflow-y: auto;">
+        <div class="filter-section-title">Filter</div>
+        ${uniqueValues.map(value => `
+          <label class="filter-option">
+            <input type="checkbox"
+                   value="${escapeHtml(value)}"
+                   ${currentFilters.includes(value) ? 'checked' : ''}
+                   onchange="updateCitationColumnFilter('${column}', this)">
+            <span>${escapeHtml(value || '(Empty)')}</span>
+          </label>
+        `).join('')}
+      </div>
+      <div class="filter-actions">
+        <button onclick="clearCitationColumnFilter('${column}')" style="background: #f5f5f5; color: #333;">Clear</button>
+        <button onclick="closeFilterDropdown()" class="btn" style="background: #0497a6; color: white;">Done</button>
+      </div>
+    `;
+
+    dropdown.classList.add('active');
+    activeFilterDropdown = dropdown;
+  }
+}
+
+function getUniqueCitationColumnValues(column) {
+  const values = new Set();
+
+  citationsData.forEach(citation => {
+    let value;
+    switch (column) {
+      case 'video_id':
+        value = citation.video_id || '';
+        break;
+      case 'title':
+        value = citation.title || '';
+        break;
+      case 'creator_display_name':
+        value = citation.creator_display_name || '';
+        break;
+      case 'status':
+        value = (citation.annotation_deleted_at || citation.share_deleted_at) ? 'Deleted' : 'Active';
+        break;
+      case 'created_at':
+        value = formatDate(citation.created_at);
+        break;
+      default:
+        value = '';
+    }
+    values.add(value);
+  });
+
+  return Array.from(values).sort();
+}
+
+function updateCitationColumnFilter(column, checkbox) {
+  if (!citationsFilters[column]) {
+    citationsFilters[column] = [];
+  }
+
+  const value = checkbox.value;
+
+  if (checkbox.checked) {
+    if (!citationsFilters[column].includes(value)) {
+      citationsFilters[column].push(value);
+    }
+  } else {
+    citationsFilters[column] = citationsFilters[column].filter(v => v !== value);
+  }
+
+  applyCitationFilter();
+}
+
+function clearCitationColumnFilter(column) {
+  delete citationsFilters[column];
+  applyCitationFilter();
+  closeFilterDropdown();
+}
+
+function sortCitationsFromFilter(column, direction) {
+  citationsSortColumn = column;
+  citationsSortDirection = direction;
+  applyCitationFilter();
+  closeFilterDropdown();
 }
 
 function renderAudit(actions) {
@@ -1208,3 +1486,10 @@ function escapeHtml(text) {
   div.textContent = text;
   return div.innerHTML;
 }
+
+// Close filter dropdown when clicking outside
+document.addEventListener('click', function(event) {
+  if (activeFilterDropdown && !event.target.closest('.filter-dropdown') && !event.target.closest('.column-filter-btn')) {
+    closeFilterDropdown();
+  }
+});
