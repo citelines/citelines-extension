@@ -278,26 +278,26 @@ function renderUsers(users) {
           ${columnHeader('status', 'Status', { showSort: true, showFilter: true })}
           ${columnHeader('total_annotations', 'Annotations', { showSort: true, showFilter: false })}
           ${columnHeader('created_at', 'Joined', { showSort: true, showFilter: true })}
-          <th>Actions</th>
+          <th style="width: 200px;">Actions</th>
         </tr>
       </thead>
       <tbody>
         ${users.map(user => `
           <tr>
-            <td>
+            <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(user.display_name)}">
               ${user.display_name}
               ${user.is_admin ? '<span class="badge badge-admin">Admin</span>' : ''}
             </td>
-            <td>${user.email || '-'}</td>
-            <td>${user.auth_type}</td>
-            <td>
+            <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(user.email || '-')}">${user.email || '-'}</td>
+            <td style="width: 120px;">${user.auth_type}</td>
+            <td style="width: 120px;">
               ${user.is_blocked ? '<span class="badge badge-blocked">Blocked</span>' :
                 user.is_suspended ? '<span class="badge badge-suspended">Suspended</span>' :
                 '<span class="badge badge-active">Active</span>'}
             </td>
-            <td>${user.active_annotations || 0} / ${user.total_annotations || 0}</td>
-            <td>${formatDate(user.created_at)}</td>
-            <td>
+            <td style="width: 120px;">${user.active_annotations || 0} / ${user.total_annotations || 0}</td>
+            <td style="width: 120px;">${formatDate(user.created_at)}</td>
+            <td style="width: 200px;">
               <div class="action-buttons">
                 <button class="action-btn" onclick="openUserDetailsModal('${user.id}')" style="background: #0497a6; color: white;">View</button>
                 ${!user.is_blocked && !user.is_suspended ?
