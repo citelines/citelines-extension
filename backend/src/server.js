@@ -47,6 +47,11 @@ const corsOptions = {
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
 
+    // Allow same-origin requests (admin dashboard)
+    if (origin && (origin.includes('railway.app') || origin.includes('localhost'))) {
+      return callback(null, true);
+    }
+
     // Allow chrome-extension:// origins
     if (origin.startsWith('chrome-extension://')) {
       return callback(null, true);
