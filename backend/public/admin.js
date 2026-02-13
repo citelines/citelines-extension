@@ -1940,3 +1940,20 @@ function renderUserDetails(data) {
 function closeUserDetailsModal() {
   document.getElementById('userDetailsModal').classList.remove('active');
 }
+
+function closeUserDetailsModalOnOverlay(event) {
+  // Close if clicking the modal overlay (not the modal content)
+  if (event.target.id === 'userDetailsModal') {
+    closeUserDetailsModal();
+  }
+}
+
+// Close modal on ESC key
+document.addEventListener('keydown', function(event) {
+  if (event.key === 'Escape') {
+    const modal = document.getElementById('userDetailsModal');
+    if (modal && modal.classList.contains('active')) {
+      closeUserDetailsModal();
+    }
+  }
+});
