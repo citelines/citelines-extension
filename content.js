@@ -70,6 +70,19 @@
       await fetchAllAnnotations(videoId);
     } catch (error) {
       console.error('Failed to sync annotations to backend:', error);
+
+      // Handle suspension/block errors
+      if (error.suspended || error.blocked) {
+        const message = error.blocked
+          ? 'Your account has been blocked. Your annotations will not be saved.'
+          : `Your account is suspended until ${new Date(error.suspendedUntil).toLocaleDateString()}. Your annotations will not be saved.`;
+
+        alert(message);
+
+        // Clear local annotations for suspended/blocked users
+        annotations[videoId] = [];
+        await saveAnnotations(videoId, []);
+      }
     }
   }
 
@@ -795,7 +808,20 @@
         closePopup();
       } catch (error) {
         console.error('Failed to save annotation:', error);
-        alert('Failed to save annotation. Please try again.');
+
+        // Handle suspension/block errors
+        if (error.suspended || error.blocked) {
+          // Remove the annotation that was just added
+          annotations[videoId] = annotations[videoId].filter(ann => ann.id !== newAnnotation.id);
+          await saveAnnotations(videoId, annotations[videoId]);
+
+          const message = error.blocked
+            ? 'Your account has been blocked. You cannot create annotations.'
+            : `Your account is suspended until ${new Date(error.suspendedUntil).toLocaleDateString()}. You cannot create annotations.`;
+          alert(message);
+        } else {
+          alert('Failed to save annotation. Please try again.');
+        }
       }
     });
 

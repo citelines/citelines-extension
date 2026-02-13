@@ -151,6 +151,15 @@ class AnnotatorAPI {
         return this.createShare(videoId, annotations, title);
       }
 
+      // Handle suspension/block errors
+      if (response.status === 403 && (error.suspended || error.blocked)) {
+        const customError = new Error(error.message || 'Account suspended or blocked');
+        customError.suspended = error.suspended;
+        customError.blocked = error.blocked;
+        customError.suspendedUntil = error.suspendedUntil;
+        throw customError;
+      }
+
       throw new Error(error.message || 'Failed to create share');
     }
 
@@ -240,6 +249,16 @@ class AnnotatorAPI {
 
     if (!response.ok) {
       const error = await response.json();
+
+      // Handle suspension/block errors
+      if (response.status === 403 && (error.suspended || error.blocked)) {
+        const customError = new Error(error.message || 'Account suspended or blocked');
+        customError.suspended = error.suspended;
+        customError.blocked = error.blocked;
+        customError.suspendedUntil = error.suspendedUntil;
+        throw customError;
+      }
+
       throw new Error(error.message || 'Failed to update share');
     }
 
