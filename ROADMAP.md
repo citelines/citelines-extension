@@ -38,6 +38,9 @@
 - Password reset functionality
 - Dual auth support (JWT + Anonymous ID)
 - Account registration with citation preservation
+- **⏳ Pending**: Real email sending requires custom domain + email service (SendGrid/AWS SES)
+  - Currently in dev mode: verification URLs logged to Railway console
+  - Waiting for domain configuration before enabling real email delivery
 
 ### Phase 2.4: User Profiles ✅
 - Clickable user badges showing stats
@@ -91,12 +94,14 @@
 ## Next Improvements
 
 ### Admin Dashboard Enhancements
+- **UI Tweak**: The values in the Title column of the Citations tab all have "... - Annotation" as part of their name; don't do that.
+- **UI Tweak**: Various places in the Admin dashboard say "Annotation" - change these to say "Citation"
+- **UI Tweak**: Enable esc key and "click away" ability to close the modals for Delete, Restore (Citations Tab) and Suspend, Block (Users Tab) to behave the same as the View popup.
 - **Citation Type Column**: Display citation type (Basic Note, YouTube Video, Movie, Article, etc.) in Citations tab to provide context for "Citation Content" - matches front-end UI types
 - **Citation Status Column**: Add "Citation Status" column showing lifecycle state (Proposed, Rejected, Approved, User-Deleted) - prepares for moderation workflow
 - **Date Range Filters**: Implement date range filtering for Joined and Created columns (currently placeholders)
 - **Export Functionality**: Export user/citation data to CSV
-- **Advanced Search**: Full-text search across all fields
-
+- **Action Reasons**: rather than free-form for "Delete" and "Restore" reasons, make it a dropdown menu for data validation.
 ---
 
 ## Future Phases
@@ -108,11 +113,11 @@
 - User-level filtering (toggle show/hide others)
 
 ### Phase 4: Quality Control & Voting
+- Validate citations against existing citations / 3rd party database of citations
 - Upvote/downvote system
 - Karma scores for users
 - Trust levels (auto-calculated from karma)
 - Sort citations by score
-- Filter low-quality citations
 - Shadow-ban repeat offenders
 
 ### Phase 5: YouTube Creator Features
