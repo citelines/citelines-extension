@@ -166,6 +166,8 @@ router.get('/video/:videoId', asyncHandler(async (req, res) => {
     annotationCount: share.annotations.length,
     viewCount: share.view_count,
     createdAt: share.created_at,
+    isOwner: req.user && req.user.id === share.user_id,  // CRITICAL: ownership for color coding
+    userId: share.user_id,
     creatorDisplayName: share.creator_display_name,
     creatorAuthType: share.creator_auth_type
   }));
