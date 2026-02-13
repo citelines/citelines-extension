@@ -56,51 +56,44 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
 
   const share = result.rows[0];
 
-  // If specific annotation_id provided, remove just that annotation
+  // If specific annotation_id provided, soft-delete just that annotation
   if (annotation_id) {
     const annotations = share.annotations || [];
-    const filteredAnnotations = annotations.filter(ann => ann.id !== annotation_id);
+    const targetAnnotation = annotations.find(ann => ann.id === annotation_id);
 
-    if (filteredAnnotations.length === annotations.length) {
+    if (!targetAnnotation) {
       return res.status(404).json({
         error: 'Annotation not found',
         message: 'The specified annotation does not exist in this share'
       });
     }
 
-    // If all annotations removed, soft-delete the entire share
-    if (filteredAnnotations.length === 0) {
-      await db.query(
-        `UPDATE shares
-         SET deleted_by_admin = $1, deleted_at = NOW(), deletion_reason = $2, annotations = '[]'::jsonb
-         WHERE share_token = $3`,
-        [req.user.id, reason.trim(), token]
-      );
-
-      await logAdminAction(
-        req.user.id,
-        'delete_annotation',
-        'share',
-        share.id,
-        reason.trim(),
-        { share_token: token, annotation_id: annotation_id, last_annotation: true }
-      );
-
-      return res.json({
-        message: 'Last annotation deleted, share soft-deleted',
-        shareToken: token,
-        annotationId: annotation_id,
-        deletedBy: req.user.display_name,
-        reason: reason.trim()
+    // Check if already deleted
+    if (targetAnnotation.deleted_at) {
+      return res.status(400).json({
+        error: 'Already deleted',
+        message: 'This annotation is already deleted'
       });
     }
 
-    // Otherwise, just remove the annotation from the array
+    // Mark annotation as deleted (soft delete within JSONB)
+    const updatedAnnotations = annotations.map(ann => {
+      if (ann.id === annotation_id) {
+        return {
+          ...ann,
+          deleted_at: new Date().toISOString(),
+          deleted_by: req.user.id,
+          deletion_reason: reason.trim()
+        };
+      }
+      return ann;
+    });
+
     await db.query(
       `UPDATE shares
        SET annotations = $1
        WHERE share_token = $2`,
-      [JSON.stringify(filteredAnnotations), token]
+      [JSON.stringify(updatedAnnotations), token]
     );
 
     await logAdminAction(
@@ -109,14 +102,13 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
       'share',
       share.id,
       reason.trim(),
-      { share_token: token, annotation_id: annotation_id, remaining_count: filteredAnnotations.length }
+      { share_token: token, annotation_id: annotation_id }
     );
 
     res.json({
       message: 'Annotation deleted successfully',
       shareToken: token,
       annotationId: annotation_id,
-      remainingCount: filteredAnnotations.length,
       deletedBy: req.user.display_name,
       reason: reason.trim()
     });
@@ -195,6 +187,77 @@ router.post('/citations/:token/restore', authenticateAdmin, asyncHandler(async (
   res.json({
     message: 'Citation restored successfully',
     shareToken: token,
+    restoredBy: req.user.display_name
+  });
+}));
+
+/**
+ * POST /api/admin/citations/:token/restore/:annotationId
+ * Restore a deleted annotation
+ */
+router.post('/citations/:token/restore/:annotationId', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { token, annotationId } = req.params;
+
+  // Find share
+  const result = await db.query(
+    'SELECT id, share_token, annotations FROM shares WHERE share_token = $1',
+    [token]
+  );
+
+  if (result.rows.length === 0) {
+    return res.status(404).json({
+      error: 'Citation not found'
+    });
+  }
+
+  const share = result.rows[0];
+  const annotations = share.annotations || [];
+  const targetAnnotation = annotations.find(ann => ann.id === annotationId);
+
+  if (!targetAnnotation) {
+    return res.status(404).json({
+      error: 'Annotation not found',
+      message: 'The specified annotation does not exist in this share'
+    });
+  }
+
+  if (!targetAnnotation.deleted_at) {
+    return res.status(400).json({
+      error: 'Annotation not deleted',
+      message: 'This annotation is not currently deleted'
+    });
+  }
+
+  // Restore annotation (remove deletion fields)
+  const updatedAnnotations = annotations.map(ann => {
+    if (ann.id === annotationId) {
+      const { deleted_at, deleted_by, deletion_reason, ...restored } = ann;
+      return restored;
+    }
+    return ann;
+  });
+
+  await db.query(
+    `UPDATE shares
+     SET annotations = $1
+     WHERE share_token = $2`,
+    [JSON.stringify(updatedAnnotations), token]
+  );
+
+  // Log action
+  await logAdminAction(
+    req.user.id,
+    'restore_annotation',
+    'share',
+    share.id,
+    'Annotation restored',
+    { share_token: token, annotation_id: annotationId }
+  );
+
+  res.json({
+    message: 'Annotation restored successfully',
+    shareToken: token,
+    annotationId: annotationId,
     restoredBy: req.user.display_name
   });
 }));
@@ -542,9 +605,14 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
           annotation_count: share.annotations.length,  // Total in this share
           created_at: share.created_at,
           creator_display_name: share.creator_display_name,
-          deleted_at: share.deleted_at,
-          deleted_by_display_name: share.deleted_by_display_name,
-          deletion_reason: share.deletion_reason
+          // Annotation-level deletion (soft delete within JSONB)
+          annotation_deleted_at: annotation.deleted_at,
+          annotation_deleted_by: annotation.deleted_by,
+          annotation_deletion_reason: annotation.deletion_reason,
+          // Share-level deletion (entire share soft-deleted)
+          share_deleted_at: share.deleted_at,
+          share_deleted_by_display_name: share.deleted_by_display_name,
+          share_deletion_reason: share.deletion_reason
         });
       });
     }

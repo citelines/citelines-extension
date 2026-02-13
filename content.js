@@ -117,13 +117,16 @@
                 console.log('[DEBUG] Found user share:', userShareId);
               }
 
-              return shareData.annotations.map(ann => ({
-                ...ann,
-                shareToken: share.shareToken,
-                isOwn: isOwn,
-                creatorDisplayName: shareData.creator_display_name || shareData.creatorDisplayName,
-                creatorUserId: shareData.user_id || shareData.userId
-              }));
+              return shareData.annotations
+                // Filter out deleted annotations (admin soft-delete)
+                .filter(ann => !ann.deleted_at)
+                .map(ann => ({
+                  ...ann,
+                  shareToken: share.shareToken,
+                  isOwn: isOwn,
+                  creatorDisplayName: shareData.creator_display_name || shareData.creatorDisplayName,
+                  creatorUserId: shareData.user_id || shareData.userId
+                }));
             }
             return [];
           })

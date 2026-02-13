@@ -265,6 +265,9 @@ function renderCitations(citations) {
           const displayContent = content.length > 80 ? content.substring(0, 80) + '...' : content;
           const timestamp = citation.annotation_timestamp ? formatTimestamp(citation.annotation_timestamp) : '-';
 
+          // Check if annotation or share is deleted
+          const isDeleted = citation.annotation_deleted_at || citation.share_deleted_at;
+
           return `
             <tr>
               <td><code>${citation.share_token}</code></td>
@@ -275,16 +278,16 @@ function renderCitations(citations) {
               <td>${timestamp}</td>
               <td>${citation.annotation_count || 0}</td>
               <td>
-                ${citation.deleted_at ?
+                ${isDeleted ?
                   '<span class="badge badge-deleted">Deleted</span>' :
                   '<span class="badge badge-active">Active</span>'}
               </td>
               <td>${formatDate(citation.created_at)}</td>
               <td>
                 <div class="action-buttons">
-                  ${!citation.deleted_at ?
+                  ${!isDeleted ?
                     `<button class="action-btn btn-danger" onclick="openDeleteCitationModal('${citation.share_token}', '${escapeHtml(citation.title || citation.video_id)}', '${citation.annotation_id}')">Delete</button>` :
-                    `<button class="action-btn btn-success" onclick="restoreCitation('${citation.share_token}')">Restore</button>`}
+                    `<button class="action-btn btn-success" onclick="restoreAnnotation('${citation.share_token}', '${citation.annotation_id}')">Restore</button>`}
                 </div>
               </td>
             </tr>
@@ -548,6 +551,23 @@ async function restoreCitation(token) {
   });
 
   if (!response.ok) throw new Error('Failed to restore citation');
+
+  await loadCitations();
+  await loadAudit();
+}
+
+async function restoreAnnotation(token, annotationId) {
+  if (!confirm('Restore this annotation?')) return;
+
+  const response = await fetch(`${API_URL}/api/admin/citations/${token}/restore/${annotationId}`, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+  });
+
+  if (!response.ok) {
+    const data = await response.json();
+    throw new Error(data.error || 'Failed to restore annotation');
+  }
 
   await loadCitations();
   await loadAudit();
