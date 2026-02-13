@@ -186,7 +186,22 @@ function renderUsers(users) {
     return;
   }
 
-  const html = `
+  // Count statistics
+  const activeUsers = users.filter(u => !u.is_blocked && !u.is_suspended);
+  const suspendedUsers = users.filter(u => u.is_suspended && !u.is_blocked);
+  const blockedUsers = users.filter(u => u.is_blocked);
+
+  // Count display
+  const countHtml = `
+    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
+      <strong>Showing ${users.length} user(s)</strong>
+      <span style="color: #666; margin-left: 10px;">
+        (${activeUsers.length} active, ${suspendedUsers.length} suspended, ${blockedUsers.length} blocked)
+      </span>
+    </div>
+  `;
+
+  const html = countHtml + `
     <table>
       <thead>
         <tr>
