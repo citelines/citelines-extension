@@ -276,7 +276,7 @@ function renderUsers(users) {
           ${columnHeader('email', 'Email', { showSort: true, showFilter: false })}
           ${columnHeader('auth_type', 'Auth Type', { showSort: true, showFilter: true })}
           ${columnHeader('status', 'Status', { showSort: true, showFilter: true })}
-          ${columnHeader('total_annotations', 'Annotations', { showSort: true, showFilter: false })}
+          ${columnHeader('total_annotations', 'Citations (Active / Total)', { showSort: true, showFilter: false })}
           ${columnHeader('created_at', 'Joined', { showSort: true, showFilter: true })}
           <th style="width: 200px;">Actions</th>
         </tr>
