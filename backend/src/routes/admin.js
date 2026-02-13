@@ -80,10 +80,10 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
       await logAdminAction(
         req.user.id,
         'delete_annotation',
-        'annotation',
-        annotation_id,
+        'share',
+        share.id,
         reason.trim(),
-        { share_token: token, last_annotation: true }
+        { share_token: token, annotation_id: annotation_id, last_annotation: true }
       );
 
       return res.json({
@@ -106,10 +106,10 @@ router.delete('/citations/:token', authenticateAdmin, asyncHandler(async (req, r
     await logAdminAction(
       req.user.id,
       'delete_annotation',
-      'annotation',
-      annotation_id,
+      'share',
+      share.id,
       reason.trim(),
-      { share_token: token, remaining_count: filteredAnnotations.length }
+      { share_token: token, annotation_id: annotation_id, remaining_count: filteredAnnotations.length }
     );
 
     res.json({
