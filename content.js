@@ -812,7 +812,12 @@
         if (error.suspended || error.blocked) {
           // Remove the annotation that was just added
           annotations[videoId] = annotations[videoId].filter(ann => ann.id !== newAnnotation.id);
-          await saveAnnotations(videoId, annotations[videoId]);
+
+          // Save directly to local storage without triggering sync
+          const storageKey = getAnnotationsStorageKey(videoId);
+          await new Promise((resolve) => {
+            chrome.storage.local.set({ [storageKey]: annotations[videoId] }, resolve);
+          });
 
           const message = error.blocked
             ? 'Your account has been blocked. You cannot create annotations.'
