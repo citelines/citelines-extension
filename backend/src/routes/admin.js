@@ -197,6 +197,14 @@ router.post('/citations/:token/restore', authenticateAdmin, asyncHandler(async (
  */
 router.post('/citations/:token/restore/:annotationId', authenticateAdmin, asyncHandler(async (req, res) => {
   const { token, annotationId } = req.params;
+  const { reason } = req.body;
+
+  if (!reason || reason.trim().length === 0) {
+    return res.status(400).json({
+      error: 'Reason required',
+      message: 'You must provide a reason for restoring this annotation'
+    });
+  }
 
   // Find share
   const result = await db.query(
@@ -250,7 +258,7 @@ router.post('/citations/:token/restore/:annotationId', authenticateAdmin, asyncH
     'restore_annotation',
     'share',
     share.id,
-    'Annotation restored',
+    reason.trim(),
     { share_token: token, annotation_id: annotationId }
   );
 
@@ -258,7 +266,8 @@ router.post('/citations/:token/restore/:annotationId', authenticateAdmin, asyncH
     message: 'Annotation restored successfully',
     shareToken: token,
     annotationId: annotationId,
-    restoredBy: req.user.display_name
+    restoredBy: req.user.display_name,
+    reason: reason.trim()
   });
 }));
 

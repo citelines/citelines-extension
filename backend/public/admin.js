@@ -287,7 +287,7 @@ function renderCitations(citations) {
                 <div class="action-buttons">
                   ${!isDeleted ?
                     `<button class="action-btn btn-danger" onclick="openDeleteCitationModal('${citation.share_token}', '${escapeHtml(citation.title || citation.video_id)}', '${citation.annotation_id}')">Delete</button>` :
-                    `<button class="action-btn btn-success" onclick="restoreAnnotation('${citation.share_token}', '${citation.annotation_id}')">Restore</button>`}
+                    `<button class="action-btn btn-success" onclick="openRestoreAnnotationModal('${citation.share_token}', '${escapeHtml(citation.title || citation.video_id)}', '${citation.annotation_id}')">Restore</button>`}
                 </div>
               </td>
             </tr>
@@ -400,6 +400,25 @@ function openDeleteCitationModal(token, title, annotationId) {
   document.getElementById('actionModal').classList.add('active');
 }
 
+function openRestoreAnnotationModal(token, title, annotationId) {
+  currentAction = { type: 'restoreAnnotation', token, title, annotationId };
+
+  document.getElementById('modalTitle').textContent = 'Restore Annotation';
+  document.getElementById('modalDescription').textContent = `Restore annotation from "${title}"?`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group">
+      <label for="restoreReason">Reason</label>
+      <input type="text" id="restoreReason" class="search-box" placeholder="e.g., Deletion was mistake" style="width: 100%;">
+    </div>
+    <p style="color: #666; font-size: 14px; margin-top: 10px;">This will make the annotation visible again on YouTube.</p>
+  `;
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = 'Restore';
+  confirmBtn.className = 'btn btn-success';
+  confirmBtn.disabled = false; // Ensure button is enabled
+  document.getElementById('actionModal').classList.add('active');
+}
+
 function closeModal() {
   document.getElementById('actionModal').classList.remove('active');
   currentAction = null;
@@ -437,6 +456,13 @@ async function confirmAction() {
           currentAction.token,
           document.getElementById('deleteReason').value,
           currentAction.annotationId
+        );
+        break;
+      case 'restoreAnnotation':
+        await restoreAnnotation(
+          currentAction.token,
+          currentAction.annotationId,
+          document.getElementById('restoreReason').value
         );
         break;
     }
@@ -556,12 +582,14 @@ async function restoreCitation(token) {
   await loadAudit();
 }
 
-async function restoreAnnotation(token, annotationId) {
-  if (!confirm('Restore this annotation?')) return;
-
+async function restoreAnnotation(token, annotationId, reason) {
   const response = await fetch(`${API_URL}/api/admin/citations/${token}/restore/${annotationId}`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+    headers: {
+      'Authorization': `Bearer ${JWT_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ reason })
   });
 
   if (!response.ok) {
