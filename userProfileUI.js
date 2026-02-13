@@ -111,15 +111,17 @@ class UserProfileUI {
     const nameElement = this.modal.querySelector('#yt-annotator-profile-name');
     const subtitle = this.modal.querySelector('.yt-annotator-profile-subtitle');
     const body = this.modal.querySelector('#yt-annotator-profile-body');
+    const content = this.modal.querySelector('.yt-annotator-user-profile-content');
 
     // Update name with profile data
     if (profile.displayName) {
       const displayName = this.isOwn ? `YOU - ${profile.displayName}` : profile.displayName;
       nameElement.textContent = displayName;
 
-      // Apply grey color for other users
+      // Apply grey styling for other users
       if (!this.isOwn) {
         nameElement.style.color = '#888';
+        content.classList.add('other-user');
       }
     }
 

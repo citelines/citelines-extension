@@ -882,6 +882,14 @@ a.yt-annotator-citation-title:hover {
   position: relative;
 }
 
+.yt-annotator-user-profile-content.other-user {
+  border-color: #555;
+}
+
+.yt-annotator-user-profile-content.other-user .yt-annotator-profile-stat-value {
+  color: #888;
+}
+
 .yt-annotator-user-profile-close {
   position: absolute;
   top: 16px;
