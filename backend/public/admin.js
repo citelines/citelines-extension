@@ -487,35 +487,36 @@ function toggleUserColumnFilter(event, column) {
       dropdown.style.visibility = '';
 
       // Calculate available space
-      const spaceBelow = window.innerHeight - rect.bottom - 20;
-      const spaceAbove = rect.top - 20;
+      const spaceBelow = window.innerHeight - rect.bottom - 10;
+      const spaceAbove = rect.top - 10;
       const idealMaxHeight = Math.min(400, contentHeight);
 
       // Decide positioning
       if (spaceBelow >= idealMaxHeight) {
-        // Position below with full height
-        dropdown.style.top = `${rect.bottom + 5}px`;
+        // Position below - attached to bottom of header
+        dropdown.style.top = `${rect.bottom}px`;
         dropdown.style.bottom = 'auto';
         dropdown.style.maxHeight = `${idealMaxHeight}px`;
       } else if (spaceAbove >= idealMaxHeight) {
-        // Position above with full height
-        dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+        // Position above - attached to top of header
+        dropdown.style.bottom = `${window.innerHeight - rect.top}px`;
         dropdown.style.top = 'auto';
         dropdown.style.maxHeight = `${idealMaxHeight}px`;
       } else {
         // Use whichever side has more space
         if (spaceBelow >= spaceAbove) {
-          dropdown.style.top = `${rect.bottom + 5}px`;
+          dropdown.style.top = `${rect.bottom}px`;
           dropdown.style.bottom = 'auto';
           dropdown.style.maxHeight = `${Math.max(250, spaceBelow)}px`;
         } else {
-          dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+          dropdown.style.bottom = `${window.innerHeight - rect.top}px`;
           dropdown.style.top = 'auto';
           dropdown.style.maxHeight = `${Math.max(250, spaceAbove)}px`;
         }
       }
 
       dropdown.style.left = `${rect.left}px`;
+      dropdown.style.minWidth = `${rect.width}px`;
     });
   }
 }
@@ -921,35 +922,36 @@ function toggleCitationColumnFilter(event, column) {
       dropdown.style.visibility = '';
 
       // Calculate available space
-      const spaceBelow = window.innerHeight - rect.bottom - 20;
-      const spaceAbove = rect.top - 20;
+      const spaceBelow = window.innerHeight - rect.bottom - 10;
+      const spaceAbove = rect.top - 10;
       const idealMaxHeight = Math.min(400, contentHeight);
 
       // Decide positioning
       if (spaceBelow >= idealMaxHeight) {
-        // Position below with full height
-        dropdown.style.top = `${rect.bottom + 5}px`;
+        // Position below - attached to bottom of header
+        dropdown.style.top = `${rect.bottom}px`;
         dropdown.style.bottom = 'auto';
         dropdown.style.maxHeight = `${idealMaxHeight}px`;
       } else if (spaceAbove >= idealMaxHeight) {
-        // Position above with full height
-        dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+        // Position above - attached to top of header
+        dropdown.style.bottom = `${window.innerHeight - rect.top}px`;
         dropdown.style.top = 'auto';
         dropdown.style.maxHeight = `${idealMaxHeight}px`;
       } else {
         // Use whichever side has more space
         if (spaceBelow >= spaceAbove) {
-          dropdown.style.top = `${rect.bottom + 5}px`;
+          dropdown.style.top = `${rect.bottom}px`;
           dropdown.style.bottom = 'auto';
           dropdown.style.maxHeight = `${Math.max(250, spaceBelow)}px`;
         } else {
-          dropdown.style.bottom = `${window.innerHeight - rect.top + 5}px`;
+          dropdown.style.bottom = `${window.innerHeight - rect.top}px`;
           dropdown.style.top = 'auto';
           dropdown.style.maxHeight = `${Math.max(250, spaceAbove)}px`;
         }
       }
 
       dropdown.style.left = `${rect.left}px`;
+      dropdown.style.minWidth = `${rect.width}px`;
     });
   }
 }
