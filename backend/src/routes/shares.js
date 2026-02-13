@@ -272,10 +272,20 @@ router.put('/:token', authenticateAnonymous, rateLimitCitations, asyncHandler(as
         message: validation.error
       });
     }
-    updates.annotations = annotations;
 
-    // Check if new citations were added (more annotations than before)
-    if (annotations.length > share.annotations.length) {
+    // IMPORTANT: Preserve deleted annotations from database
+    // Get existing deleted annotations
+    const deletedAnnotations = (share.annotations || []).filter(ann => ann.deleted_at);
+
+    // Combine incoming annotations with deleted ones
+    // Deleted annotations won't be in the incoming array (frontend filters them)
+    updates.annotations = [...annotations, ...deletedAnnotations];
+
+    console.log('[Shares PUT] Preserving', deletedAnnotations.length, 'deleted annotations');
+
+    // Check if new citations were added (compare active annotations only)
+    const activeAnnotationsCount = (share.annotations || []).filter(ann => !ann.deleted_at).length;
+    if (annotations.length > activeAnnotationsCount) {
       addedNewCitation = true;
     }
   }
