@@ -460,13 +460,20 @@ function toggleUserColumnFilter(event, column) {
       // Standard checkbox filter
       filterSection = `
         <div class="filter-section">
-          <div class="filter-section-title">Filter</div>
+          <div class="filter-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Filter</span>
+            <div style="display: flex; gap: 8px;">
+              <span onclick="selectAllUserFilters('${column}')" style="cursor: pointer; font-size: 11px; color: #0497a6; font-weight: normal;">Select All</span>
+              <span onclick="clearAllUserFilters('${column}')" style="cursor: pointer; font-size: 11px; color: #666; font-weight: normal;">Clear All</span>
+            </div>
+          </div>
           ${uniqueValues.map(value => `
             <label class="filter-option">
               <input type="checkbox"
                      value="${escapeHtml(value)}"
                      ${currentFilters.includes(value) ? 'checked' : ''}
-                     onchange="updateUserColumnFilter('${column}', this)">
+                     onchange="updateUserColumnFilter('${column}', this)"
+                     data-filter-checkbox="${column}">
               <span>${escapeHtml(value || '(Empty)')}</span>
             </label>
           `).join('')}
@@ -604,6 +611,27 @@ function clearUserColumnFilter(column) {
   delete usersFilters[column];
   applyUserFilter();
   closeFilterDropdown();
+}
+
+function selectAllUserFilters(column) {
+  const checkboxes = document.querySelectorAll(`input[data-filter-checkbox="${column}"]`);
+  checkboxes.forEach(cb => {
+    cb.checked = true;
+    if (!usersFilters[column]) {
+      usersFilters[column] = [];
+    }
+    if (!usersFilters[column].includes(cb.value)) {
+      usersFilters[column].push(cb.value);
+    }
+  });
+}
+
+function clearAllUserFilters(column) {
+  const checkboxes = document.querySelectorAll(`input[data-filter-checkbox="${column}"]`);
+  checkboxes.forEach(cb => {
+    cb.checked = false;
+  });
+  usersFilters[column] = [];
 }
 
 function sortUsersFromFilter(column, direction) {
@@ -928,13 +956,20 @@ function toggleCitationColumnFilter(event, column) {
       // Standard checkbox filter
       filterSection = `
         <div class="filter-section">
-          <div class="filter-section-title">Filter</div>
+          <div class="filter-section-title" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Filter</span>
+            <div style="display: flex; gap: 8px;">
+              <span onclick="selectAllCitationFilters('${column}')" style="cursor: pointer; font-size: 11px; color: #0497a6; font-weight: normal;">Select All</span>
+              <span onclick="clearAllCitationFilters('${column}')" style="cursor: pointer; font-size: 11px; color: #666; font-weight: normal;">Clear All</span>
+            </div>
+          </div>
           ${uniqueValues.map(value => `
             <label class="filter-option">
               <input type="checkbox"
                      value="${escapeHtml(value)}"
                      ${currentFilters.includes(value) ? 'checked' : ''}
-                     onchange="updateCitationColumnFilter('${column}', this)">
+                     onchange="updateCitationColumnFilter('${column}', this)"
+                     data-filter-checkbox="${column}">
               <span>${escapeHtml(value || '(Empty)')}</span>
             </label>
           `).join('')}
@@ -1061,6 +1096,27 @@ function clearCitationColumnFilter(column) {
   delete citationsFilters[column];
   applyCitationFilter();
   closeFilterDropdown();
+}
+
+function selectAllCitationFilters(column) {
+  const checkboxes = document.querySelectorAll(`input[data-filter-checkbox="${column}"]`);
+  checkboxes.forEach(cb => {
+    cb.checked = true;
+    if (!citationsFilters[column]) {
+      citationsFilters[column] = [];
+    }
+    if (!citationsFilters[column].includes(cb.value)) {
+      citationsFilters[column].push(cb.value);
+    }
+  });
+}
+
+function clearAllCitationFilters(column) {
+  const checkboxes = document.querySelectorAll(`input[data-filter-checkbox="${column}"]`);
+  checkboxes.forEach(cb => {
+    cb.checked = false;
+  });
+  citationsFilters[column] = [];
 }
 
 function sortCitationsFromFilter(column, direction) {
