@@ -1347,22 +1347,40 @@
         console.log('[YT Annotator] Navigation detected:', url);
 
         // Reset UI elements for new page
-        markersContainer = null;
-        addButton = null;
-        sidebarButton = null;
-        loginButton = null;
-        sidebar = null;
+        console.log('[Navigation] Cleaning up UI elements');
+
+        // Remove all DOM elements
+        if (markersContainer) {
+          markersContainer.remove();
+          markersContainer = null;
+        }
+        if (addButton) {
+          addButton.remove();
+          addButton = null;
+        }
+        if (sidebarButton) {
+          sidebarButton.remove();
+          sidebarButton = null;
+        }
+        if (loginButton) {
+          loginButton.remove();
+          loginButton = null;
+        }
+        if (sidebar) {
+          sidebar.remove();
+          sidebar = null;
+        }
+        if (expiryWarning) {
+          expiryWarning.remove();
+          expiryWarning = null;
+        }
+
+        // Reset state
         sidebarOpen = false;
         sharedAnnotations = [];
         userShareId = null;
         initialized = false;
         closePopup();
-
-        // Remove expiry warning if exists
-        if (expiryWarning) {
-          expiryWarning.remove();
-          expiryWarning = null;
-        }
 
         // Disconnect previous observer if exists
         if (playerObserver) {
