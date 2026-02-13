@@ -726,6 +726,7 @@ function renderCitations(citations) {
                    ${activeCitations.length === 0 ? 'disabled' : ''}>
           </th>
           <th>Token</th>
+          <th>Annotation ID</th>
           <th>Video ID</th>
           ${citationColumnHeader('title', 'Title', { showSort: true, showFilter: false })}
           ${citationColumnHeader('creator_display_name', 'Creator', { showSort: true, showFilter: true })}
@@ -762,6 +763,7 @@ function renderCitations(citations) {
                        ${isSelected ? 'checked' : ''}>
               </td>
               <td><code>${citation.share_token}</code></td>
+              <td><code>${citation.annotation_id}</code></td>
               <td>${citation.video_id}</td>
               <td>${citation.title || '-'}</td>
               <td>${citation.creator_display_name || '-'}</td>
