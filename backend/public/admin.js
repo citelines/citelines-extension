@@ -250,35 +250,48 @@ function renderCitations(citations) {
           <th>Video ID</th>
           <th>Title</th>
           <th>Creator</th>
-          <th>Annotations</th>
+          <th>Content</th>
+          <th>Count</th>
           <th>Status</th>
           <th>Created</th>
           <th>Actions</th>
         </tr>
       </thead>
       <tbody>
-        ${citations.map(citation => `
-          <tr>
-            <td><code>${citation.share_token}</code></td>
-            <td>${citation.video_id}</td>
-            <td>${citation.title || '-'}</td>
-            <td>${citation.creator_display_name || '-'}</td>
-            <td>${citation.annotation_count || 0}</td>
-            <td>
-              ${citation.deleted_at ?
-                '<span class="badge badge-deleted">Deleted</span>' :
-                '<span class="badge badge-active">Active</span>'}
-            </td>
-            <td>${formatDate(citation.created_at)}</td>
-            <td>
-              <div class="action-buttons">
-                ${!citation.deleted_at ?
-                  `<button class="action-btn btn-danger" onclick="openDeleteCitationModal('${citation.share_token}', '${escapeHtml(citation.title || citation.video_id)}')">Delete</button>` :
-                  `<button class="action-btn btn-success" onclick="restoreCitation('${citation.share_token}')">Restore</button>`}
-              </div>
-            </td>
-          </tr>
-        `).join('')}
+        ${citations.map(citation => {
+          // Get first annotation text
+          let content = '-';
+          if (citation.annotations && citation.annotations.length > 0) {
+            const firstAnnotation = citation.annotations[0];
+            const text = firstAnnotation.text || '';
+            // Truncate if longer than 80 chars
+            content = text.length > 80 ? text.substring(0, 80) + '...' : text;
+          }
+
+          return `
+            <tr>
+              <td><code>${citation.share_token}</code></td>
+              <td>${citation.video_id}</td>
+              <td>${citation.title || '-'}</td>
+              <td>${citation.creator_display_name || '-'}</td>
+              <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(content)}">${escapeHtml(content)}</td>
+              <td>${citation.annotation_count || 0}</td>
+              <td>
+                ${citation.deleted_at ?
+                  '<span class="badge badge-deleted">Deleted</span>' :
+                  '<span class="badge badge-active">Active</span>'}
+              </td>
+              <td>${formatDate(citation.created_at)}</td>
+              <td>
+                <div class="action-buttons">
+                  ${!citation.deleted_at ?
+                    `<button class="action-btn btn-danger" onclick="openDeleteCitationModal('${citation.share_token}', '${escapeHtml(citation.title || citation.video_id)}')">Delete</button>` :
+                    `<button class="action-btn btn-success" onclick="restoreCitation('${citation.share_token}')">Restore</button>`}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')}
       </tbody>
     </table>
   `;
@@ -538,11 +551,23 @@ function filterUsers() {
 
 function filterCitations() {
   const search = document.getElementById('citationSearch').value.toLowerCase();
-  const filtered = citationsData.filter(citation =>
-    (citation.share_token?.toLowerCase().includes(search)) ||
-    (citation.video_id?.toLowerCase().includes(search)) ||
-    (citation.title?.toLowerCase().includes(search))
-  );
+  const filtered = citationsData.filter(citation => {
+    // Check token, video ID, title
+    if ((citation.share_token?.toLowerCase().includes(search)) ||
+        (citation.video_id?.toLowerCase().includes(search)) ||
+        (citation.title?.toLowerCase().includes(search))) {
+      return true;
+    }
+
+    // Check annotation content
+    if (citation.annotations && citation.annotations.length > 0) {
+      return citation.annotations.some(ann =>
+        ann.text?.toLowerCase().includes(search)
+      );
+    }
+
+    return false;
+  });
   renderCitations(filtered);
 }
 
