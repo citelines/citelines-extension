@@ -7,7 +7,10 @@
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const APP_URL = process.env.APP_URL || 'https://youtube-annotator-production.up.railway.app';
-const FROM_EMAIL = process.env.FROM_EMAIL || 'YouTube Annotator <noreply@annotator.com>';
+const FROM_EMAIL = process.env.FROM_EMAIL || 'Citelines <noreply@citelines.org>';
+
+const { Resend } = require('resend');
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 /**
  * Send email verification link
@@ -40,16 +43,12 @@ async function sendVerificationEmail(email, token, displayName) {
   }
 
   // Production: Send real email via Resend
-  // TODO: Implement when domain email is configured
-  // const { Resend } = require('resend');
-  // const resend = new Resend(process.env.RESEND_API_KEY);
-  //
-  // await resend.emails.send({
-  //   from: FROM_EMAIL,
-  //   to: email,
-  //   subject: 'Verify your YouTube Annotator account',
-  //   html: generateVerificationEmailHTML(displayName, verifyUrl)
-  // });
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: 'Verify your YouTube Annotator account',
+    html: generateVerificationEmailHTML(displayName, verifyUrl)
+  });
 }
 
 /**
@@ -82,13 +81,13 @@ async function sendPasswordResetEmail(email, token, displayName) {
     return;
   }
 
-  // Production: Send real email
-  // await resend.emails.send({
-  //   from: FROM_EMAIL,
-  //   to: email,
-  //   subject: 'Reset your password',
-  //   html: generatePasswordResetEmailHTML(displayName, resetUrl)
-  // });
+  // Production: Send real email via Resend
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: 'Reset your password',
+    html: generatePasswordResetEmailHTML(displayName, resetUrl)
+  });
 }
 
 /**
