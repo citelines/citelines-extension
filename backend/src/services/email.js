@@ -26,11 +26,11 @@ async function sendVerificationEmail(email, token, displayName) {
     console.log('📧 EMAIL VERIFICATION');
     console.log('========================================');
     console.log('To:', email);
-    console.log('Subject: Verify your YouTube Annotator account');
+    console.log('Subject: Verify your Citelines account');
     console.log('');
     console.log(`Hi ${displayName},`);
     console.log('');
-    console.log('Welcome to YouTube Annotator! Please verify your email address:');
+    console.log('Welcome to Citelines! Please verify your email address:');
     console.log('');
     console.log('Verification URL:');
     console.log(verifyUrl);
@@ -46,7 +46,7 @@ async function sendVerificationEmail(email, token, displayName) {
   await resend.emails.send({
     from: FROM_EMAIL,
     to: email,
-    subject: 'Verify your YouTube Annotator account',
+    subject: 'Verify your Citelines account',
     html: generateVerificationEmailHTML(displayName, verifyUrl)
   });
 }
@@ -144,7 +144,7 @@ function generateVerificationEmailHTML(displayName, verifyUrl) {
     </head>
     <body>
       <div class="container">
-        <h2>Welcome to YouTube Annotator, ${displayName}!</h2>
+        <h2>Welcome to Citelines, ${displayName}!</h2>
         <p>Click the button below to verify your email address:</p>
         <a href="${verifyUrl}" class="button">Verify Email Address</a>
         <p>Or copy and paste this link into your browser:</p>
