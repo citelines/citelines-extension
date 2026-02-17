@@ -880,6 +880,10 @@ a.yt-annotator-citation-title:hover {
   color: #fff;
 }
 
+.yt-annotator-account-sidebar.yt-annotator-sidebar-open {
+  right: 0;
+}
+
 /* Expiry Warning Banner */
 .yt-annotator-expiry-warning {
   position: absolute;
