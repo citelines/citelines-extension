@@ -910,16 +910,10 @@
     return words.slice(0, 2).map(w => w[0].toUpperCase()).join('');
   }
 
-  // Create the login/user button
-  function createLoginButton() {
-    if (loginButton) return;
+  // Populate the login button based on current auth state
+  function updateLoginButton() {
+    if (!loginButton) return;
 
-    const playerContainer = document.querySelector('#movie_player');
-    if (!playerContainer) return;
-
-    loginButton = document.createElement('button');
-
-    // Check if user is logged in
     if (authManager.isLoggedIn()) {
       const user = authManager.getCurrentUser();
       const initials = getInitials(user.displayName);
@@ -931,6 +925,19 @@
       loginButton.innerHTML = '👤';
       loginButton.title = 'Sign in or create account';
     }
+  }
+
+  // Create the login/user button shell immediately, populate after auth init
+  function createLoginButton() {
+    if (loginButton) return;
+
+    const playerContainer = document.querySelector('#movie_player');
+    if (!playerContainer) return;
+
+    loginButton = document.createElement('button');
+    loginButton.className = 'yt-annotator-user-badge';
+    loginButton.innerHTML = '';
+    loginButton.title = 'Loading...';
 
     loginButton.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -967,12 +974,7 @@
   async function handleLoginSuccess() {
     console.log('[Auth] Login successful, refreshing UI...');
 
-    // Recreate login button to show user badge
-    if (loginButton) {
-      loginButton.remove();
-      loginButton = null;
-    }
-    createLoginButton();
+    updateLoginButton();
 
     // Re-fetch annotations to update ownership
     if (currentVideoId) {
@@ -1371,21 +1373,21 @@
     createMarkersContainer();
     createAddButton();
     createSidebarButton();
+    createLoginButton(); // Show empty circle immediately
 
-    // Initialize authentication before creating the login button
-    // so the button reflects the correct logged-in state
+    // Initialize authentication then populate the button
     try {
       await authManager.initialize();
       api.setAuthManager(authManager);
       console.log('[Auth] Initialized');
+      updateLoginButton();
 
       // Check for expiry warning (only for anonymous users)
       checkExpiryWarning();
     } catch (err) {
       console.error('[Auth] Failed to initialize:', err);
+      updateLoginButton(); // Fall back to logged-out state
     }
-
-    createLoginButton();
 
     // Initialize API and fetch all annotations
     try {
