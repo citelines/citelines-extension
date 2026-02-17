@@ -24,8 +24,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use((req, res, next) => {
   const origin = req.headers.origin;
 
-  // Allow YouTube.com and chrome extensions in development
-  if (origin && (origin.includes('youtube.com') || origin.startsWith('chrome-extension://'))) {
+  // Allow YouTube.com, chrome extensions, and citelines.org
+  if (origin && (origin.includes('youtube.com') || origin.startsWith('chrome-extension://') || origin.includes('citelines.org'))) {
     res.setHeader('Access-Control-Allow-Origin', origin);
     res.setHeader('Access-Control-Allow-Credentials', 'true');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
