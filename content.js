@@ -904,6 +904,12 @@
     playerContainer.appendChild(addButton);
   }
 
+  // Get initials from a display name (max 2)
+  function getInitials(displayName) {
+    const words = displayName.trim().split(/\s+/);
+    return words.slice(0, 2).map(w => w[0].toUpperCase()).join('');
+  }
+
   // Create the login/user button
   function createLoginButton() {
     if (loginButton) return;
@@ -916,8 +922,9 @@
     // Check if user is logged in
     if (authManager.isLoggedIn()) {
       const user = authManager.getCurrentUser();
+      const initials = getInitials(user.displayName);
       loginButton.className = 'yt-annotator-user-badge';
-      loginButton.innerHTML = `<span class="yt-annotator-user-name">${escapeHtml(user.displayName)}</span>`;
+      loginButton.innerHTML = `<span class="yt-annotator-user-initials">${escapeHtml(initials)}</span>`;
       loginButton.title = `Logged in as ${user.displayName} - Click to logout`;
     } else {
       loginButton.className = 'yt-annotator-login-btn';

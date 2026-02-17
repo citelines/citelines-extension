@@ -782,20 +782,21 @@ a.yt-annotator-citation-title:hover {
   right: 12px;
   bottom: 168px;
   background: rgba(4, 151, 166, 0.9);
-  color: #000;
+  color: #fff;
   border: none;
-  border-radius: 18px;
-  padding: 8px 16px;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  padding: 0;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: flex;
   align-items: center;
-  gap: 6px;
+  justify-content: center;
   z-index: 10002;
   transition: transform 0.15s ease, background-color 0.15s ease, right 0.3s ease;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(4, 151, 166, 0.4);
-  max-width: 150px;
 }
 
 .yt-annotator-user-badge.sidebar-open {
@@ -808,10 +809,9 @@ a.yt-annotator-citation-title:hover {
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(4, 151, 166, 0.6);
 }
 
-.yt-annotator-user-name {
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.yt-annotator-user-initials {
+  line-height: 1;
+  letter-spacing: 0.5px;
 }
 
 /* Expiry Warning Banner */
