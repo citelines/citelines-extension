@@ -996,6 +996,7 @@
         await authManager.logout();
         toggleAccountSidebar();
         updateLoginButton();
+        if (currentVideoId) await fetchAllAnnotations(currentVideoId);
       });
     } else {
       accountSidebar.innerHTML = `
