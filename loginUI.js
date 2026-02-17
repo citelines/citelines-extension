@@ -20,6 +20,17 @@ class LoginUI {
     this.createModal();
     document.body.appendChild(this.modal);
     this.modal.style.display = 'flex';
+
+    // Close on Escape key
+    this._onKeyDown = (e) => {
+      if (e.key === 'Escape') this.hide();
+    };
+    document.addEventListener('keydown', this._onKeyDown);
+
+    // Close on click outside the modal content
+    this.modal.addEventListener('click', (e) => {
+      if (e.target === this.modal) this.hide();
+    });
   }
 
   /**
@@ -29,6 +40,10 @@ class LoginUI {
     if (this.modal) {
       this.modal.remove();
       this.modal = null;
+    }
+    if (this._onKeyDown) {
+      document.removeEventListener('keydown', this._onKeyDown);
+      this._onKeyDown = null;
     }
   }
 
