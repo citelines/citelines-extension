@@ -48,7 +48,7 @@ const corsOptions = {
     if (!origin) return callback(null, true);
 
     // Allow same-origin requests (admin dashboard)
-    if (origin && (origin.includes('railway.app') || origin.includes('localhost'))) {
+    if (origin && (origin.includes('railway.app') || origin.includes('localhost') || origin.includes('citelines.org'))) {
       return callback(null, true);
     }
 
