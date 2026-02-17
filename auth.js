@@ -210,17 +210,19 @@ class AuthManager {
     if (!this.token) return false;
 
     try {
-      // Try to make an authenticated request to verify token
       const response = await fetch(`${this.baseUrl}/shares/me?limit=1`, {
         headers: {
           'Authorization': `Bearer ${this.token}`
         }
       });
 
-      return response.ok;
+      // Only treat an explicit 401 as an invalid token — not network errors
+      if (response.status === 401) return false;
+      return true;
     } catch (error) {
-      console.error('[Auth] Token verification failed:', error);
-      return false;
+      // Network error — assume token is still valid to avoid spurious logouts
+      console.warn('[Auth] Token verification request failed, assuming valid:', error);
+      return true;
     }
   }
 
