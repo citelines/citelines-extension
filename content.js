@@ -198,6 +198,17 @@
     return marker;
   }
 
+  // Instantly update isOwn on cached annotations and re-render markers
+  // without waiting for a network call
+  function refreshMarkerColors() {
+    const currentUserId = authManager.getCurrentUser()?.id || null;
+    sharedAnnotations = sharedAnnotations.map(ann => ({
+      ...ann,
+      isOwn: currentUserId ? ann.creatorUserId === currentUserId : false
+    }));
+    renderMarkers();
+  }
+
   // Render all markers
   function renderMarkers() {
     console.log(`[Markers] renderMarkers() called, sharedAnnotations count: ${sharedAnnotations.length}`);
@@ -996,7 +1007,8 @@
         await authManager.logout();
         toggleAccountSidebar();
         updateLoginButton();
-        if (currentVideoId) await fetchAllAnnotations(currentVideoId);
+        refreshMarkerColors(); // Instant visual update
+        if (currentVideoId) fetchAllAnnotations(currentVideoId); // Background refresh
       });
     } else {
       accountSidebar.innerHTML = `
@@ -1051,8 +1063,9 @@
     console.log('[Auth] Login successful, refreshing UI...');
 
     updateLoginButton();
-    // Close the account sidebar
+    refreshMarkerColors(); // Instant visual update
     if (accountSidebarOpen) toggleAccountSidebar();
+    if (currentVideoId) fetchAllAnnotations(currentVideoId); // Background refresh
 
     // Re-fetch annotations to update ownership
     if (currentVideoId) {
