@@ -915,6 +915,7 @@
   // Populate the login button based on current auth state
   function updateLoginButton() {
     if (!loginButton) return;
+    const sidebarWasOpen = loginButton.classList.contains('sidebar-open');
 
     if (authManager.isLoggedIn()) {
       const user = authManager.getCurrentUser();
@@ -927,6 +928,8 @@
       loginButton.innerHTML = '👤';
       loginButton.title = 'Sign in or create account';
     }
+
+    if (sidebarWasOpen) loginButton.classList.add('sidebar-open');
   }
 
   // Create the login/user button shell immediately, populate after auth init
@@ -1047,7 +1050,8 @@
     console.log('[Auth] Login successful, refreshing UI...');
 
     updateLoginButton();
-    updateAccountSidebarContent(); // Switch sidebar to logged-in view
+    // Close the account sidebar
+    if (accountSidebarOpen) toggleAccountSidebar();
 
     // Re-fetch annotations to update ownership
     if (currentVideoId) {
