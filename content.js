@@ -1375,30 +1375,25 @@
     createSidebarButton();
     createLoginButton(); // Show empty circle immediately
 
-    // Initialize authentication then populate the button
-    try {
-      await authManager.initialize();
-      api.setAuthManager(authManager);
-      console.log('[Auth] Initialized');
-      updateLoginButton();
+    // Run auth init and API init in parallel, then fetch annotations
+    const [authReady] = await Promise.allSettled([
+      authManager.initialize(),
+      api.initialize()
+    ]);
 
-      // Check for expiry warning (only for anonymous users)
-      checkExpiryWarning();
-    } catch (err) {
-      console.error('[Auth] Failed to initialize:', err);
-      updateLoginButton(); // Fall back to logged-out state
+    // Wire up auth and update UI
+    api.setAuthManager(authManager);
+    updateLoginButton();
+    checkExpiryWarning();
+    if (authReady.status === 'rejected') {
+      console.error('[Auth] Failed to initialize:', authReady.reason);
     }
 
-    // Initialize API and fetch all annotations
+    // Fetch annotations now that auth is set on the API
     try {
-      await api.initialize();
-      console.log('API initialized');
-
-      // Fetch all annotations from all users for this video
-      // renderMarkers() is called by fetchAllAnnotations() after data is loaded
       await fetchAllAnnotations(videoId);
     } catch (err) {
-      console.error('Failed to initialize API:', err);
+      console.error('Failed to fetch annotations:', err);
     }
   }
 
