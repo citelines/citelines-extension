@@ -830,6 +830,11 @@ a.yt-annotator-citation-title:hover {
   box-shadow: -4px 0 20px rgba(0, 0, 0, 0.5);
 }
 
+.yt-annotator-account-auth-body {
+  padding: 0 1.5rem 1.5rem;
+  overflow-y: auto;
+}
+
 .yt-annotator-account-sidebar-body {
   display: flex;
   flex-direction: column;

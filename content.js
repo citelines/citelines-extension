@@ -961,35 +961,51 @@
     playerContainer.appendChild(accountSidebar);
   }
 
-  // Populate account sidebar with current user info
+  // Populate account sidebar based on auth state
   function updateAccountSidebarContent() {
     if (!accountSidebar) return;
-    const user = authManager.getCurrentUser();
-    const initials = user ? getInitials(user.displayName) : '?';
 
-    accountSidebar.innerHTML = `
-      <div class="yt-annotator-sidebar-header">
-        <h3>Account</h3>
-        <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
-      </div>
-      <div class="yt-annotator-account-sidebar-body">
-        <div class="yt-annotator-account-avatar">${escapeHtml(initials)}</div>
-        <div class="yt-annotator-account-name">${escapeHtml(user?.displayName || '')}</div>
-        <div class="yt-annotator-account-email">${escapeHtml(user?.email || '')}</div>
-        <button class="yt-annotator-account-signout">Sign Out</button>
-      </div>
-    `;
+    if (authManager.isLoggedIn()) {
+      const user = authManager.getCurrentUser();
+      const initials = getInitials(user.displayName);
+
+      accountSidebar.innerHTML = `
+        <div class="yt-annotator-sidebar-header">
+          <h3>Account</h3>
+          <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
+        </div>
+        <div class="yt-annotator-account-sidebar-body">
+          <div class="yt-annotator-account-avatar">${escapeHtml(initials)}</div>
+          <div class="yt-annotator-account-name">${escapeHtml(user.displayName)}</div>
+          <div class="yt-annotator-account-email">${escapeHtml(user.email || '')}</div>
+          <button class="yt-annotator-account-signout">Sign Out</button>
+        </div>
+      `;
+
+      accountSidebar.querySelector('.yt-annotator-account-signout').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        await authManager.logout();
+        toggleAccountSidebar();
+        updateLoginButton();
+      });
+    } else {
+      accountSidebar.innerHTML = `
+        <div class="yt-annotator-sidebar-header">
+          <h3>Account</h3>
+          <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
+        </div>
+        <div class="yt-annotator-account-auth-body"></div>
+      `;
+
+      if (!loginUI) {
+        loginUI = new LoginUI(authManager, handleLoginSuccess, toggleAccountSidebar);
+      }
+      loginUI.show(accountSidebar.querySelector('.yt-annotator-account-auth-body'), 'login');
+    }
 
     accountSidebar.querySelector('.yt-annotator-sidebar-close').addEventListener('click', (e) => {
       e.stopPropagation();
       toggleAccountSidebar();
-    });
-
-    accountSidebar.querySelector('.yt-annotator-account-signout').addEventListener('click', async (e) => {
-      e.stopPropagation();
-      toggleAccountSidebar();
-      await authManager.logout();
-      updateLoginButton();
     });
   }
 
@@ -1015,17 +1031,9 @@
     }
   }
 
-  // Handle login button click
+  // Handle login button click — always opens the account sidebar
   function handleLoginButtonClick() {
-    if (authManager.isLoggedIn()) {
-      toggleAccountSidebar();
-    } else {
-      // Show login modal
-      if (!loginUI) {
-        loginUI = new LoginUI(authManager, handleLoginSuccess);
-      }
-      loginUI.show('login');
-    }
+    toggleAccountSidebar();
   }
 
   // Handle successful login
@@ -1033,6 +1041,7 @@
     console.log('[Auth] Login successful, refreshing UI...');
 
     updateLoginButton();
+    updateAccountSidebarContent(); // Switch sidebar to logged-in view
 
     // Re-fetch annotations to update ownership
     if (currentVideoId) {
