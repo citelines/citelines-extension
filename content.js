@@ -17,6 +17,8 @@
   let loginButton = null; // Login/user badge button
   let loginUI = null; // Login UI instance
   let expiryWarning = null; // Expiry warning banner
+  let accountSidebar = null;
+  let accountSidebarOpen = false;
 
   // Get video ID from URL
   function getVideoId() {
@@ -947,20 +949,76 @@
     playerContainer.appendChild(loginButton);
   }
 
+  // Create the account sidebar
+  function createAccountSidebar() {
+    if (accountSidebar) return;
+
+    const playerContainer = document.querySelector('#movie_player');
+    if (!playerContainer) return;
+
+    accountSidebar = document.createElement('div');
+    accountSidebar.className = 'yt-annotator-account-sidebar';
+    playerContainer.appendChild(accountSidebar);
+  }
+
+  // Populate account sidebar with current user info
+  function updateAccountSidebarContent() {
+    if (!accountSidebar) return;
+    const user = authManager.getCurrentUser();
+    const initials = user ? getInitials(user.displayName) : '?';
+
+    accountSidebar.innerHTML = `
+      <div class="yt-annotator-sidebar-header">
+        <h3>Account</h3>
+        <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
+      </div>
+      <div class="yt-annotator-account-sidebar-body">
+        <div class="yt-annotator-account-avatar">${escapeHtml(initials)}</div>
+        <div class="yt-annotator-account-name">${escapeHtml(user?.displayName || '')}</div>
+        <div class="yt-annotator-account-email">${escapeHtml(user?.email || '')}</div>
+        <button class="yt-annotator-account-signout">Sign Out</button>
+      </div>
+    `;
+
+    accountSidebar.querySelector('.yt-annotator-sidebar-close').addEventListener('click', (e) => {
+      e.stopPropagation();
+      toggleAccountSidebar();
+    });
+
+    accountSidebar.querySelector('.yt-annotator-account-signout').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      toggleAccountSidebar();
+      await authManager.logout();
+      updateLoginButton();
+    });
+  }
+
+  // Toggle the account sidebar open/closed
+  function toggleAccountSidebar() {
+    // Close bibliography sidebar if open
+    if (sidebarOpen) toggleSidebar();
+
+    accountSidebarOpen = !accountSidebarOpen;
+
+    if (accountSidebarOpen) {
+      createAccountSidebar();
+      updateAccountSidebarContent();
+      accountSidebar.classList.add('yt-annotator-sidebar-open');
+      if (addButton) addButton.classList.add('sidebar-open');
+      if (sidebarButton) sidebarButton.classList.add('sidebar-open');
+      if (loginButton) loginButton.classList.add('sidebar-open');
+    } else {
+      if (accountSidebar) accountSidebar.classList.remove('yt-annotator-sidebar-open');
+      if (addButton) addButton.classList.remove('sidebar-open');
+      if (sidebarButton) sidebarButton.classList.remove('sidebar-open');
+      if (loginButton) loginButton.classList.remove('sidebar-open');
+    }
+  }
+
   // Handle login button click
   function handleLoginButtonClick() {
     if (authManager.isLoggedIn()) {
-      // Show logout confirmation
-      if (confirm('Sign out?')) {
-        authManager.logout().then(() => {
-          // Recreate button
-          if (loginButton) {
-            loginButton.remove();
-            loginButton = null;
-          }
-          createLoginButton();
-        });
-      }
+      toggleAccountSidebar();
     } else {
       // Show login modal
       if (!loginUI) {
@@ -1048,6 +1106,12 @@
 
   // Toggle sidebar open/closed
   function toggleSidebar() {
+    // Close account sidebar if open
+    if (accountSidebarOpen) {
+      accountSidebarOpen = false;
+      if (accountSidebar) accountSidebar.classList.remove('yt-annotator-sidebar-open');
+    }
+
     sidebarOpen = !sidebarOpen;
     if (sidebarOpen) {
       if (!sidebar) {
