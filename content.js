@@ -958,6 +958,12 @@
 
     accountSidebar = document.createElement('div');
     accountSidebar.className = 'yt-annotator-account-sidebar';
+
+    // Prevent YouTube from intercepting keystrokes typed in the sidebar
+    accountSidebar.addEventListener('keydown', (e) => e.stopPropagation());
+    accountSidebar.addEventListener('keypress', (e) => e.stopPropagation());
+    accountSidebar.addEventListener('keyup', (e) => e.stopPropagation());
+
     playerContainer.appendChild(accountSidebar);
   }
 
