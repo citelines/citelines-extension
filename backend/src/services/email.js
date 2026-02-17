@@ -6,7 +6,7 @@
  */
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
-const APP_URL = process.env.APP_URL || 'https://youtube-annotator-production.up.railway.app';
+const APP_URL = process.env.APP_URL || 'https://www.citelines.org';
 const FROM_EMAIL = process.env.FROM_EMAIL || 'Citelines <noreply@citelines.org>';
 
 const { Resend } = require('resend');

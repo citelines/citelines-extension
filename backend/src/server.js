@@ -123,61 +123,6 @@ app.get('/api/health', (req, res) => {
 const path = require('path');
 app.use(express.static(path.join(__dirname, '../public')));
 
-// Email verification link handler
-const User = require('./models/User');
-const { sendWelcomeEmail } = require('./services/email');
-
-app.get('/verify-email', async (req, res) => {
-  const { token } = req.query;
-
-  if (!token) {
-    return res.status(400).send(verifyEmailHTML('error', 'No verification token provided.'));
-  }
-
-  try {
-    const user = await User.findByVerificationToken(token);
-
-    if (!user) {
-      return res.status(400).send(verifyEmailHTML('error', 'This verification link has expired or is invalid. Please request a new one.'));
-    }
-
-    await User.verifyEmail(user.id);
-    await sendWelcomeEmail(user.email, user.display_name, 0);
-
-    console.log(`[Auth] Email verified via link: ${user.email}`);
-    res.send(verifyEmailHTML('success', `Your email <strong>${user.email}</strong> has been verified. You can close this tab and sign in.`));
-  } catch (err) {
-    console.error('[Auth] Email verification error:', err);
-    res.status(500).send(verifyEmailHTML('error', 'Something went wrong. Please try again or contact support.'));
-  }
-});
-
-function verifyEmailHTML(type, message) {
-  const isSuccess = type === 'success';
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>${isSuccess ? 'Email Verified' : 'Verification Failed'}</title>
-  <style>
-    body { font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; background: #f5f5f5; }
-    .card { background: #fff; border-radius: 8px; padding: 2.5rem; max-width: 420px; width: 90%; text-align: center; box-shadow: 0 2px 12px rgba(0,0,0,0.08); }
-    .icon { font-size: 3rem; margin-bottom: 1rem; }
-    h1 { font-size: 1.4rem; margin: 0 0 0.75rem; color: #1a1a1a; }
-    p { color: #555; line-height: 1.6; margin: 0; }
-  </style>
-</head>
-<body>
-  <div class="card">
-    <div class="icon">${isSuccess ? '✅' : '❌'}</div>
-    <h1>${isSuccess ? 'Email Verified!' : 'Verification Failed'}</h1>
-    <p>${message}</p>
-  </div>
-</body>
-</html>`;
-}
-
 // Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/shares', sharesRoutes);
