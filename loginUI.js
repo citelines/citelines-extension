@@ -302,11 +302,11 @@ class LoginUI {
       <button class="yt-annotator-auth-close">&times;</button>
       <div style="text-align: center; padding: 1.5rem 0;">
         <div style="font-size: 2.5rem; margin-bottom: 1rem;">✉️</div>
-        <h2 style="margin: 0 0 0.75rem;">Check your email</h2>
-        <p style="color: #555; margin: 0 0 1.5rem; line-height: 1.5;">
-          We sent a verification link to<br><strong>${email}</strong>
+        <h2 style="margin: 0 0 0.75rem; color: #0497a6;">Check your email</h2>
+        <p style="color: #ccc; margin: 0 0 1.5rem; line-height: 1.5;">
+          We sent a verification link to<br><strong style="color: #fff;">${email}</strong>
         </p>
-        <p style="color: #888; font-size: 0.85rem; margin: 0;">
+        <p style="color: #aaa; font-size: 0.85rem; margin: 0;">
           Click the link in the email to activate your account, then sign in.
         </p>
       </div>
