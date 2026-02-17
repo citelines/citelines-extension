@@ -1371,9 +1371,9 @@
     createMarkersContainer();
     createAddButton();
     createSidebarButton();
-    createLoginButton();
 
-    // Initialize authentication
+    // Initialize authentication before creating the login button
+    // so the button reflects the correct logged-in state
     try {
       await authManager.initialize();
       api.setAuthManager(authManager);
@@ -1384,6 +1384,8 @@
     } catch (err) {
       console.error('[Auth] Failed to initialize:', err);
     }
+
+    createLoginButton();
 
     // Initialize API and fetch all annotations
     try {
