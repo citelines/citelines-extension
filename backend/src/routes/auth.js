@@ -122,16 +122,17 @@ router.post('/register-email', asyncHandler(async (req, res) => {
     const anonymousUser = await User.findByAnonymousId(anonymousId);
 
     if (!anonymousUser) {
-      return res.status(404).json({ error: 'Anonymous account not found' });
+      // Stale anonymousId — create a fresh registered account
+      console.log(`[Auth] Anonymous account not found for ${anonymousId}, creating new registered user: ${email}`);
+      user = await User.createWithPassword({ email, password, displayName });
+    } else {
+      user = await User.upgradeAnonymousToRegistered(anonymousId, {
+        email,
+        password,
+        displayName
+      });
+      console.log(`[Auth] Upgraded anonymous account to registered: ${email} (${user.citations_count || 0} citations preserved)`);
     }
-
-    user = await User.upgradeAnonymousToRegistered(anonymousId, {
-      email,
-      password,
-      displayName
-    });
-
-    console.log(`[Auth] Upgraded anonymous account to registered: ${email} (${user.citations_count || 0} citations preserved)`);
   }
   // Otherwise: create new registered account
   else {
