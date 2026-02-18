@@ -105,6 +105,15 @@ router.post('/register-email', asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Display name must be less than 50 characters' });
   }
 
+  // Check if display name already exists (case-insensitive)
+  const existingByName = await User.findByDisplayName(displayName.trim());
+  if (existingByName) {
+    return res.status(400).json({
+      error: 'Display name already taken',
+      message: 'That display name is already in use. Please choose a different one.'
+    });
+  }
+
   // Check if email already exists
   const existingUser = await User.findByEmail(email);
   if (existingUser) {

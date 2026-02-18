@@ -200,6 +200,22 @@ class User {
   }
 
   /**
+   * Find user by display name (case-insensitive)
+   * @param {string} displayName
+   * @returns {Promise<Object|null>} User or null
+   */
+  static async findByDisplayName(displayName) {
+    const query = `
+      SELECT id, anonymous_id, display_name, auth_type, created_at
+      FROM users
+      WHERE LOWER(display_name) = LOWER($1)
+        AND display_name IS NOT NULL
+    `;
+    const result = await db.query(query, [displayName]);
+    return result.rows[0] || null;
+  }
+
+  /**
    * Find user by email verification token
    * @param {string} token
    * @returns {Promise<Object|null>} User or null
