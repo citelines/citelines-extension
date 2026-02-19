@@ -149,7 +149,7 @@ router.get('/:token', optionalAuth, asyncHandler(async (req, res) => {
  * GET /api/shares/video/:videoId
  * Browse shares for a specific video
  */
-router.get('/video/:videoId', asyncHandler(async (req, res) => {
+router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
   const { videoId } = req.params;
   const limit = Math.min(parseInt(req.query.limit) || 50, 100);
   const offset = parseInt(req.query.offset) || 0;
@@ -165,14 +165,15 @@ router.get('/video/:videoId', asyncHandler(async (req, res) => {
   // Find shares
   const shares = await Share.findByVideoId(videoId, limit, offset);
 
-  // Format response
+  // Format response — include full annotations so client needs only one request
   const formattedShares = shares.map(share => ({
     shareToken: share.share_token,
     title: share.title,
+    annotations: share.annotations,
     annotationCount: share.annotations.length,
     viewCount: share.view_count,
     createdAt: share.created_at,
-    isOwner: req.user && req.user.id === share.user_id,  // CRITICAL: ownership for color coding
+    isOwner: !!(req.user && req.user.id === share.user_id),
     userId: share.user_id,
     creatorDisplayName: share.creator_display_name,
     creatorAuthType: share.creator_auth_type,

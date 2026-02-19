@@ -27,16 +27,22 @@
     return urlParams.get('v');
   }
 
-  // Get the channel ID of the video being watched (for creator detection)
+  // Get the channel ID of the video being watched (for creator detection).
+  // Content scripts run in an isolated JS world, so we delegate to the background
+  // service worker which uses chrome.scripting.executeScript (world: MAIN) to
+  // read ytInitialData from the page's actual JavaScript context.
   function getVideoChannelId() {
-    const ownerLink = document.querySelector(
-      'ytd-channel-name a, #owner #channel-name a, ytd-video-owner-renderer a'
-    );
-    if (ownerLink?.href) {
-      const match = ownerLink.href.match(/\/channel\/(UC[\w-]+)/);
-      if (match) return match[1];
-    }
-    return null;
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage({ type: 'GET_CHANNEL_ID' }, (response) => {
+        if (chrome.runtime.lastError) {
+          console.log('[Creator] Could not get channel ID:', chrome.runtime.lastError.message);
+          return resolve(null);
+        }
+        const id = response?.channelId || null;
+        console.log('[Creator] Video channel ID:', id);
+        resolve(id);
+      });
+    });
   }
 
   // Format seconds to MM:SS or HH:MM:SS
@@ -118,78 +124,55 @@
     }
   }
 
-  // Fetch all annotations from all users for current video
+  // Fetch all annotations from all users for current video.
+  // Makes a single request to /api/shares/video/:videoId (which now includes
+  // full annotation data and isOwner), parallelized with getVideoChannelId().
   async function fetchAllAnnotations(videoId) {
     try {
-      const result = await api.getSharesForVideo(videoId);
-      sharedAnnotations = []; // Clear existing shared annotations
+      // Fire both requests in parallel
+      const [result, videoChannelId] = await Promise.all([
+        api.getSharesForVideo(videoId),
+        getVideoChannelId()
+      ]);
 
-      // Fetch all share details in parallel
-      const shareFetches = result.shares.map(share =>
-        api.getShare(share.shareToken)
-          .then(shareData => {
-            // Debug: Log the share data to see what backend returns
-            console.log(`[DEBUG] Share ${share.shareToken}:`, {
-              isOwner: shareData.isOwner,
-              annotationCount: shareData.annotations?.length
-            });
+      sharedAnnotations = [];
 
-            if (shareData.annotations && Array.isArray(shareData.annotations)) {
-              // Use backend's isOwner field to determine ownership
-              const isOwn = shareData.isOwner || false;
+      for (const share of result.shares) {
+        if (!share.annotations || !Array.isArray(share.annotations)) continue;
 
-              // If this is the user's share, store the token to avoid creating duplicates
-              if (isOwn && !userShareId) {
-                userShareId = share.shareToken;
-                console.log('[DEBUG] Found user share:', userShareId);
+        const isOwn = share.isOwner || false;
 
-                // CRITICAL: Update local storage to match backend state
-                // This prevents deleted annotations from being resurrected when creating new ones
-                const nonDeletedAnnotations = shareData.annotations.filter(ann => !ann.deleted_at);
-                annotations[videoId] = nonDeletedAnnotations;
-                const storageKey = getAnnotationsStorageKey(videoId);
-                chrome.storage.local.set({ [storageKey]: nonDeletedAnnotations });
-                console.log('[DEBUG] Updated local storage: removed deleted annotations');
-              }
+        // If this is the user's share, sync local storage to match backend state
+        if (isOwn && !userShareId) {
+          userShareId = share.shareToken;
+          const nonDeletedAnnotations = share.annotations.filter(ann => !ann.deleted_at);
+          annotations[videoId] = nonDeletedAnnotations;
+          const storageKey = getAnnotationsStorageKey(videoId);
+          chrome.storage.local.set({ [storageKey]: nonDeletedAnnotations });
+        }
 
-              const videoChannelId = getVideoChannelId();
-            return shareData.annotations
-                // Filter out deleted annotations (admin soft-delete)
-                .filter(ann => !ann.deleted_at)
-                .map(ann => ({
-                  ...ann,
-                  shareToken: share.shareToken,
-                  isOwn: isOwn,
-                  creatorDisplayName: shareData.creator_display_name || shareData.creatorDisplayName,
-                  creatorUserId: shareData.user_id || shareData.userId,
-                  isCreatorCitation: !!(videoChannelId && shareData.creatorYoutubeChannelId &&
-                    shareData.creatorYoutubeChannelId === videoChannelId)
-                }));
-            }
-            return [];
-          })
-          .catch(err => {
-            console.error('Failed to fetch share:', err);
-            return [];
-          })
-      );
+        const mapped = share.annotations
+          .filter(ann => !ann.deleted_at)
+          .map(ann => ({
+            ...ann,
+            shareToken: share.shareToken,
+            isOwn,
+            creatorDisplayName: share.creatorDisplayName,
+            creatorUserId: share.userId,
+            isCreatorCitation: !!(videoChannelId && share.creatorYoutubeChannelId &&
+              share.creatorYoutubeChannelId === videoChannelId)
+          }));
 
-      // Wait for all fetches to complete
-      const allAnnotations = await Promise.all(shareFetches);
+        sharedAnnotations.push(...mapped);
+      }
 
-      // Flatten the array of arrays into sharedAnnotations
-      sharedAnnotations = allAnnotations.flat();
+      // No owned share found — clear stale local annotations from a previous account
+      if (!userShareId) {
+        annotations[videoId] = [];
+        const storageKey = getAnnotationsStorageKey(videoId);
+        chrome.storage.local.set({ [storageKey]: [] });
+      }
 
-      console.log(`[DEBUG] Loaded ${result.shares.length} shares with ${sharedAnnotations.length} total annotations for video ${videoId}`);
-      console.log('[DEBUG] Share tokens:', result.shares.map(s => s.shareToken));
-      console.log('[DEBUG] Annotations breakdown:', {
-        total: sharedAnnotations.length,
-        own: sharedAnnotations.filter(a => a.isOwn).length,
-        others: sharedAnnotations.filter(a => !a.isOwn).length
-      });
-      console.log('[DEBUG] Annotation IDs:', sharedAnnotations.map(a => `${a.id}:${a.isOwn ? 'own' : 'other'}`));
-
-      // Render once after all annotations are loaded
       renderMarkers();
     } catch (error) {
       console.error('Failed to fetch annotations:', error);
@@ -630,10 +613,14 @@
     // Show creator's display name for all annotations
     const creatorName = annotation.creatorDisplayName || 'Anonymous';
     let badge;
-    if (isShared) {
-      badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
+    if (!isShared) {
+      // Own annotation — may also be a creator citation
+      const prefix = annotation.isCreatorCitation ? 'YOU (Creator) - ' : 'YOU - ';
+      badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">${prefix}${escapeHtml(creatorName)}</span>`;
+    } else if (annotation.isCreatorCitation) {
+      badge = `<span style="background: #ffaa3e; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Creator - ${escapeHtml(creatorName)}</span>`;
     } else {
-      badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU - ${escapeHtml(creatorName)}</span>`;
+      badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
     }
 
     const citationHTML = formatCitation(annotation.citation, !isShared);
@@ -833,6 +820,9 @@
       e.stopPropagation();
       e.preventDefault();
 
+      const saveBtn = popup.querySelector('[data-action="save"]');
+      if (saveBtn.disabled) return; // Prevent double-submission
+
       const text = textarea.value.trim();
       const citationType = citationTypeSelect.value;
 
@@ -870,6 +860,10 @@
         return;
       }
 
+      // Disable button and show saving state to prevent double-submission
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
       const videoId = getVideoId();
       const newAnnotation = {
         id: Date.now().toString(),
@@ -891,22 +885,23 @@
       } catch (error) {
         console.error('Failed to save annotation:', error);
 
-        // Handle suspension/block errors
+        // Always remove the annotation from local state on failure — prevents
+        // duplicates if the user retries after an error
+        annotations[videoId] = annotations[videoId].filter(ann => ann.id !== newAnnotation.id);
+        const storageKey = getAnnotationsStorageKey(videoId);
+        await new Promise((resolve) => {
+          chrome.storage.local.set({ [storageKey]: annotations[videoId] }, resolve);
+        });
+
         if (error.suspended || error.blocked) {
-          // Remove the annotation that was just added
-          annotations[videoId] = annotations[videoId].filter(ann => ann.id !== newAnnotation.id);
-
-          // Save directly to local storage without triggering sync
-          const storageKey = getAnnotationsStorageKey(videoId);
-          await new Promise((resolve) => {
-            chrome.storage.local.set({ [storageKey]: annotations[videoId] }, resolve);
-          });
-
           const message = error.blocked
             ? 'Your account has been blocked. You cannot create annotations.'
             : `Your account is suspended until ${new Date(error.suspendedUntil).toLocaleDateString()}. You cannot create annotations.`;
           alert(message);
         } else {
+          // Re-enable button so user can retry
+          saveBtn.disabled = false;
+          saveBtn.textContent = 'Save';
           alert('Failed to save annotation. Please try again.');
         }
       }

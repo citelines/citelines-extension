@@ -195,8 +195,12 @@ class AnnotatorAPI {
    * @returns {Promise<Object>} List of shares
    */
   async getSharesForVideo(videoId, limit = 50, offset = 0) {
+    const headers = await this.getAuthHeaders();
+    delete headers['Content-Type'];
+
     const response = await fetch(
-      `${this.baseUrl}/shares/video/${videoId}?limit=${limit}&offset=${offset}`
+      `${this.baseUrl}/shares/video/${videoId}?limit=${limit}&offset=${offset}`,
+      { headers }
     );
 
     if (!response.ok) {
