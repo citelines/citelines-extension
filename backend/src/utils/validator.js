@@ -90,8 +90,6 @@ function sanitizeText(text) {
   return text
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
     .trim();
 }
 
