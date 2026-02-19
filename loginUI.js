@@ -54,6 +54,7 @@ class LoginUI {
       <!-- Login Form -->
       <form id="yt-annotator-login-form" style="display: ${this.currentMode === 'login' ? 'block' : 'none'};">
         <button type="button" id="yt-oauth-login-btn" class="yt-annotator-youtube-auth-button">&#9654; Continue with YouTube</button>
+        <p class="yt-annotator-youtube-auth-hint">Sign in with YouTube to add citations to videos you own, visible to all Citelines users.</p>
         <div class="yt-annotator-auth-divider">or</div>
         <div class="yt-annotator-form-group">
           <label>Email</label>
@@ -73,6 +74,7 @@ class LoginUI {
       <!-- Register Form -->
       <form id="yt-annotator-register-form" style="display: ${this.currentMode === 'register' ? 'block' : 'none'};">
         <button type="button" id="yt-oauth-register-btn" class="yt-annotator-youtube-auth-button">&#9654; Continue with YouTube</button>
+        <p class="yt-annotator-youtube-auth-hint">Sign in with YouTube to add citations to videos you own, visible to all Citelines users.</p>
         <div class="yt-annotator-auth-divider">or</div>
         <div class="yt-annotator-form-group">
           <label>Display Name</label>

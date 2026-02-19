@@ -1190,6 +1190,14 @@ a.yt-annotator-citation-title:hover {
   transform: translateY(0);
 }
 
+.yt-annotator-youtube-auth-hint {
+  color: #999;
+  font-size: 11px;
+  line-height: 1.4;
+  margin: 6px 0 0;
+  text-align: center;
+}
+
 /* "or" divider between YouTube button and email form */
 .yt-annotator-auth-divider {
   display: flex;
@@ -1287,4 +1295,45 @@ a.yt-annotator-citation-title:hover {
 
 .yt-annotator-popup-create.creator-mode .yt-annotator-btn-primary:hover {
   background: #ffbb66;
+}
+
+/* Sidebar border + header in creator mode */
+.yt-annotator-sidebar.creator-mode {
+  border-left-color: #ffaa3e;
+}
+
+.yt-annotator-sidebar.creator-mode .yt-annotator-sidebar-header {
+  background: rgba(255, 170, 62, 0.1);
+}
+
+.yt-annotator-sidebar.creator-mode .yt-annotator-sidebar-header h3 {
+  color: #ffaa3e;
+}
+
+/* Account sidebar border + header in creator mode */
+.yt-annotator-account-sidebar.creator-mode {
+  border-left-color: #ffaa3e;
+}
+
+.yt-annotator-account-sidebar.creator-mode .yt-annotator-sidebar-header {
+  background: rgba(255, 170, 62, 0.1);
+}
+
+.yt-annotator-account-sidebar.creator-mode .yt-annotator-sidebar-header h3 {
+  color: #ffaa3e;
+}
+
+/* Account sidebar avatar + signout in creator mode */
+.yt-annotator-account-sidebar.creator-mode .yt-annotator-account-avatar {
+  background: #ffaa3e;
+}
+
+.yt-annotator-account-sidebar.creator-mode .yt-annotator-account-signout {
+  border-color: #ffaa3e;
+  color: #ffaa3e;
+}
+
+.yt-annotator-account-sidebar.creator-mode .yt-annotator-account-signout:hover {
+  background: #ffaa3e;
+  color: #fff;
 }

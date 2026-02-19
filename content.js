@@ -60,7 +60,7 @@
   // switches from teal to orange when viewing your own video as a creator.
   function updateCreatorMode() {
     const creatorMode = isCreatorMode();
-    const elements = [addButton, sidebarButton, loginButton, sidebar].filter(Boolean);
+    const elements = [addButton, sidebarButton, loginButton, sidebar, accountSidebar].filter(Boolean);
     elements.forEach(el => el.classList.toggle('creator-mode', creatorMode));
   }
 
@@ -148,10 +148,13 @@
   // full annotation data and isOwner), parallelized with getVideoChannelId().
   async function fetchAllAnnotations(videoId) {
     try {
-      // Fire both requests in parallel
+      // Fire shares request (+ channel ID if not already known)
+      const channelIdPromise = currentVideoChannelId
+        ? Promise.resolve(currentVideoChannelId)
+        : getVideoChannelId();
       const [result, videoChannelId] = await Promise.all([
         api.getSharesForVideo(videoId),
-        getVideoChannelId()
+        channelIdPromise
       ]);
 
       // Store for creator-mode detection (teal→orange UI accent)
@@ -1131,6 +1134,7 @@
     if (accountSidebarOpen) {
       createAccountSidebar();
       updateAccountSidebarContent();
+      if (isCreatorMode()) accountSidebar.classList.add('creator-mode');
       accountSidebar.classList.add('yt-annotator-sidebar-open');
       if (addButton) addButton.classList.add('sidebar-open');
       if (sidebarButton) sidebarButton.classList.add('sidebar-open');
@@ -1242,6 +1246,7 @@
         createSidebar();
       }
       sidebar.classList.add('yt-annotator-sidebar-open');
+      if (isCreatorMode()) sidebar.classList.add('creator-mode');
       updateSidebarContent();
 
       // Move buttons to the left when sidebar opens
@@ -1272,7 +1277,7 @@
 
     sidebar.innerHTML = `
       <div class="yt-annotator-sidebar-header">
-        <h3>Annotations</h3>
+        <h3>Citations</h3>
         <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
       </div>
       <div class="yt-annotator-sidebar-filters">
@@ -1579,12 +1584,20 @@
     createAddButton();
     createSidebarButton();
     createLoginButton(); // Show empty circle immediately
+    updateCreatorMode(); // Apply teal/orange based on current video's channel
 
-    // Run auth init and API init in parallel, then fetch annotations
-    const [authReady] = await Promise.allSettled([
+    // Run auth init, API init, and channel ID fetch in parallel
+    const [authReady, , channelIdResult] = await Promise.allSettled([
       authManager.initialize(),
-      api.initialize()
+      api.initialize(),
+      getVideoChannelId()
     ]);
+
+    // Apply creator mode as early as possible (before annotations load)
+    if (channelIdResult.status === 'fulfilled' && channelIdResult.value) {
+      currentVideoChannelId = channelIdResult.value;
+      updateCreatorMode();
+    }
 
     // Wire up auth and update UI
     api.setAuthManager(authManager);

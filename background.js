@@ -18,7 +18,21 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       world: 'MAIN',
       func: () => {
         try {
-          // Path 1: ytInitialData videoSecondaryInfoRenderer owner browseId
+          // Primary: movie_player.getVideoData() — updates on SPA navigation
+          const player = document.getElementById('movie_player');
+          if (player && typeof player.getVideoData === 'function') {
+            const data = player.getVideoData();
+            if (data?.channel_id?.startsWith('UC')) return data.channel_id;
+          }
+
+          // Fallback 1: movie_player.getPlayerResponse()
+          if (player && typeof player.getPlayerResponse === 'function') {
+            const resp = player.getPlayerResponse();
+            const cid = resp?.videoDetails?.channelId;
+            if (cid?.startsWith('UC')) return cid;
+          }
+
+          // Fallback 2: ytInitialData (works on fresh page load only)
           const contents = window.ytInitialData?.contents
             ?.twoColumnWatchNextResults?.results?.results?.contents;
           if (contents) {
@@ -28,7 +42,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
               if (id?.startsWith('UC')) return id;
             }
           }
-          // Path 2: ytInitialPlayerConfig videoDetails
+
+          // Fallback 3: ytInitialPlayerConfig
           const ucid = window.ytInitialPlayerConfig?.videoDetails?.channelId
             || window.ytInitialPlayerConfig?.args?.ucid;
           if (ucid?.startsWith('UC')) return ucid;

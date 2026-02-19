@@ -119,6 +119,14 @@
 - ✅ Sign-out resets `userShareId` to prevent stale share token being used in new anonymous session
 - ✅ ESC key closes bibliography sidebar (or account sidebar)
 - ✅ T4, T5, T7, T8 from testing plan verified
+- ✅ Sidebar timestamp font color matches marker color (orange/teal/grey)
+- ✅ Creator mode UI: buttons and creation flow switch from teal to orange accent when logged-in creator is on their own video
+- ✅ Delete button works on owned creator citations (orange markers) — same behavior as owned teal markers
+- ✅ Sidebar title renamed from "Annotations" to "Citations"
+- ✅ YouTube auth hint text on login page: explains creator citation feature
+- ✅ Creator mode extends to sidebar borders, headers, account avatar, and sign-out button (all orange when on own video)
+- ✅ Channel ID detection fixed for SPA navigation: `movie_player.getVideoData()` as primary (replaces stale `ytInitialData`)
+- ✅ Creator mode applied immediately on page load: channel ID fetched in parallel with auth/API init to reduce teal→orange flash
 
 **Remaining Work**:
 - T1: Display name picker (first-time YouTube login for brand-new users)
@@ -350,6 +358,14 @@
 15. Fixed root cause of anonymous citations appearing orange: `anonymousId` in storage pointed to upgraded YouTube-auth account (with `youtube_channel_id` set); now cleared on YouTube login and on `setYouTubeChannel` so post-logout sessions use a fresh account
 16. `isCreatorCitation` reverted to pure absolute channel-ID comparison (viewer-independent — orange is a property of the annotation, not the viewer)
 17. ESC key now closes the bibliography sidebar (or account sidebar)
+18. Sidebar timestamp font color matches marker color (orange/teal/grey)
+19. Creator mode UI: buttons + creation flow switch to orange accent when creator is on own video
+20. Delete button on owned creator citations (orange markers) now works correctly
+21. Sidebar title renamed "Annotations" → "Citations"
+22. YouTube auth hint text added to login/register page
+23. Creator mode extended to sidebar borders, headers, account avatar, sign-out button
+24. Fixed stale channel ID on SPA navigation: switched to `movie_player.getVideoData()` as primary detection method
+25. Channel ID fetch parallelized with auth/API init to reduce teal→orange flash on page load
 
 ### Session 2026-02-13 PM
 1. `d6d230d` - Fix ad detection false positives causing missing markers on first load
@@ -378,10 +394,9 @@
 
 ## Known Issues
 
-### BUG: Citation creation fails after login (without page refresh) — HIGH PRIORITY
-**Repro**: On any video, create a citation while logged out → log in (email/password) → try to create another citation → fails silently (no error shown, popup closes, but citation not saved). Refresh page → works.
-**Root cause**: `userShareId` is stale. It was set to the anonymous share token during the first citation. After login, `fetchAllAnnotations` runs but doesn't reset `userShareId` (the `if (isOwn && !userShareId)` guard is skipped because it's already set). When the logged-in user tries to save, `syncAnnotationsToBackend` calls `api.updateShare(anonymousShareToken, ...)` with JWT auth → 403 (JWT user doesn't own the anonymous share). Error caught silently.
-**Fix**: Reset `userShareId = null` at the top of `fetchAllAnnotations` so it's re-discovered from the backend response every time. This is a single-line fix that also prevents any future stale-token variants.
+### ~~BUG: Citation creation fails after login (without page refresh)~~ — FIXED ✅
+**Root cause**: Stale `userShareId` pointing to anonymous share token after login → 403 on update.
+**Fix**: Reset `userShareId = null` at top of `fetchAllAnnotations` (commit `6d7f69e`).
 
 ### UX: Duplicate creator accounts cause confusing sidebar filters — LOW PRIORITY
 **Repro**: User has two accounts (email + YouTube-auth) both with the same YouTube channel linked. On their own video: "Mine" shows citations from the current login only (1), "Creator" shows citations from both accounts (2). Same citation appears in both filters if it's own + creator.
@@ -428,5 +443,5 @@ node clear-data.js
 ---
 
 **Last Updated**: 2026-02-19
-**Status**: Phase 3D in progress — creator verification core complete; remaining: T1 (new user display name picker), T3 (connect YT for email account retest), T6 (dual-row visual detail check)
-**Next**: Remaining T1/T3/T6 testing, then account merge (Phase 3E) or Legal/Publishing prerequisites
+**Status**: Phase 3D nearly complete — creator verification, creator mode UI, and all major bug fixes done; remaining: T1 (display name picker), T3 (connect YT retest), T6 (dual-row visual polish)
+**Next**: Finish T1/T3/T6, then Legal/Publishing prerequisites or Account Merge (Phase 3E)
