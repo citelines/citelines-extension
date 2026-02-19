@@ -1044,6 +1044,74 @@
     playerContainer.appendChild(accountSidebar);
   }
 
+  /**
+   * Show merge confirmation dialog in the account sidebar.
+   * Called when /youtube/connect detects a separate YouTube account.
+   */
+  function showMergeConfirmation(mergeData, sidebar) {
+    const body = sidebar.querySelector('.yt-annotator-account-sidebar-body');
+    if (!body) return;
+
+    const name = mergeData.secondaryDisplayName || 'YouTube account';
+    const count = mergeData.secondaryShareCount || 0;
+
+    const mergeHtml = `
+      <div class="yt-annotator-merge-prompt">
+        <p style="color:#ccc; font-size:0.85rem; line-height:1.5; margin:0.75rem 0;">
+          Your YouTube channel is already linked to another account
+          (<strong style="color:#fff;">${escapeHtml(name)}</strong>) with
+          <strong style="color:#fff;">${count}</strong> citation${count !== 1 ? 's' : ''}.
+          Merge into this account?
+        </p>
+        <div style="display:flex; gap:8px; margin-top:0.75rem;">
+          <button class="yt-annotator-merge-confirm"
+            style="flex:1; background:#0497a6; color:#000; border:none; border-radius:6px;
+                   padding:8px 12px; font-size:0.82rem; font-weight:600; cursor:pointer;">
+            Merge Accounts
+          </button>
+          <button class="yt-annotator-merge-cancel"
+            style="flex:1; background:transparent; color:#aaa; border:1px solid #555;
+                   border-radius:6px; padding:8px 12px; font-size:0.82rem; cursor:pointer;">
+            Cancel
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Replace the connect button with the merge prompt
+    const connectBtn = body.querySelector('.yt-annotator-connect-yt-btn');
+    if (connectBtn) {
+      connectBtn.insertAdjacentHTML('afterend', mergeHtml);
+      connectBtn.remove();
+    } else {
+      body.insertAdjacentHTML('beforeend', mergeHtml);
+    }
+
+    body.querySelector('.yt-annotator-merge-cancel').addEventListener('click', (e) => {
+      e.stopPropagation();
+      updateAccountSidebarContent();
+    });
+
+    body.querySelector('.yt-annotator-merge-confirm').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      const btn = e.target;
+      btn.textContent = 'Merging...';
+      btn.disabled = true;
+
+      try {
+        await authManager.mergeWithYouTube(mergeData._accessToken);
+        updateAccountSidebarContent();
+        if (currentVideoId) fetchAllAnnotations(currentVideoId);
+      } catch (err) {
+        console.error('[Auth] Merge failed:', err);
+        btn.textContent = 'Merge failed';
+        btn.style.background = '#f44336';
+        btn.style.color = '#fff';
+        setTimeout(() => updateAccountSidebarContent(), 2000);
+      }
+    });
+  }
+
   // Populate account sidebar based on auth state
   function updateAccountSidebarContent() {
     if (!accountSidebar) return;
@@ -1091,6 +1159,13 @@
               const statusEl = accountSidebar.querySelector('.yt-annotator-connect-yt-btn');
               if (statusEl) statusEl.textContent = msg;
             });
+
+            // If a merge is needed, show confirmation dialog
+            if (result.needsMerge) {
+              showMergeConfirmation(result, accountSidebar);
+              return;
+            }
+
             // Refresh sidebar to show verified state
             updateAccountSidebarContent();
             // Re-fetch annotations to update creator markers

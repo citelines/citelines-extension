@@ -395,6 +395,115 @@ class User {
   }
 
   /**
+   * Find a YouTube-auth account by channel ID, excluding a specific user.
+   * Used to detect a separate YouTube account that should be merged.
+   * @param {string} channelId
+   * @param {string} excludeUserId - User ID to exclude from results
+   * @returns {Promise<Object|null>} User or null
+   */
+  static async findYouTubeAccountByChannelId(channelId, excludeUserId) {
+    const query = `
+      SELECT id, anonymous_id, email, display_name, auth_type,
+             email_verified, youtube_channel_id, youtube_verified, youtube_channel_title,
+             is_admin, is_suspended, suspended_until, is_blocked, citations_count
+      FROM users
+      WHERE youtube_channel_id = $1
+        AND id != $2
+        AND auth_type = 'youtube'
+    `;
+    const result = await db.query(query, [channelId, excludeUserId]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Merge a secondary account into a primary account.
+   * Transfers all shares, copies YouTube channel info, and deactivates the secondary.
+   * @param {string} primaryId - The account to keep
+   * @param {string} secondaryId - The account to merge and deactivate
+   * @returns {Promise<Object>} Updated primary user
+   */
+  static async mergeAccounts(primaryId, secondaryId) {
+    const client = await db.getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      // 1. Transfer all shares from secondary to primary
+      const transferResult = await client.query(
+        'UPDATE shares SET user_id = $1 WHERE user_id = $2',
+        [primaryId, secondaryId]
+      );
+      const transferredCount = transferResult.rowCount;
+
+      // 2. Get secondary's YouTube info before deactivating
+      const secondaryResult = await client.query(
+        'SELECT youtube_channel_id, youtube_channel_title FROM users WHERE id = $1',
+        [secondaryId]
+      );
+      const secondary = secondaryResult.rows[0];
+
+      // 3. Copy YouTube channel info to primary (if primary doesn't have one)
+      if (secondary && secondary.youtube_channel_id) {
+        const primaryResult = await client.query(
+          'SELECT youtube_channel_id FROM users WHERE id = $1',
+          [primaryId]
+        );
+        const primary = primaryResult.rows[0];
+
+        if (!primary.youtube_channel_id) {
+          await client.query(
+            `UPDATE users
+             SET youtube_channel_id = $1, youtube_verified = true, youtube_channel_title = $2
+             WHERE id = $3`,
+            [secondary.youtube_channel_id, secondary.youtube_channel_title, primaryId]
+          );
+        }
+      }
+
+      // 4. Recalculate citations_count on primary
+      await client.query(
+        `UPDATE users SET citations_count = (
+           SELECT COUNT(*) FROM shares WHERE user_id = $1
+         ) WHERE id = $1`,
+        [primaryId]
+      );
+
+      // 5. Deactivate secondary account
+      await client.query(
+        `UPDATE users
+         SET auth_type = 'merged',
+             merged_into = $1,
+             merged_at = NOW(),
+             youtube_channel_id = NULL,
+             youtube_channel_title = NULL,
+             youtube_verified = false,
+             display_name = NULL
+         WHERE id = $2`,
+        [primaryId, secondaryId]
+      );
+
+      await client.query('COMMIT');
+
+      console.log(`[User] Merged account ${secondaryId} into ${primaryId} (${transferredCount} shares transferred)`);
+
+      // Return updated primary user
+      const updatedResult = await db.query(
+        `SELECT id, anonymous_id, auth_type, email, display_name, created_at,
+                youtube_channel_id, youtube_verified, youtube_channel_title,
+                citations_count, is_admin, is_suspended, is_blocked
+         FROM users WHERE id = $1`,
+        [primaryId]
+      );
+      return updatedResult.rows[0];
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Auto-unsuspend user (called when suspension expires)
    * @param {string} userId
    * @returns {Promise<void>}

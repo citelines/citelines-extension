@@ -71,11 +71,13 @@ async function loginWithYouTube(api, authManager, displayName = null, anonymousI
 
 /**
  * Connect a YouTube channel to an already-logged-in account.
+ * If the server detects a separate YouTube account that should be merged,
+ * returns { needsMerge: true, ... } so the caller can prompt the user.
  *
  * @param {AnnotatorAPI} api
  * @param {AuthManager} authManager
  * @param {Function|null} onStatus - Optional status callback (message: string) => void
- * @returns {Promise<{channelId, channelTitle}>}
+ * @returns {Promise<Object>} Channel info or merge prompt data
  */
 async function connectYouTubeChannel(api, authManager, onStatus = null) {
   if (onStatus) onStatus('Opening YouTube sign-in...');
@@ -85,6 +87,12 @@ async function connectYouTubeChannel(api, authManager, onStatus = null) {
   if (onStatus) onStatus('Connecting channel...');
 
   const result = await api.connectYouTube(accessToken);
+
+  // If a merge is needed, attach the accessToken so the caller can complete it
+  if (result.needsMerge) {
+    result._accessToken = accessToken;
+    return result;
+  }
 
   // Update stored user with the new channel info
   await authManager.setYouTubeChannel(result.channelId, result.channelTitle);

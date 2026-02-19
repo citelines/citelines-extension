@@ -466,6 +466,9 @@ router.post('/youtube', asyncHandler(async (req, res) => {
  * Connect a YouTube channel to an existing logged-in account.
  * Requires JWT auth.
  *
+ * If a separate youtube-type account already exists for this channel,
+ * returns { needsMerge: true } so the client can prompt the user.
+ *
  * Body: { accessToken }
  */
 router.post('/youtube/connect', authenticateUser, asyncHandler(async (req, res) => {
@@ -485,9 +488,19 @@ router.post('/youtube/connect', authenticateUser, asyncHandler(async (req, res) 
 
   const { id: channelId, title: channelTitle } = channel;
 
-  // Allow linking even if another account already has this channel — the user
-  // proved ownership via OAuth, so the same person may legitimately have multiple
-  // Citelines accounts (e.g. a YouTube-auth account and an email account).
+  // Check if a separate youtube-auth account exists for this channel
+  const secondaryAccount = await User.findYouTubeAccountByChannelId(channelId, req.user.id);
+  if (secondaryAccount) {
+    console.log(`[Auth] Merge needed: ${req.user.display_name} ← ${secondaryAccount.display_name} (${channelId})`);
+    return res.json({
+      needsMerge: true,
+      secondaryDisplayName: secondaryAccount.display_name,
+      secondaryShareCount: secondaryAccount.citations_count || 0,
+      channelId,
+      channelTitle
+    });
+  }
+
   const updated = await User.setYouTubeChannel(req.user.id, channelId, channelTitle);
 
   console.log(`[Auth] YouTube channel connected: ${req.user.display_name} → ${channelId}`);
@@ -496,6 +509,102 @@ router.post('/youtube/connect', authenticateUser, asyncHandler(async (req, res) 
     channelId: updated.youtube_channel_id,
     channelTitle: updated.youtube_channel_title,
     youtubeVerified: updated.youtube_verified
+  });
+}));
+
+/**
+ * POST /api/auth/merge
+ * Merge a secondary YouTube account into the current (primary) account.
+ * Requires JWT auth (primary account).
+ *
+ * Body: { accessToken } — Google OAuth token proving YouTube channel ownership
+ */
+router.post('/merge', authenticateUser, asyncHandler(async (req, res) => {
+  const { accessToken } = req.body;
+
+  if (!accessToken) {
+    return res.status(400).json({ error: 'accessToken required' });
+  }
+
+  // Primary account must not be anonymous
+  if (req.user.auth_type === 'anonymous') {
+    return res.status(400).json({
+      error: 'Cannot merge into anonymous account',
+      message: 'Please create a full account before merging.'
+    });
+  }
+
+  // Verify channel ownership via YouTube API
+  const channel = await fetchYouTubeChannel(accessToken);
+  if (!channel) {
+    return res.status(400).json({
+      error: 'No YouTube channel found',
+      message: 'No YouTube channel is associated with this Google account.'
+    });
+  }
+
+  const { id: channelId, title: channelTitle } = channel;
+
+  // Find the secondary youtube-auth account for this channel
+  const secondary = await User.findYouTubeAccountByChannelId(channelId, req.user.id);
+  if (!secondary) {
+    return res.status(404).json({
+      error: 'No account to merge',
+      message: 'No separate YouTube account found for this channel.'
+    });
+  }
+
+  // Guard: no self-merge
+  if (secondary.id === req.user.id) {
+    return res.status(400).json({ error: 'Cannot merge account into itself' });
+  }
+
+  // Guard: no merging blocked/suspended accounts
+  if (secondary.is_blocked || secondary.is_suspended) {
+    return res.status(400).json({
+      error: 'Cannot merge a blocked or suspended account',
+      message: 'The YouTube account is blocked or suspended and cannot be merged.'
+    });
+  }
+
+  // Guard: no merging already-merged accounts
+  if (secondary.auth_type === 'merged') {
+    return res.status(400).json({
+      error: 'Account already merged',
+      message: 'This YouTube account has already been merged into another account.'
+    });
+  }
+
+  // Perform the merge
+  const updatedPrimary = await User.mergeAccounts(req.user.id, secondary.id);
+
+  // Ensure YouTube channel is set on primary (mergeAccounts handles this,
+  // but also set it explicitly if the primary didn't have it before)
+  if (!updatedPrimary.youtube_channel_id) {
+    await User.setYouTubeChannel(req.user.id, channelId, channelTitle);
+    updatedPrimary.youtube_channel_id = channelId;
+    updatedPrimary.youtube_channel_title = channelTitle;
+    updatedPrimary.youtube_verified = true;
+  }
+
+  // Generate new JWT with updated user info
+  const token = generateJWT(updatedPrimary);
+
+  console.log(`[Auth] Account merged: ${secondary.display_name} → ${updatedPrimary.display_name} (${channelId})`);
+
+  res.json({
+    message: 'Accounts merged successfully',
+    token,
+    user: {
+      id: updatedPrimary.id,
+      email: updatedPrimary.email || null,
+      displayName: updatedPrimary.display_name,
+      citationsCount: updatedPrimary.citations_count || 0,
+      authType: updatedPrimary.auth_type,
+      youtubeChannelId: updatedPrimary.youtube_channel_id,
+      youtubeVerified: updatedPrimary.youtube_verified || true,
+      youtubeChannelTitle: updatedPrimary.youtube_channel_title
+    }
   });
 }));
 

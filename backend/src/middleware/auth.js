@@ -57,6 +57,15 @@ async function authenticateUser(req, res, next) {
             }
           }
 
+          // Check if account has been merged into another
+          if (user.auth_type === 'merged') {
+            return res.status(401).json({
+              error: 'Account merged',
+              message: 'This account has been merged into another account. Please sign in again.',
+              merged: true
+            });
+          }
+
           req.user = user;
           req.authType = 'jwt';
           req.authMethod = 'token';
@@ -110,6 +119,15 @@ async function authenticateUser(req, res, next) {
               suspendedUntil: suspendedUntil
             });
           }
+        }
+
+        // Check if account has been merged into another
+        if (user.auth_type === 'merged') {
+          return res.status(401).json({
+            error: 'Account merged',
+            message: 'This account has been merged into another account. Please sign in again.',
+            merged: true
+          });
         }
 
         req.user = user;

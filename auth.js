@@ -201,6 +201,42 @@ class AuthManager {
   }
 
   /**
+   * Merge a separate YouTube account into the current logged-in account.
+   * Launches YouTube OAuth, then calls POST /api/auth/merge with the access token.
+   * On success, updates stored JWT and user info.
+   * @param {string} accessToken - Google OAuth access token
+   * @returns {Promise<Object>} Merge result with updated user
+   */
+  async mergeWithYouTube(accessToken) {
+    const response = await fetch(`${this.baseUrl}/auth/merge`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${this.token}`
+      },
+      body: JSON.stringify({ accessToken })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Merge failed');
+    }
+
+    // Update stored token and user
+    this.token = data.token;
+    this.user = data.user;
+
+    await chrome.storage.local.set({
+      jwtToken: this.token,
+      currentUser: this.user
+    });
+
+    console.log('[Auth] Accounts merged, now logged in as:', this.user.displayName);
+    return data;
+  }
+
+  /**
    * Login with email and password
    * @param {string} email
    * @param {string} password
