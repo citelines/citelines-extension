@@ -12,7 +12,7 @@
   let sidebarButton = null;
   let sidebar = null;
   let sidebarOpen = false;
-  let sidebarFilter = 'all'; // 'all', 'mine', 'others'
+  let sidebarFilter = 'all'; // 'all', 'mine', 'creator', 'others'
   let activePopup = null;
   let userShareId = null; // Your share ID for current video
   let loginButton = null; // Login/user badge button
@@ -1242,6 +1242,7 @@
       <div class="yt-annotator-sidebar-filters">
         <button class="yt-annotator-filter-btn active" data-filter="all">All</button>
         <button class="yt-annotator-filter-btn" data-filter="mine">Mine</button>
+        <button class="yt-annotator-filter-btn" data-filter="creator">Creator</button>
         <button class="yt-annotator-filter-btn" data-filter="others">Others</button>
       </div>
       <div class="yt-annotator-sidebar-count"></div>
@@ -1283,8 +1284,10 @@
     let filtered = sharedAnnotations;
     if (sidebarFilter === 'mine') {
       filtered = sharedAnnotations.filter(a => a.isOwn);
+    } else if (sidebarFilter === 'creator') {
+      filtered = sharedAnnotations.filter(a => a.isCreatorCitation);
     } else if (sidebarFilter === 'others') {
-      filtered = sharedAnnotations.filter(a => !a.isOwn);
+      filtered = sharedAnnotations.filter(a => !a.isOwn && !a.isCreatorCitation);
     }
 
     // Sort by timestamp

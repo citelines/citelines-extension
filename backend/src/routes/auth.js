@@ -485,15 +485,9 @@ router.post('/youtube/connect', authenticateUser, asyncHandler(async (req, res) 
 
   const { id: channelId, title: channelTitle } = channel;
 
-  // Check if another user already has this channel
-  const existing = await User.findByYouTubeChannelId(channelId);
-  if (existing && existing.id !== req.user.id) {
-    return res.status(409).json({
-      error: 'Channel already linked',
-      message: 'This YouTube channel is already linked to another Citelines account.'
-    });
-  }
-
+  // Allow linking even if another account already has this channel — the user
+  // proved ownership via OAuth, so the same person may legitimately have multiple
+  // Citelines accounts (e.g. a YouTube-auth account and an email account).
   const updated = await User.setYouTubeChannel(req.user.id, channelId, channelTitle);
 
   console.log(`[Auth] YouTube channel connected: ${req.user.display_name} → ${channelId}`);
