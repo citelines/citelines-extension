@@ -3,6 +3,14 @@
 
 console.log('[DEBUG] ===== admin.js loaded at', new Date().toISOString(), '=====');
 
+// Map raw auth_type + email_verified to display label
+function getAuthTypeLabel(user) {
+  if (user.auth_type === 'youtube') return 'YouTube';
+  if (user.auth_type === 'password' && user.email_verified) return 'Password - Verified';
+  if (user.auth_type === 'password' && !user.email_verified) return 'Password - Unverified';
+  return 'Anonymous';
+}
+
 const API_URL = window.location.origin;
 let JWT_TOKEN = localStorage.getItem('admin_jwt');
 let currentUser = null;
@@ -290,7 +298,7 @@ function renderUsers(users) {
               ${user.is_admin ? '<span class="badge badge-admin">Admin</span>' : ''}
             </td>
             <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(user.email || '-')}">${user.email || '-'}</td>
-            <td style="width: 120px;">${user.auth_type}</td>
+            <td style="width: 160px;">${getAuthTypeLabel(user)}</td>
             <td style="width: 120px;">
               ${user.is_blocked ? '<span class="badge badge-blocked">Blocked</span>' :
                 user.is_suspended ? '<span class="badge badge-suspended">Suspended</span>' :
@@ -354,7 +362,7 @@ function getSortedFilteredUsers() {
           columnValue = user.email || '';
           break;
         case 'auth_type':
-          columnValue = user.auth_type || '';
+          columnValue = getAuthTypeLabel(user);
           break;
         case 'status':
           columnValue = user.is_blocked ? 'Blocked' : user.is_suspended ? 'Suspended' : 'Active';
@@ -395,8 +403,8 @@ function getSortedFilteredUsers() {
         valB = (b.email || '').toLowerCase();
         break;
       case 'auth_type':
-        valA = a.auth_type || '';
-        valB = b.auth_type || '';
+        valA = getAuthTypeLabel(a);
+        valB = getAuthTypeLabel(b);
         break;
       case 'status':
         valA = a.is_blocked ? 2 : a.is_suspended ? 1 : 0;
@@ -610,7 +618,7 @@ function getUniqueUserColumnValues(column) {
         value = user.email || '';
         break;
       case 'auth_type':
-        value = user.auth_type || '';
+        value = getAuthTypeLabel(user);
         break;
       case 'status':
         value = user.is_blocked ? 'Blocked' : user.is_suspended ? 'Suspended' : 'Active';
@@ -1276,9 +1284,10 @@ async function loadAnalytics() {
     // Calculate analytics
     analyticsData = {
       users: {
-        temporary: usersData.filter(u => u.auth_type === 'anonymous' || u.auth_type === 'expired').length,
-        verified: usersData.filter(u => u.auth_type === 'password' && u.email_verified).length,
-        unverified: usersData.filter(u => u.auth_type === 'password' && !u.email_verified).length,
+        anonymous: usersData.filter(u => u.auth_type === 'anonymous' || u.auth_type === 'expired').length,
+        passwordVerified: usersData.filter(u => u.auth_type === 'password' && u.email_verified).length,
+        passwordUnverified: usersData.filter(u => u.auth_type === 'password' && !u.email_verified).length,
+        youtube: usersData.filter(u => u.auth_type === 'youtube').length,
         total: usersData.length
       },
       interventions: {
@@ -1313,19 +1322,24 @@ function renderAnalytics(data) {
           <div class="stat-value">${data.users.total}</div>
         </div>
         <div class="stat-card neutral">
-          <div class="stat-label">Temporary</div>
-          <div class="stat-value">${data.users.temporary}</div>
-          <div class="stat-subtitle">Anonymous accounts</div>
-        </div>
-        <div class="stat-card success">
-          <div class="stat-label">Verified</div>
-          <div class="stat-value">${data.users.verified}</div>
-          <div class="stat-subtitle">Email verified</div>
+          <div class="stat-label">Anonymous</div>
+          <div class="stat-value">${data.users.anonymous}</div>
+          <div class="stat-subtitle">Temporary accounts</div>
         </div>
         <div class="stat-card caution">
-          <div class="stat-label">Unverified</div>
-          <div class="stat-value">${data.users.unverified}</div>
-          <div class="stat-subtitle">Pending verification</div>
+          <div class="stat-label">Password - Unverified</div>
+          <div class="stat-value">${data.users.passwordUnverified}</div>
+          <div class="stat-subtitle">Pending email verification</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Password - Verified</div>
+          <div class="stat-value">${data.users.passwordVerified}</div>
+          <div class="stat-subtitle">Email verified</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #ff4444;">
+          <div class="stat-label">YouTube</div>
+          <div class="stat-value">${data.users.youtube}</div>
+          <div class="stat-subtitle">YouTube OAuth accounts</div>
         </div>
       </div>
     </div>
