@@ -39,7 +39,8 @@ class Share {
         s.id, s.share_token, s.user_id, s.video_id, s.title,
         s.annotations, s.is_public, s.view_count, s.created_at, s.updated_at,
         u.display_name as creator_display_name,
-        u.auth_type as creator_auth_type
+        u.auth_type as creator_auth_type,
+        u.youtube_channel_id as creator_youtube_channel_id
       FROM shares s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.share_token = $1
@@ -77,7 +78,8 @@ class Share {
         s.id, s.share_token, s.user_id, s.video_id, s.title,
         s.annotations, s.is_public, s.view_count, s.created_at, s.updated_at,
         u.display_name as creator_display_name,
-        u.auth_type as creator_auth_type
+        u.auth_type as creator_auth_type,
+        u.youtube_channel_id as creator_youtube_channel_id
       FROM shares s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.video_id = $1

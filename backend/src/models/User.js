@@ -305,6 +305,96 @@ class User {
   }
 
   /**
+   * Find user by YouTube channel ID
+   * @param {string} channelId
+   * @returns {Promise<Object|null>} User or null
+   */
+  static async findByYouTubeChannelId(channelId) {
+    const query = `
+      SELECT id, anonymous_id, email, display_name, auth_type,
+             email_verified, youtube_channel_id, youtube_verified, youtube_channel_title,
+             is_admin, is_suspended, suspended_until, is_blocked
+      FROM users WHERE youtube_channel_id = $1
+    `;
+    const result = await db.query(query, [channelId]);
+    return result.rows[0] || null;
+  }
+
+  /**
+   * Set YouTube channel on a user account
+   * @param {string} userId
+   * @param {string} channelId
+   * @param {string} channelTitle
+   * @returns {Promise<Object>} Updated user fields
+   */
+  static async setYouTubeChannel(userId, channelId, channelTitle) {
+    const query = `
+      UPDATE users
+      SET youtube_channel_id = $1, youtube_verified = true, youtube_channel_title = $2
+      WHERE id = $3
+      RETURNING id, youtube_channel_id, youtube_channel_title, youtube_verified
+    `;
+    const result = await db.query(query, [channelId, channelTitle, userId]);
+    return result.rows[0];
+  }
+
+  /**
+   * Create a new user authenticated via YouTube channel
+   * @param {Object} params - { channelId, channelTitle, displayName }
+   * @returns {Promise<Object>} Created user
+   */
+  static async createWithYouTube({ channelId, channelTitle, displayName }) {
+    const anonymousId = generateAnonymousId();
+
+    const query = `
+      INSERT INTO users
+        (anonymous_id, display_name, auth_type, youtube_channel_id, youtube_verified,
+         youtube_channel_title, email_verified, created_at)
+      VALUES ($1, $2, 'youtube', $3, true, $4, true, NOW())
+      RETURNING id, anonymous_id, display_name, auth_type,
+                youtube_channel_id, youtube_verified, youtube_channel_title, created_at
+    `;
+
+    const result = await db.query(query, [anonymousId, displayName, channelId, channelTitle]);
+    return result.rows[0];
+  }
+
+  /**
+   * Upgrade an anonymous account to a YouTube-authenticated account
+   * Preserves all citations by keeping the same user ID
+   * @param {string} anonymousId - Anonymous ID to upgrade
+   * @param {Object} params - { channelId, channelTitle, displayName }
+   * @returns {Promise<Object>} Updated user
+   */
+  static async upgradeAnonymousToYouTube(anonymousId, { channelId, channelTitle, displayName }) {
+    const query = `
+      UPDATE users
+      SET display_name = $1,
+          auth_type = 'youtube',
+          youtube_channel_id = $2,
+          youtube_verified = true,
+          youtube_channel_title = $3,
+          expires_at = NULL,
+          linked_anonymous_id = $4,
+          email_verified = true
+      WHERE anonymous_id = $5
+      RETURNING id, anonymous_id, display_name, auth_type,
+                youtube_channel_id, youtube_verified, youtube_channel_title,
+                created_at, citations_count
+    `;
+
+    const result = await db.query(query, [
+      displayName,
+      channelId,
+      channelTitle,
+      anonymousId,
+      anonymousId
+    ]);
+
+    return result.rows[0];
+  }
+
+  /**
    * Auto-unsuspend user (called when suspension expires)
    * @param {string} userId
    * @returns {Promise<void>}

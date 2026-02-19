@@ -140,7 +140,8 @@ router.get('/:token', optionalAuth, asyncHandler(async (req, res) => {
     isOwner,
     userId: share.user_id,
     creatorDisplayName: share.creator_display_name,
-    creatorAuthType: share.creator_auth_type
+    creatorAuthType: share.creator_auth_type,
+    creatorYoutubeChannelId: share.creator_youtube_channel_id || null
   });
 }));
 
@@ -174,7 +175,8 @@ router.get('/video/:videoId', asyncHandler(async (req, res) => {
     isOwner: req.user && req.user.id === share.user_id,  // CRITICAL: ownership for color coding
     userId: share.user_id,
     creatorDisplayName: share.creator_display_name,
-    creatorAuthType: share.creator_auth_type
+    creatorAuthType: share.creator_auth_type,
+    creatorYoutubeChannelId: share.creator_youtube_channel_id || null
   }));
 
   res.json({

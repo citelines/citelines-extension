@@ -288,6 +288,52 @@ class AnnotatorAPI {
   }
 
   /**
+   * Login or register via YouTube OAuth access token
+   * @param {string} accessToken
+   * @param {string|null} displayName
+   * @param {string|null} anonymousId
+   * @returns {Promise<Object>} Login/register result
+   */
+  async loginWithYouTube(accessToken, displayName = null, anonymousId = null) {
+    const body = { accessToken };
+    if (displayName) body.displayName = displayName;
+    if (anonymousId) body.anonymousId = anonymousId;
+
+    const response = await fetch(`${this.baseUrl}/auth/youtube`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'YouTube login failed');
+    }
+    return data;
+  }
+
+  /**
+   * Connect a YouTube channel to the current logged-in account
+   * @param {string} accessToken - Google OAuth access token
+   * @returns {Promise<Object>} Updated channel info
+   */
+  async connectYouTube(accessToken) {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(`${this.baseUrl}/auth/youtube/connect`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ accessToken })
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'Failed to connect YouTube channel');
+    }
+    return data;
+  }
+
+  /**
    * Check API health
    * @returns {Promise<Object>} Health status
    */

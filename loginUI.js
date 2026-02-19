@@ -53,6 +53,8 @@ class LoginUI {
 
       <!-- Login Form -->
       <form id="yt-annotator-login-form" style="display: ${this.currentMode === 'login' ? 'block' : 'none'};">
+        <button type="button" id="yt-oauth-login-btn" class="yt-annotator-youtube-auth-button">&#9654; Continue with YouTube</button>
+        <div class="yt-annotator-auth-divider">or</div>
         <div class="yt-annotator-form-group">
           <label>Email</label>
           <input type="email" id="login-email" placeholder="your@email.com" required autocomplete="email">
@@ -70,6 +72,8 @@ class LoginUI {
 
       <!-- Register Form -->
       <form id="yt-annotator-register-form" style="display: ${this.currentMode === 'register' ? 'block' : 'none'};">
+        <button type="button" id="yt-oauth-register-btn" class="yt-annotator-youtube-auth-button">&#9654; Continue with YouTube</button>
+        <div class="yt-annotator-auth-divider">or</div>
         <div class="yt-annotator-form-group">
           <label>Display Name</label>
           <input type="text" id="register-name" placeholder="How should we call you?" required minlength="2" maxlength="50">
@@ -126,6 +130,16 @@ class LoginUI {
     q('#yt-annotator-forgot-password').addEventListener('click', (e) => {
       e.preventDefault();
       this.handleForgotPassword();
+    });
+
+    q('#yt-oauth-login-btn').addEventListener('click', (e) => {
+      e.preventDefault();
+      this.handleYouTubeAuth();
+    });
+
+    q('#yt-oauth-register-btn').addEventListener('click', (e) => {
+      e.preventDefault();
+      this.handleYouTubeAuth();
     });
   }
 
@@ -216,6 +230,85 @@ class LoginUI {
     } catch (error) {
       this.showMessage(error.message, 'error');
     }
+  }
+
+  /**
+   * Handle YouTube OAuth button click
+   */
+  async handleYouTubeAuth() {
+    this.showMessage('Opening YouTube sign-in...', 'info');
+
+    try {
+      const anonymousId = await api.initialize();
+      await loginWithYouTube(api, this.authManager, null, anonymousId, (msg) => this.showMessage(msg, 'info'));
+      this.showMessage('Signed in!', 'success');
+      setTimeout(() => {
+        if (this.onLoginSuccess) this.onLoginSuccess();
+      }, 800);
+    } catch (error) {
+      this.showMessage(error.message, 'error');
+    }
+  }
+
+  /**
+   * Show a YouTube name picker inline and resolve with the chosen name
+   * Called by youtubeAuth.js when needsDisplayName is true
+   * @param {string} suggestedName
+   * @returns {Promise<string>} Chosen display name
+   */
+  promptDisplayName(suggestedName) {
+    return new Promise((resolve, reject) => {
+      if (!this.container) return reject(new Error('No container'));
+
+      const pickerId = 'yt-annotator-name-picker';
+      const existing = this.container.querySelector(`#${pickerId}`);
+      if (existing) existing.remove();
+
+      const picker = document.createElement('div');
+      picker.id = pickerId;
+      picker.style.cssText = 'margin-bottom: 16px;';
+      picker.innerHTML = `
+        <label style="display:block; font-size:13px; color:#ccc; margin-bottom:6px; font-weight:500;">
+          Choose a display name
+        </label>
+        <div style="display:flex; gap:8px;">
+          <input type="text" id="yt-name-input" value="${suggestedName.replace(/"/g, '&quot;')}"
+            maxlength="50" style="flex:1; background:#2a2a2a; border:1px solid #444; border-radius:6px;
+            padding:8px 10px; color:#fff; font-size:14px; box-sizing:border-box;">
+          <button id="yt-name-confirm" style="background:#0497a6; color:#000; border:none;
+            border-radius:6px; padding:8px 14px; font-size:14px; font-weight:600; cursor:pointer;">
+            OK
+          </button>
+        </div>
+      `;
+
+      const authBody = this.container.querySelector('#yt-annotator-auth-message');
+      if (authBody) {
+        authBody.after(picker);
+      } else {
+        this.container.prepend(picker);
+      }
+
+      const input = picker.querySelector('#yt-name-input');
+      const confirmBtn = picker.querySelector('#yt-name-confirm');
+
+      input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') { e.preventDefault(); confirmBtn.click(); }
+      });
+      input.addEventListener('keyup', (e) => e.stopPropagation());
+      input.focus();
+
+      confirmBtn.addEventListener('click', () => {
+        const name = input.value.trim();
+        if (!name || name.length < 2) {
+          input.style.borderColor = '#f44336';
+          return;
+        }
+        picker.remove();
+        resolve(name);
+      });
+    });
   }
 
   /**

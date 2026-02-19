@@ -8,6 +8,7 @@ const { generateToken: generateJWT } = require('../config/jwt');
 const { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } = require('../services/email');
 const validator = require('validator');
 const { getExpiryInfo } = require('../middleware/checkExpiry');
+const { authenticateUser } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -256,7 +257,10 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
       email: user.email,
       displayName: user.display_name,
       citationsCount: user.citations_count || 0,
-      authType: user.auth_type
+      authType: user.auth_type,
+      youtubeChannelId: user.youtube_channel_id || null,
+      youtubeVerified: user.youtube_verified || false,
+      youtubeChannelTitle: user.youtube_channel_title || null
     }
   });
 }));
@@ -332,5 +336,173 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
  * Get account expiry information
  */
 router.get('/expiry-info', getExpiryInfo);
+
+// ==================== YOUTUBE OAUTH AUTHENTICATION ====================
+
+/**
+ * Fetch YouTube channel info using a Google access token
+ * @param {string} accessToken
+ * @returns {Promise<{id, title}|null>}
+ */
+async function fetchYouTubeChannel(accessToken) {
+  const resp = await fetch(
+    'https://www.googleapis.com/youtube/v3/channels?part=id,snippet&mine=true',
+    { headers: { Authorization: `Bearer ${accessToken}` } }
+  );
+  if (!resp.ok) return null;
+  const data = await resp.json();
+  const channel = data.items && data.items[0];
+  if (!channel) return null;
+  return { id: channel.id, title: channel.snippet?.title || null };
+}
+
+/**
+ * POST /api/auth/youtube
+ * Login or register via YouTube channel OAuth.
+ * No auth required — this is the entry point.
+ *
+ * Body: { accessToken, displayName?, anonymousId? }
+ */
+router.post('/youtube', asyncHandler(async (req, res) => {
+  const { accessToken, displayName, anonymousId } = req.body;
+
+  if (!accessToken) {
+    return res.status(400).json({ error: 'accessToken required' });
+  }
+
+  // Verify channel with YouTube API
+  const channel = await fetchYouTubeChannel(accessToken);
+  if (!channel) {
+    return res.status(400).json({
+      error: 'No YouTube channel found',
+      message: 'No YouTube channel is associated with this Google account.'
+    });
+  }
+
+  const { id: channelId, title: channelTitle } = channel;
+
+  // Check for existing account linked to this channel
+  const existingUser = await User.findByYouTubeChannelId(channelId);
+  if (existingUser) {
+    const token = generateJWT(existingUser);
+    console.log(`[Auth] YouTube login: ${existingUser.display_name} (${channelId})`);
+    return res.json({
+      message: 'Login successful',
+      token,
+      user: {
+        id: existingUser.id,
+        email: existingUser.email || null,
+        displayName: existingUser.display_name,
+        citationsCount: existingUser.citations_count || 0,
+        authType: existingUser.auth_type,
+        youtubeChannelId: existingUser.youtube_channel_id,
+        youtubeVerified: existingUser.youtube_verified,
+        youtubeChannelTitle: existingUser.youtube_channel_title
+      }
+    });
+  }
+
+  // No existing account — need a display name for new account
+  const rawName = displayName ? displayName.trim() : (channelTitle ? channelTitle.trim() : null);
+
+  // Validate proposed display name
+  let resolvedName = null;
+  if (rawName && rawName.length >= 2 && rawName.length <= 50) {
+    const taken = await User.findByDisplayName(rawName);
+    if (!taken) {
+      resolvedName = rawName;
+    }
+  }
+
+  // If we still don't have a valid name, ask the client to provide one
+  if (!resolvedName) {
+    return res.status(200).json({
+      needsDisplayName: true,
+      channelId,
+      channelTitle,
+      suggestedName: channelTitle ? channelTitle.trim().substring(0, 50) : ''
+    });
+  }
+
+  // Create or upgrade account
+  let user;
+  if (anonymousId) {
+    const anonymousUser = await User.findByAnonymousId(anonymousId);
+    if (anonymousUser) {
+      user = await User.upgradeAnonymousToYouTube(anonymousId, {
+        channelId,
+        channelTitle,
+        displayName: resolvedName
+      });
+      console.log(`[Auth] Upgraded anonymous to YouTube: ${resolvedName} (${channelId})`);
+    }
+  }
+
+  if (!user) {
+    user = await User.createWithYouTube({ channelId, channelTitle, displayName: resolvedName });
+    console.log(`[Auth] New YouTube account: ${resolvedName} (${channelId})`);
+  }
+
+  const token = generateJWT(user);
+
+  res.status(201).json({
+    message: 'Account created',
+    token,
+    user: {
+      id: user.id,
+      email: user.email || null,
+      displayName: user.display_name,
+      citationsCount: user.citations_count || 0,
+      authType: user.auth_type,
+      youtubeChannelId: user.youtube_channel_id,
+      youtubeVerified: user.youtube_verified,
+      youtubeChannelTitle: user.youtube_channel_title
+    }
+  });
+}));
+
+/**
+ * POST /api/auth/youtube/connect
+ * Connect a YouTube channel to an existing logged-in account.
+ * Requires JWT auth.
+ *
+ * Body: { accessToken }
+ */
+router.post('/youtube/connect', authenticateUser, asyncHandler(async (req, res) => {
+  const { accessToken } = req.body;
+
+  if (!accessToken) {
+    return res.status(400).json({ error: 'accessToken required' });
+  }
+
+  const channel = await fetchYouTubeChannel(accessToken);
+  if (!channel) {
+    return res.status(400).json({
+      error: 'No YouTube channel found',
+      message: 'No YouTube channel is associated with this Google account.'
+    });
+  }
+
+  const { id: channelId, title: channelTitle } = channel;
+
+  // Check if another user already has this channel
+  const existing = await User.findByYouTubeChannelId(channelId);
+  if (existing && existing.id !== req.user.id) {
+    return res.status(409).json({
+      error: 'Channel already linked',
+      message: 'This YouTube channel is already linked to another Citelines account.'
+    });
+  }
+
+  const updated = await User.setYouTubeChannel(req.user.id, channelId, channelTitle);
+
+  console.log(`[Auth] YouTube channel connected: ${req.user.display_name} → ${channelId}`);
+
+  res.json({
+    channelId: updated.youtube_channel_id,
+    channelTitle: updated.youtube_channel_title,
+    youtubeVerified: updated.youtube_verified
+  });
+}));
 
 module.exports = router;

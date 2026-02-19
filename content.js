@@ -7,6 +7,7 @@
   let annotations = {}; // Local annotations (your own)
   let sharedAnnotations = []; // All annotations from all users
   let markersContainer = null;
+  let creatorMarkersContainer = null;
   let addButton = null;
   let sidebarButton = null;
   let sidebar = null;
@@ -24,6 +25,18 @@
   function getVideoId() {
     const urlParams = new URLSearchParams(window.location.search);
     return urlParams.get('v');
+  }
+
+  // Get the channel ID of the video being watched (for creator detection)
+  function getVideoChannelId() {
+    const ownerLink = document.querySelector(
+      'ytd-channel-name a, #owner #channel-name a, ytd-video-owner-renderer a'
+    );
+    if (ownerLink?.href) {
+      const match = ownerLink.href.match(/\/channel\/(UC[\w-]+)/);
+      if (match) return match[1];
+    }
+    return null;
   }
 
   // Format seconds to MM:SS or HH:MM:SS
@@ -139,7 +152,8 @@
                 console.log('[DEBUG] Updated local storage: removed deleted annotations');
               }
 
-              return shareData.annotations
+              const videoChannelId = getVideoChannelId();
+            return shareData.annotations
                 // Filter out deleted annotations (admin soft-delete)
                 .filter(ann => !ann.deleted_at)
                 .map(ann => ({
@@ -147,7 +161,9 @@
                   shareToken: share.shareToken,
                   isOwn: isOwn,
                   creatorDisplayName: shareData.creator_display_name || shareData.creatorDisplayName,
-                  creatorUserId: shareData.user_id || shareData.userId
+                  creatorUserId: shareData.user_id || shareData.userId,
+                  isCreatorCitation: !!(videoChannelId && shareData.creatorYoutubeChannelId &&
+                    shareData.creatorYoutubeChannelId === videoChannelId)
                 }));
             }
             return [];
@@ -181,15 +197,23 @@
   }
 
   // Create marker element for an annotation
-  function createMarker(annotation, video, isViewOnly = false) {
+  // markerType: 'own' | 'other' | 'creator'
+  function createMarker(annotation, video, markerType = 'other') {
     const marker = document.createElement('div');
-    marker.className = isViewOnly ? 'yt-annotator-marker yt-annotator-marker-shared' : 'yt-annotator-marker';
+    if (markerType === 'creator') {
+      marker.className = 'yt-annotator-marker yt-annotator-marker-creator';
+    } else if (markerType === 'other') {
+      marker.className = 'yt-annotator-marker yt-annotator-marker-shared';
+    } else {
+      marker.className = 'yt-annotator-marker';
+    }
     marker.dataset.annotationId = annotation.id;
 
     // Calculate position as percentage
     const percentage = (annotation.timestamp / video.duration) * 100;
     marker.style.left = `${percentage}%`;
 
+    const isViewOnly = markerType !== 'own';
     marker.addEventListener('click', (e) => {
       e.stopPropagation();
       showAnnotationPopup(annotation, video, isViewOnly);
@@ -293,20 +317,28 @@
 
     // Clear existing markers
     markersContainer.innerHTML = '';
-
-    const videoId = getVideoId();
+    if (creatorMarkersContainer) creatorMarkersContainer.innerHTML = '';
 
     // Render ALL annotations from sharedAnnotations (includes everyone's)
-    // Use isOwn flag to determine color
     sharedAnnotations.forEach((annotation) => {
-      const isShared = !annotation.isOwn; // Blue if not yours, red if yours
-      const marker = createMarker(annotation, video, isShared);
-      markersContainer.appendChild(marker);
+      if (annotation.isCreatorCitation) {
+        // Creator citations go in the upper orange row
+        if (creatorMarkersContainer) {
+          const marker = createMarker(annotation, video, 'creator');
+          creatorMarkersContainer.appendChild(marker);
+        }
+      } else {
+        // Normal viewer row
+        const markerType = annotation.isOwn ? 'own' : 'other';
+        const marker = createMarker(annotation, video, markerType);
+        markersContainer.appendChild(marker);
+      }
     });
 
     const ownCount = sharedAnnotations.filter(a => a.isOwn).length;
-    const sharedCount = sharedAnnotations.filter(a => !a.isOwn).length;
-    console.log(`Rendered ${ownCount} own + ${sharedCount} shared annotations`);
+    const sharedCount = sharedAnnotations.filter(a => !a.isOwn && !a.isCreatorCitation).length;
+    const creatorCount = sharedAnnotations.filter(a => a.isCreatorCitation).length;
+    console.log(`Rendered ${ownCount} own + ${sharedCount} shared + ${creatorCount} creator annotations`);
 
     // Update sidebar if it's open
     if (sidebarOpen && sidebar) {
@@ -989,6 +1021,12 @@
       const user = authManager.getCurrentUser();
       const initials = getInitials(user.displayName);
 
+      const ytVerified = authManager.isYouTubeVerified();
+      const ytTitle = user.youtubeChannelTitle || '';
+      const ytSection = ytVerified
+        ? `<div class="yt-annotator-yt-status">&#10003; YouTube: ${escapeHtml(ytTitle)}</div>`
+        : `<button class="yt-annotator-connect-yt-btn">Connect YouTube Channel</button>`;
+
       accountSidebar.innerHTML = `
         <div class="yt-annotator-sidebar-header">
           <h3>Account</h3>
@@ -998,6 +1036,7 @@
           <div class="yt-annotator-account-avatar">${escapeHtml(initials)}</div>
           <div class="yt-annotator-account-name">${escapeHtml(user.displayName)}</div>
           <div class="yt-annotator-account-email">${escapeHtml(user.email || '')}</div>
+          ${ytSection}
           <button class="yt-annotator-account-signout">Sign Out</button>
         </div>
       `;
@@ -1010,6 +1049,27 @@
         refreshMarkerColors(); // Instant visual update
         if (currentVideoId) fetchAllAnnotations(currentVideoId); // Background refresh
       });
+
+      if (!ytVerified) {
+        accountSidebar.querySelector('.yt-annotator-connect-yt-btn').addEventListener('click', async (e) => {
+          e.stopPropagation();
+          try {
+            const result = await connectYouTubeChannel(api, authManager, (msg) => {
+              const statusEl = accountSidebar.querySelector('.yt-annotator-connect-yt-btn');
+              if (statusEl) statusEl.textContent = msg;
+            });
+            // Refresh sidebar to show verified state
+            updateAccountSidebarContent();
+            // Re-fetch annotations to update creator markers
+            if (currentVideoId) fetchAllAnnotations(currentVideoId);
+          } catch (err) {
+            console.error('[Auth] YouTube connect failed:', err);
+            const btn = accountSidebar.querySelector('.yt-annotator-connect-yt-btn');
+            if (btn) btn.textContent = 'Connect YouTube Channel';
+            alert(err.message || 'Failed to connect YouTube channel');
+          }
+        });
+      }
     } else {
       accountSidebar.innerHTML = `
         <div class="yt-annotator-sidebar-header">
@@ -1254,11 +1314,16 @@
       const textPreview = annotation.text ?
         `<div class="yt-annotator-sidebar-text">${escapeHtml(annotation.text.substring(0, 100))}${annotation.text.length > 100 ? '...' : ''}</div>` : '';
 
-      const ownerClass = annotation.isOwn ? 'own' : 'other';
+      const ownerClass = annotation.isOwn ? 'own' : (annotation.isCreatorCitation ? 'creator-citation' : 'other');
       const creatorName = annotation.creatorDisplayName || 'Anonymous';
-      const ownerBadge = annotation.isOwn ?
-        `<span class="yt-annotator-sidebar-badge own">YOU - ${escapeHtml(creatorName)}</span>` :
-        `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
+      let ownerBadge;
+      if (annotation.isOwn) {
+        ownerBadge = `<span class="yt-annotator-sidebar-badge own">YOU - ${escapeHtml(creatorName)}</span>`;
+      } else if (annotation.isCreatorCitation) {
+        ownerBadge = `<span class="yt-annotator-sidebar-badge creator">Creator - ${escapeHtml(creatorName)}</span>`;
+      } else {
+        ownerBadge = `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
+      }
 
       return `
         <div class="yt-annotator-sidebar-item ${ownerClass}" data-timestamp="${annotation.timestamp}">
@@ -1441,7 +1506,7 @@
     }
   }
 
-  // Create markers container
+  // Create markers containers (viewer row + creator row)
   function createMarkersContainer() {
     if (markersContainer) return;
 
@@ -1449,9 +1514,15 @@
     const progressBar = document.querySelector('.ytp-progress-bar-container');
     if (!progressBar) return;
 
+    // Viewer row (standard, markers at top: -10px via CSS)
     markersContainer = document.createElement('div');
     markersContainer.className = 'yt-annotator-markers-container';
     progressBar.appendChild(markersContainer);
+
+    // Creator row (orange, markers at top: -24px)
+    creatorMarkersContainer = document.createElement('div');
+    creatorMarkersContainer.className = 'yt-annotator-markers-container yt-annotator-creator-markers-container';
+    progressBar.appendChild(creatorMarkersContainer);
   }
 
   // Initialize the extension for current video
@@ -1555,6 +1626,10 @@
         if (markersContainer) {
           markersContainer.remove();
           markersContainer = null;
+        }
+        if (creatorMarkersContainer) {
+          creatorMarkersContainer.remove();
+          creatorMarkersContainer = null;
         }
         if (addButton) {
           addButton.remove();

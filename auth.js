@@ -111,6 +111,80 @@ class AuthManager {
   }
 
   /**
+   * Login or register via YouTube OAuth access token
+   * @param {string} accessToken - Google OAuth access token
+   * @param {string|null} displayName - Optional display name override
+   * @param {string|null} anonymousId - Optional anonymous ID to migrate
+   * @returns {Promise<Object>} Response (may include needsDisplayName: true)
+   */
+  async loginWithYouTube(accessToken, displayName = null, anonymousId = null) {
+    const body = { accessToken };
+    if (displayName) body.displayName = displayName;
+    if (anonymousId) body.anonymousId = anonymousId;
+
+    const response = await fetch(`${this.baseUrl}/auth/youtube`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error || data.message || 'YouTube login failed');
+    }
+
+    // If needs display name, return the prompt data without storing
+    if (data.needsDisplayName) {
+      return data;
+    }
+
+    // Store token and user info
+    this.token = data.token;
+    this.user = data.user;
+
+    await chrome.storage.local.set({
+      jwtToken: this.token,
+      currentUser: this.user
+    });
+
+    console.log('[Auth] Logged in via YouTube as:', this.user.displayName);
+    return data;
+  }
+
+  /**
+   * Get the YouTube channel ID for the current user
+   * @returns {string|null}
+   */
+  getYouTubeChannelId() {
+    return this.user?.youtubeChannelId || null;
+  }
+
+  /**
+   * Check if current user has a verified YouTube channel
+   * @returns {boolean}
+   */
+  isYouTubeVerified() {
+    return !!(this.user?.youtubeVerified);
+  }
+
+  /**
+   * Update stored user with YouTube channel info after connecting
+   * @param {string} channelId
+   * @param {string} channelTitle
+   */
+  async setYouTubeChannel(channelId, channelTitle) {
+    if (!this.user) return;
+    this.user = {
+      ...this.user,
+      youtubeChannelId: channelId,
+      youtubeVerified: true,
+      youtubeChannelTitle: channelTitle
+    };
+    await chrome.storage.local.set({ currentUser: this.user });
+  }
+
+  /**
    * Login with email and password
    * @param {string} email
    * @param {string} password
