@@ -133,11 +133,11 @@
       // Update existing share
       await api.updateShare(userShareId, {
         annotations: annotationsList,
-        title: `${videoTitle} - Annotations`
+        title: videoTitle
       });
     } else {
       // Create new share
-      const result = await api.createShare(videoId, annotationsList, `${videoTitle} - Annotations`);
+      const result = await api.createShare(videoId, annotationsList, videoTitle);
       userShareId = result.shareToken;
       console.log('Created share:', result.shareToken);
     }
