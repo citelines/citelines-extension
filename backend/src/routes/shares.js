@@ -85,6 +85,38 @@ router.post('/', authenticateAnonymous, rateLimitCitations, asyncHandler(async (
 }));
 
 /**
+ * GET /api/shares/me
+ * List current user's shares
+ * Requires authentication
+ */
+router.get('/me', authenticateAnonymous, asyncHandler(async (req, res) => {
+  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+  const offset = parseInt(req.query.offset) || 0;
+
+  // Find user's shares
+  const shares = await Share.findByUserId(req.user.id, limit, offset);
+
+  // Format response
+  const formattedShares = shares.map(share => ({
+    shareToken: share.share_token,
+    videoId: share.video_id,
+    title: share.title,
+    annotationCount: share.annotations.length,
+    isPublic: share.is_public,
+    viewCount: share.view_count,
+    createdAt: share.created_at,
+    updatedAt: share.updated_at
+  }));
+
+  res.json({
+    shares: formattedShares,
+    count: formattedShares.length,
+    limit,
+    offset
+  });
+}));
+
+/**
  * GET /api/shares/:token
  * Get shared annotations by token (public endpoint)
  */
@@ -182,38 +214,6 @@ router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
 
   res.json({
     videoId,
-    shares: formattedShares,
-    count: formattedShares.length,
-    limit,
-    offset
-  });
-}));
-
-/**
- * GET /api/shares/me
- * List current user's shares
- * Requires authentication
- */
-router.get('/me', authenticateAnonymous, asyncHandler(async (req, res) => {
-  const limit = Math.min(parseInt(req.query.limit) || 50, 100);
-  const offset = parseInt(req.query.offset) || 0;
-
-  // Find user's shares
-  const shares = await Share.findByUserId(req.user.id, limit, offset);
-
-  // Format response
-  const formattedShares = shares.map(share => ({
-    shareToken: share.share_token,
-    videoId: share.video_id,
-    title: share.title,
-    annotationCount: share.annotations.length,
-    isPublic: share.is_public,
-    viewCount: share.view_count,
-    createdAt: share.created_at,
-    updatedAt: share.updated_at
-  }));
-
-  res.json({
     shares: formattedShares,
     count: formattedShares.length,
     limit,
