@@ -96,11 +96,12 @@ router.get('/me', authenticateAnonymous, asyncHandler(async (req, res) => {
   // Find user's shares
   const shares = await Share.findByUserId(req.user.id, limit, offset);
 
-  // Format response
+  // Format response — include annotations for citation-level display
   const formattedShares = shares.map(share => ({
     shareToken: share.share_token,
     videoId: share.video_id,
     title: share.title,
+    annotations: (share.annotations || []).filter(a => !a.deleted_at),
     annotationCount: share.annotations.length,
     isPublic: share.is_public,
     viewCount: share.view_count,
