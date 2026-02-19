@@ -366,6 +366,9 @@
 23. Creator mode extended to sidebar borders, headers, account avatar, sign-out button
 24. Fixed stale channel ID on SPA navigation: switched to `movie_player.getVideoData()` as primary detection method
 25. Channel ID fetch parallelized with auth/API init to reduce teal→orange flash on page load
+26. Citation popup z-index raised above sidebar (10003 > 10001)
+27. Admin dashboard: 4 auth type categories (Anonymous, Password-Unverified, Password-Verified, YouTube) in Analytics + Users tabs
+28. Fixed admin users endpoint missing `email_verified` field in SQL SELECT
 
 ### Session 2026-02-13 PM
 1. `d6d230d` - Fix ad detection false positives causing missing markers on first load
