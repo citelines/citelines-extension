@@ -4,7 +4,7 @@
     "builder": "NIXPACKS"
   },
   "deploy": {
-    "startCommand": "node -e \"require('dotenv').config(); const db = require('./src/config/database'); const fs = require('fs'); db.query(fs.readFileSync('./migrations/010_add_account_merge.sql','utf8')).then(() => { console.log('Migration 010 done'); process.exit(0); }).catch(e => { console.log('Migration 010 skipped:', e.message); process.exit(0); })\" && npm start",
+    "startCommand": "npm start",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 10
   }
