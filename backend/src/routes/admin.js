@@ -600,7 +600,7 @@ router.get('/users', authenticateAdmin, asyncHandler(async (req, res) => {
 
   const result = await db.query(
     `SELECT
-      id, display_name, auth_type, email, created_at,
+      id, display_name, auth_type, email, email_verified, created_at,
       is_admin, is_suspended, suspended_until, suspension_reason,
       is_blocked, blocked_at, blocked_reason,
       (SELECT COALESCE(SUM(jsonb_array_length(annotations)), 0) FROM shares WHERE user_id = users.id) as total_annotations,
