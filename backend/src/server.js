@@ -13,7 +13,8 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Trust Railway proxy for rate limiting and X-Forwarded-For headers
-app.set('trust proxy', true);
+// Use 1 (not true) to avoid ERR_ERL_PERMISSIVE_TRUST_PROXY from express-rate-limit
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(express.json({ limit: '1mb' }));
