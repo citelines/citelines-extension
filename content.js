@@ -20,6 +20,7 @@
   let expiryWarning = null; // Expiry warning banner
   let accountSidebar = null;
   let accountSidebarOpen = false;
+  let currentVideoChannelId = null; // Channel ID of the video being watched
 
   // Get video ID from URL
   function getVideoId() {
@@ -43,6 +44,24 @@
         resolve(id);
       });
     });
+  }
+
+  // True when the logged-in user is the YouTube creator of the current video.
+  // Used to switch the UI accent color from teal to orange ("creator mode").
+  function isCreatorMode() {
+    return !!(
+      currentVideoChannelId &&
+      authManager.isLoggedIn() &&
+      authManager.getYouTubeChannelId() === currentVideoChannelId
+    );
+  }
+
+  // Toggle .creator-mode CSS class on UI elements so the accent color
+  // switches from teal to orange when viewing your own video as a creator.
+  function updateCreatorMode() {
+    const creatorMode = isCreatorMode();
+    const elements = [addButton, sidebarButton, loginButton, sidebar].filter(Boolean);
+    elements.forEach(el => el.classList.toggle('creator-mode', creatorMode));
   }
 
   // Format seconds to MM:SS or HH:MM:SS
@@ -135,7 +154,11 @@
         getVideoChannelId()
       ]);
 
+      // Store for creator-mode detection (teal→orange UI accent)
+      currentVideoChannelId = videoChannelId;
+
       sharedAnnotations = [];
+      userShareId = null; // Re-discover from backend response each time
 
       for (const share of result.shares) {
         if (!share.annotations || !Array.isArray(share.annotations)) continue;
@@ -151,6 +174,14 @@
           chrome.storage.local.set({ [storageKey]: nonDeletedAnnotations });
         }
 
+        // isCreatorCitation: the share's creator is the video's YouTube channel owner.
+        // This is an absolute property of the annotation — independent of who is viewing.
+        const isCreatorCitation = !!(
+          videoChannelId &&
+          share.creatorYoutubeChannelId &&
+          share.creatorYoutubeChannelId === videoChannelId
+        );
+
         const mapped = share.annotations
           .filter(ann => !ann.deleted_at)
           .map(ann => ({
@@ -159,8 +190,7 @@
             isOwn,
             creatorDisplayName: share.creatorDisplayName,
             creatorUserId: share.userId,
-            isCreatorCitation: !!(videoChannelId && share.creatorYoutubeChannelId &&
-              share.creatorYoutubeChannelId === videoChannelId)
+            isCreatorCitation
           }));
 
         sharedAnnotations.push(...mapped);
@@ -174,6 +204,7 @@
       }
 
       renderMarkers();
+      updateCreatorMode();
     } catch (error) {
       console.error('Failed to fetch annotations:', error);
     }
@@ -196,10 +227,9 @@
     const percentage = (annotation.timestamp / video.duration) * 100;
     marker.style.left = `${percentage}%`;
 
-    const isViewOnly = markerType !== 'own';
     marker.addEventListener('click', (e) => {
       e.stopPropagation();
-      showAnnotationPopup(annotation, video, isViewOnly);
+      showAnnotationPopup(annotation, video, !annotation.isOwn);
     });
 
     return marker;
@@ -305,13 +335,13 @@
     // Render ALL annotations from sharedAnnotations (includes everyone's)
     sharedAnnotations.forEach((annotation) => {
       if (annotation.isCreatorCitation) {
-        // Creator citations go in the upper orange row
+        // Creator citations go in the upper orange row (regardless of ownership)
         if (creatorMarkersContainer) {
           const marker = createMarker(annotation, video, 'creator');
           creatorMarkersContainer.appendChild(marker);
         }
       } else {
-        // Normal viewer row
+        // Non-creator citations: teal if own, grey if others
         const markerType = annotation.isOwn ? 'own' : 'other';
         const marker = createMarker(annotation, video, markerType);
         markersContainer.appendChild(marker);
@@ -538,8 +568,10 @@
             const horizontalWidth = Math.abs(horizontalOffset) + 2;
             const horizontalLeft = Math.min(markerXRelativeToPopup, popupCenterX) - 1;
 
-            // Connector color matches ownership: teal for mine, lighter grey for others
-            const connectorColor = annotation.isOwn ? '#0497a6' : '#888888';
+            // Connector color matches marker color
+            const connectorColor = annotation.isCreatorCitation ? '#ffaa3e'
+              : annotation.isOwn ? '#0497a6'
+              : '#888888';
 
             // Create three line segments
             const verticalTop = document.createElement('div');
@@ -613,12 +645,13 @@
     // Show creator's display name for all annotations
     const creatorName = annotation.creatorDisplayName || 'Anonymous';
     let badge;
-    if (!isShared) {
-      // Own annotation — may also be a creator citation
-      const prefix = annotation.isCreatorCitation ? 'YOU (Creator) - ' : 'YOU - ';
-      badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">${prefix}${escapeHtml(creatorName)}</span>`;
-    } else if (annotation.isCreatorCitation) {
-      badge = `<span style="background: #ffaa3e; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Creator - ${escapeHtml(creatorName)}</span>`;
+    if (annotation.isCreatorCitation) {
+      // Creator citations always get orange badge; "(YOU)" added if it's also the viewer's own
+      const ownSuffix = !isShared ? ' (YOU)' : '';
+      badge = `<span style="background: #ffaa3e; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Creator${ownSuffix} - ${escapeHtml(creatorName)}</span>`;
+    } else if (!isShared) {
+      // Own non-creator annotation — teal badge
+      badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU - ${escapeHtml(creatorName)}</span>`;
     } else {
       badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
     }
@@ -713,7 +746,7 @@
     if (!playerContainer) return;
 
     const popup = document.createElement('div');
-    popup.className = 'yt-annotator-popup yt-annotator-popup-create';
+    popup.className = 'yt-annotator-popup yt-annotator-popup-create' + (isCreatorMode() ? ' creator-mode' : '');
 
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
@@ -1020,7 +1053,7 @@
       const ytTitle = user.youtubeChannelTitle || '';
       const ytSection = ytVerified
         ? `<div class="yt-annotator-yt-status">&#10003; YouTube: ${escapeHtml(ytTitle)}</div>`
-        : `<button class="yt-annotator-connect-yt-btn">Connect YouTube Channel</button>`;
+        : `<button class="yt-annotator-connect-yt-btn">Verify as YouTube Creator</button>`;
 
       accountSidebar.innerHTML = `
         <div class="yt-annotator-sidebar-header">
@@ -1039,9 +1072,11 @@
       accountSidebar.querySelector('.yt-annotator-account-signout').addEventListener('click', async (e) => {
         e.stopPropagation();
         await authManager.logout();
+        userShareId = null; // Clear stale share token so anonymous session starts fresh
         toggleAccountSidebar();
         updateLoginButton();
         refreshMarkerColors(); // Instant visual update
+        updateCreatorMode();   // Switch accent back to teal
         if (currentVideoId) fetchAllAnnotations(currentVideoId); // Background refresh
       });
 
@@ -1119,6 +1154,7 @@
 
     updateLoginButton();
     refreshMarkerColors(); // Instant visual update
+    updateCreatorMode();   // Switch accent to orange if on own video
     if (accountSidebarOpen) toggleAccountSidebar();
     if (currentVideoId) fetchAllAnnotations(currentVideoId); // Background refresh
 
@@ -1312,13 +1348,15 @@
       const textPreview = annotation.text ?
         `<div class="yt-annotator-sidebar-text">${escapeHtml(annotation.text.substring(0, 100))}${annotation.text.length > 100 ? '...' : ''}</div>` : '';
 
-      const ownerClass = annotation.isOwn ? 'own' : (annotation.isCreatorCitation ? 'creator-citation' : 'other');
+      const ownerClass = annotation.isCreatorCitation ? 'creator-citation' : (annotation.isOwn ? 'own' : 'other');
       const creatorName = annotation.creatorDisplayName || 'Anonymous';
       let ownerBadge;
-      if (annotation.isOwn) {
+      if (annotation.isCreatorCitation) {
+        // Creator citations always get orange badge; "(YOU)" added if also own
+        const ownSuffix = annotation.isOwn ? ' (YOU)' : '';
+        ownerBadge = `<span class="yt-annotator-sidebar-badge creator">Creator${ownSuffix} - ${escapeHtml(creatorName)}</span>`;
+      } else if (annotation.isOwn) {
         ownerBadge = `<span class="yt-annotator-sidebar-badge own">YOU - ${escapeHtml(creatorName)}</span>`;
-      } else if (annotation.isCreatorCitation) {
-        ownerBadge = `<span class="yt-annotator-sidebar-badge creator">Creator - ${escapeHtml(creatorName)}</span>`;
       } else {
         ownerBadge = `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
       }
@@ -1534,6 +1572,7 @@
       annotations[videoId] = await loadAnnotations(videoId);
       sharedAnnotations = []; // Clear shared annotations
       userShareId = null; // Reset share ID for new video
+      currentVideoChannelId = null; // Reset until fetched for new video
     }
 
     createMarkersContainer();
@@ -1654,6 +1693,7 @@
         sidebarOpen = false;
         sharedAnnotations = [];
         userShareId = null;
+        currentVideoChannelId = null;
         initialized = false;
         closePopup();
 
@@ -1668,6 +1708,14 @@
       }
     }).observe(document, { subtree: true, childList: true });
   }
+
+  // ESC key closes the sidebar (or account sidebar)
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (sidebarOpen) toggleSidebar();
+      else if (accountSidebarOpen) toggleAccountSidebar();
+    }
+  });
 
   // Close popup when clicking outside
   document.addEventListener('click', (e) => {

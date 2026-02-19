@@ -1152,9 +1152,17 @@ a.yt-annotator-citation-title:hover {
   border: 2px solid #3a3a3a;
 }
 
-/* Creator citation sidebar item - orange left border */
+/* Creator citation sidebar item - orange left border + timestamp */
 .yt-annotator-sidebar-item.creator-citation {
   border-left: 3px solid #ffaa3e;
+}
+
+.yt-annotator-sidebar-item.creator-citation .yt-annotator-sidebar-time {
+  color: #ffaa3e;
+}
+
+.yt-annotator-sidebar-item.other .yt-annotator-sidebar-time {
+  color: #888888;
 }
 
 /* YouTube auth button */
@@ -1232,4 +1240,51 @@ a.yt-annotator-citation-title:hover {
 .yt-annotator-connect-yt-btn:hover {
   background: #ffaa3e;
   color: #000;
+}
+
+/* ============================================================
+   Creator Mode — switches teal accent to orange when the
+   logged-in YouTube creator is viewing their own video.
+   ============================================================ */
+
+/* Buttons: +, ≡, login/badge */
+.yt-annotator-add-btn.creator-mode,
+.yt-annotator-sidebar-btn.creator-mode,
+.yt-annotator-login-btn.creator-mode,
+.yt-annotator-user-badge.creator-mode {
+  background: rgba(255, 170, 62, 0.9);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3), 0 0 8px rgba(255, 170, 62, 0.4);
+}
+
+.yt-annotator-add-btn.creator-mode:hover,
+.yt-annotator-sidebar-btn.creator-mode:hover,
+.yt-annotator-login-btn.creator-mode:hover,
+.yt-annotator-user-badge.creator-mode:hover {
+  background: #ffbb66;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.4), 0 0 12px rgba(255, 170, 62, 0.6);
+}
+
+/* Sidebar filter button active state */
+.yt-annotator-sidebar.creator-mode .yt-annotator-filter-btn.active {
+  background: #ffaa3e;
+  border-color: #ffaa3e;
+  color: #000;
+}
+
+/* Sidebar own-item left border + timestamp (in creator mode, "own" = the creator) */
+.yt-annotator-sidebar.creator-mode .yt-annotator-sidebar-item.own {
+  border-left: 3px solid #ffaa3e;
+}
+
+.yt-annotator-sidebar.creator-mode .yt-annotator-sidebar-item.own .yt-annotator-sidebar-time {
+  color: #ffaa3e;
+}
+
+/* Create-popup: save button */
+.yt-annotator-popup-create.creator-mode .yt-annotator-btn-primary {
+  background: #ffaa3e;
+}
+
+.yt-annotator-popup-create.creator-mode .yt-annotator-btn-primary:hover {
+  background: #ffbb66;
 }

@@ -148,6 +148,15 @@ class AuthManager {
       currentUser: this.user
     });
 
+    // Clear the anonymous ID from storage. The anonymous account was upgraded to
+    // YouTube-auth and now has youtube_channel_id set. If we kept the anonymous ID,
+    // post-logout sessions would reuse that account and all new citations would
+    // incorrectly appear as creator citations (orange). A fresh anonymous account
+    // is created automatically on next use.
+    const storageKey = api.getStorageKey();
+    await chrome.storage.local.remove([storageKey]);
+    api.anonymousId = null;
+
     console.log('[Auth] Logged in via YouTube as:', this.user.displayName);
     return data;
   }
@@ -182,6 +191,13 @@ class AuthManager {
       youtubeChannelTitle: channelTitle
     };
     await chrome.storage.local.set({ currentUser: this.user });
+
+    // Clear anonymous ID — this account now has youtube_channel_id set, so
+    // post-logout anonymous sessions must use a fresh account (same reason as
+    // YouTube OAuth login above).
+    const storageKey = api.getStorageKey();
+    await chrome.storage.local.remove([storageKey]);
+    api.anonymousId = null;
   }
 
   /**

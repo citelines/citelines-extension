@@ -5,7 +5,7 @@
 **Deployment**: ✅ Live on Railway
 **Backend URL**: `https://youtube-annotator-production.up.railway.app`
 **Database**: PostgreSQL on Railway
-**Current Phase**: Phase 3B Complete (Admin Dashboard)
+**Current Phase**: Phase 3D (Creator Verification) — Core flow complete, account merge TBD
 
 ---
 
@@ -93,6 +93,77 @@
 
 ## Next Improvements
 
+### Phase 3D: YouTube Creator Verification 🔧 IN PROGRESS
+
+**Completed**:
+- ✅ DB migration: `youtube_channel_id`, `youtube_verified`, `youtube_channel_title` on users table
+- ✅ Backend: `POST /api/auth/youtube` — login/register via YouTube OAuth
+- ✅ Backend: `POST /api/auth/youtube/connect` — link channel to existing account
+- ✅ Backend: shares return `creatorYoutubeChannelId` in responses
+- ✅ Extension: OAuth flow via `chrome.identity.getAuthToken` + background service worker
+- ✅ Extension: "Continue with YouTube" button on login/register
+- ✅ Extension: Account sidebar shows YouTube channel status + "Verify as YouTube Creator" button
+- ✅ Extension: Dual-row marker layout — creator markers ▼ above bar (orange), viewer markers ▲ below bar (teal/grey)
+- ✅ Extension: `isCreatorCitation` is a pure absolute property (channel ID match only, viewer-independent)
+- ✅ OAuth login tested and working (fixed `redirect_uri_mismatch` by switching to `getAuthToken`)
+- ✅ Creator detection working (fixed isolated world issue via `background.js` + `world: 'MAIN'` + `"scripting"` permission)
+- ✅ Orange markers confirmed rendering correctly for creator citations
+- ✅ Creator filter tab added to sidebar bibliography (All / Mine / Others / Creator)
+- ✅ Elbow connector colors match marker colors (orange / teal / grey)
+- ✅ Performance: N+1 requests → 1 request (full annotations included in video response, parallelized with channel ID fetch)
+- ✅ Double-submission bug fixed (save button disabled on click, re-enabled only on error)
+- ✅ Stale local storage bug fixed (clears local annotations on account switch if no owned share found)
+- ✅ DB unique constraint on `youtube_channel_id` removed (migration 009) — OAuth proof of ownership is sufficient
+- ✅ Anonymous ID cleared on YouTube login: post-logout sessions get a fresh account with no `youtube_channel_id`, preventing new citations from incorrectly appearing orange
+- ✅ Badge consistency: creator citations always show orange badge ("Creator" / "Creator (YOU)") across markers, popups, and sidebar
+- ✅ Sign-out resets `userShareId` to prevent stale share token being used in new anonymous session
+- ✅ ESC key closes bibliography sidebar (or account sidebar)
+- ✅ T4, T5, T7, T8 from testing plan verified
+
+**Remaining Work**:
+- T1: Display name picker (first-time YouTube login for brand-new users)
+- T3: Connect YouTube for existing email account (needs fresh retest after DB fix)
+- T6: Dual-row UI detail verification (visual overlap, z-index, popup badges)
+- Account merge: two separate Citelines accounts (YouTube-auth + email) need a merge path — see Account Merge below
+
+**Subsequent (Phase 4A)**:
+- User-proposed citations that creators can approve/reject
+- `citation_status` field: Proposed → Approved/Rejected
+- Creator moderation queue in sidebar
+
+---
+
+### Account Merge (Phase 3E)
+
+**Problem**: A user may have two separate Citelines accounts — one created via YouTube OAuth ("Abe Katz") and one via email/password ("Abe") — each with independent citation histories and different display names. Currently there's no way to merge them.
+
+**Options Considered**:
+
+- **Option A — Simple Migration** *(planned)*: User picks a primary account. Citations from the secondary account are re-attributed to the primary (UPDATE shares SET user_id = primaryId WHERE user_id = secondaryId). Secondary account is then deleted or marked merged. Cleanest UX, permanent.
+- **Option B — Federation**: Link both accounts together so either login gives the same experience. More complex: shared citations table, identity resolution layer. Avoids data mutation but increases system complexity.
+- **Option C — Merge at Connect Time**: When an email account connects YouTube (POST /auth/youtube/connect), detect that a YouTube-auth account already owns that channel and offer to merge then. Natural trigger point, but requires careful UI and conflict resolution (e.g. duplicate display names, conflicting citations).
+- **Option D — Do Nothing** *(current state)*: Accounts remain separate. YouTube channel can be linked to multiple accounts (unique constraint removed in migration 009). User manually manages which account they use.
+
+**Decision**: Option D for now. Revisit Option A when the extension goes to production or when a real user hits this problem.
+
+**Implementation Notes (Option A)**:
+- New endpoint: `POST /api/users/merge` (JWT-authenticated, requires both account credentials or admin action)
+- Migrate all citations from secondary → primary with a single `UPDATE shares SET user_id = $primary WHERE user_id = $secondary`
+- Soft-delete or mark secondary account as merged (`auth_type = 'merged'`)
+- Clear secondary account's JWT tokens (no revocation list yet — just let them expire)
+- Update display name / YouTube channel info on primary if desired
+
+---
+
+### Legal & Publishing Prerequisites
+- **Terms of Service**: Write TOS for Citelines covering user-generated content, acceptable use, account termination, and disclaimer of liability
+- **Privacy Policy**: Write Privacy Policy covering what data is collected (annotations, YouTube channel ID, email), how it's used, retention policy, and user rights — required by Chrome Web Store, YouTube OAuth consent screen, and GDPR/CCPA compliance
+- **Hosting**: Publish both documents at a public URL (e.g. `citelines.org/terms` and `citelines.org/privacy`) before submitting to Chrome Web Store or going to YouTube API production mode
+- **Google OAuth Consent Screen**: Link privacy policy URL in Google Cloud Console → OAuth consent screen (currently in "Testing" mode — publishing requires verified policy URL)
+- **Chrome Web Store listing**: Both URLs required in the store developer dashboard before public listing
+
+---
+
 ### Admin Dashboard Enhancements
 - **UI Tweak**: The values in the Title column of the Citations tab all have "... - Annotation" as part of their name; don't do that.
 - **UI Tweak**: Various places in the Admin dashboard say "Annotation" - change these to say "Citation"
@@ -102,6 +173,65 @@
 - **Date Range Filters**: Implement date range filtering for Joined and Created columns (currently placeholders)
 - **Export Functionality**: Export user/citation data to CSV
 - **Action Reasons**: rather than free-form for "Delete" and "Restore" reasons, make it a dropdown menu for data validation.
+---
+
+## Phase 3D Testing Plan
+
+### T1: YouTube Login (new user)
+- [ ] Open account sidebar → login screen visible
+- [ ] Click "Continue with YouTube"
+- [ ] Google account picker appears (no redirect_uri_mismatch error)
+- [ ] First-time user: prompted for display name (suggested from channel title)
+- [ ] After choosing name: logged in, sidebar shows account info
+- [ ] Account sidebar shows "Connect YouTube Channel" button (login-via-YouTube should auto-connect — verify it shows channel name instead)
+
+### T2: YouTube Login (returning user)
+- [ ] Click "Continue with YouTube"
+- [ ] No account picker (token cached) or picker appears and auto-selects
+- [ ] Logged in immediately with existing account
+- [ ] Markers update colors correctly (teal = mine, grey = others)
+
+### T3: Connect YouTube Channel (existing email account)
+- [ ] Log in with email/password
+- [ ] Account sidebar shows "Connect YouTube Channel" button
+- [ ] Click button → OAuth flow → channel connected
+- [ ] Sidebar now shows "✓ YouTube: [channel name]"
+- [ ] Re-fetch annotations → creator citations update (if any)
+
+### T4: Creator citations — own video ✅
+- [x] Log in via YouTube (or connect channel to account)
+- [x] Navigate to one of your own YouTube videos
+- [x] Create a citation
+- [x] After save + re-fetch: citation appears in **orange** creator row (you are the verified creator)
+- [x] Popup shows "Creator (YOU) - [name]" badge in orange
+- [x] Sidebar shows "Creator (YOU) - [name]" badge in orange
+- [x] Log out → new anonymous citation on same video appears **teal** (no verified creator identity in anonymous session)
+
+### T5: Creator citations — viewer perspective ✅
+- [x] As a different user (or logged out), go to a video by a YouTube-verified Citelines user
+- [x] Their citations appear in the **orange** row (confirmed working in incognito too)
+- [x] Non-creator citations remain in viewer row
+- [ ] Both rows independently clickable
+
+### T6: Dual-row UI
+- [ ] When creator citations exist: two distinct marker rows visible
+- [ ] Orange row is above the teal/grey row
+- [ ] Creator popup shows "Creator" badge
+- [ ] Viewer popup shows normal badge
+- [ ] No visual overlap or z-index issues
+
+### T7: Sign out ✅
+- [x] Sign out from account sidebar
+- [x] Markers revert to grey (no owned annotations)
+- [x] Login button reverts to 👤 icon
+- [x] Creator markers remain orange (still visible as viewer)
+
+### T8: Navigation between videos ✅
+- [x] Create citation on video A (own channel) → teal marker (it's yours)
+- [x] Navigate to video B (not your channel) → no orange markers
+- [x] Navigate back to video A → teal/orange marker reappears
+- [x] No stale markers from previous video
+
 ---
 
 ## Future Phases
@@ -121,10 +251,9 @@
 - Shadow-ban repeat offenders
 
 ### Phase 5: YouTube Creator Features
-- Google OAuth for channel verification
+- Pulled forward into Phase 3D (see above)
 - Creator-only moderation on their videos
 - Analytics for video owners
-- Verified creator badges
 
 ### Phase 6: Advanced Features
 - Edit annotations (version history)
@@ -203,7 +332,26 @@
 
 ## Recent Commits
 
-### Today's Session (2026-02-13 PM)
+### Session 2026-02-19
+1. Fixed `redirect_uri_mismatch` OAuth error: switched `background.js` from `launchWebAuthFlow` to `chrome.identity.getAuthToken`
+2. Phase 3D: YouTube creator verification + dual-row marker UI (backend + frontend)
+3. Auth sidebar, persistent login, parallel auth init, marker color refresh on login/logout
+4. Fixed creator detection: content scripts run in isolated JS world — added `"scripting"` permission and `GET_CHANNEL_ID` background handler using `executeScript({ world: 'MAIN' })`
+5. Fixed double-submission: save button disabled on click, re-enabled only on non-fatal error
+6. Fixed stale local storage on account switch: clear `annotations[videoId]` if no owned share found
+7. Fixed N+1 requests: full annotations now included in `GET /api/shares/video/:videoId` response, parallelized with channel ID fetch
+8. Added "Creator" filter tab to sidebar bibliography (All / Mine / Others / Creator)
+9. Flipped marker directions: viewer markers ▲ below progress bar, creator markers ▼ above
+10. Fixed elbow connector colors to match marker color (orange / teal / grey)
+11. Fixed DB unique constraint blocking YouTube channel connect (migration 009: `DROP INDEX users_youtube_channel_id_unique`)
+12. Changed button copy: "Connect YouTube Channel" → "Verify as YouTube Creator"
+13. Fixed badge consistency: `isCreatorCitation` takes priority in all badge/popup/sidebar logic; "Creator (YOU)" shown in orange when also own
+14. Sign-out now resets `userShareId` to prevent stale share token being used in new anonymous session
+15. Fixed root cause of anonymous citations appearing orange: `anonymousId` in storage pointed to upgraded YouTube-auth account (with `youtube_channel_id` set); now cleared on YouTube login and on `setYouTubeChannel` so post-logout sessions use a fresh account
+16. `isCreatorCitation` reverted to pure absolute channel-ID comparison (viewer-independent — orange is a property of the annotation, not the viewer)
+17. ESC key now closes the bibliography sidebar (or account sidebar)
+
+### Session 2026-02-13 PM
 1. `d6d230d` - Fix ad detection false positives causing missing markers on first load
 2. `3ccf641` - Add debug logging to renderMarkers to diagnose first-load marker issue
 3. `2ea0cf8` - Add Citation Type and Citation Status columns to future improvements
@@ -230,7 +378,15 @@
 
 ## Known Issues
 
-**None currently** - All major issues resolved
+### BUG: Citation creation fails after login (without page refresh) — HIGH PRIORITY
+**Repro**: On any video, create a citation while logged out → log in (email/password) → try to create another citation → fails silently (no error shown, popup closes, but citation not saved). Refresh page → works.
+**Root cause**: `userShareId` is stale. It was set to the anonymous share token during the first citation. After login, `fetchAllAnnotations` runs but doesn't reset `userShareId` (the `if (isOwn && !userShareId)` guard is skipped because it's already set). When the logged-in user tries to save, `syncAnnotationsToBackend` calls `api.updateShare(anonymousShareToken, ...)` with JWT auth → 403 (JWT user doesn't own the anonymous share). Error caught silently.
+**Fix**: Reset `userShareId = null` at the top of `fetchAllAnnotations` so it's re-discovered from the backend response every time. This is a single-line fix that also prevents any future stale-token variants.
+
+### UX: Duplicate creator accounts cause confusing sidebar filters — LOW PRIORITY
+**Repro**: User has two accounts (email + YouTube-auth) both with the same YouTube channel linked. On their own video: "Mine" shows citations from the current login only (1), "Creator" shows citations from both accounts (2). Same citation appears in both filters if it's own + creator.
+**Root cause**: Two separate accounts own separate shares but share the same `youtube_channel_id`. The sidebar filters are technically correct (`isOwn` = current account only, `isCreatorCitation` = any account with matching channel), but the overlap is confusing.
+**Resolution**: This will resolve naturally with Account Merge (Phase 3E). No code fix needed — the real fix is having a single account.
 
 **Admin Security**:
 - ⚠️ Admin endpoints exist but are disabled (no users have admin status)
@@ -271,6 +427,6 @@ node clear-data.js
 
 ---
 
-**Last Updated**: 2026-02-13 (PM)
-**Status**: Phase 3B complete - Admin dashboard fully functional
-**Next**: Citation type display, date range filters, community moderation features
+**Last Updated**: 2026-02-19
+**Status**: Phase 3D in progress — creator verification core complete; remaining: T1 (new user display name picker), T3 (connect YT for email account retest), T6 (dual-row visual detail check)
+**Next**: Remaining T1/T3/T6 testing, then account merge (Phase 3E) or Legal/Publishing prerequisites

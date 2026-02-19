@@ -5,7 +5,8 @@
   "description": "Add timestamped annotations to YouTube videos",
   "permissions": [
     "storage",
-    "identity"
+    "identity",
+    "scripting"
   ],
   "oauth2": {
     "client_id": "604396819800-opo6j4nss7jnfbp4sn83dsropql05o9b.apps.googleusercontent.com",
