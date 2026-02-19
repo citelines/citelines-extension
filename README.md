@@ -3,7 +3,7 @@
 A Chrome extension that lets users add timestamped annotations to YouTube videos and share them with others. Similar to SoundCloud's comment markers on the playback bar.
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
-![License](https://img.shields.io/badge/license-MIT-green)
+![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red)
 
 ## Features
 
@@ -290,19 +290,9 @@ This installs a pre-commit hook that scans for exposed credentials (database URL
 - **Anonymous by default**: No personal information required
 - **No tracking**: We don't collect analytics or usage data
 
-## Contributing
-
-Contributions welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details
+All Rights Reserved - see [LICENSE](LICENSE) file for details
 
 ## Support
 
