@@ -5,30 +5,21 @@
 
 /**
  * Launch the Google OAuth implicit flow and return an access token.
- * Uses chrome.identity.launchWebAuthFlow with the manifest's oauth2 config.
+ * Delegates to the background service worker since chrome.identity is
+ * not available in content scripts.
  * @returns {Promise<string>} Google OAuth access token
  */
 async function launchYouTubeOAuth() {
-  const redirectUri = chrome.identity.getRedirectURL();
-  const authUrl = new URL('https://accounts.google.com/o/oauth2/auth');
-  authUrl.searchParams.set('client_id', '604396819800-opo6j4nss7jnfbp4sn83dsropql05o9b.apps.googleusercontent.com');
-  authUrl.searchParams.set('redirect_uri', redirectUri);
-  authUrl.searchParams.set('response_type', 'token');
-  authUrl.searchParams.set('scope', 'https://www.googleapis.com/auth/youtube.readonly');
-
   return new Promise((resolve, reject) => {
-    chrome.identity.launchWebAuthFlow(
-      { url: authUrl.toString(), interactive: true },
-      (redirectUrl) => {
-        if (chrome.runtime.lastError || !redirectUrl) {
-          return reject(new Error(chrome.runtime.lastError?.message || 'OAuth cancelled'));
-        }
-        const params = new URLSearchParams(new URL(redirectUrl).hash.substring(1));
-        const accessToken = params.get('access_token');
-        if (!accessToken) return reject(new Error('No access token returned'));
-        resolve(accessToken);
+    chrome.runtime.sendMessage({ type: 'YOUTUBE_OAUTH' }, (response) => {
+      if (chrome.runtime.lastError) {
+        return reject(new Error(chrome.runtime.lastError.message));
       }
-    );
+      if (!response || response.error) {
+        return reject(new Error(response?.error || 'OAuth failed'));
+      }
+      resolve(response.accessToken);
+    });
   });
 }
 
