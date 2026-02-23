@@ -286,48 +286,11 @@
       return;
     }
 
-    // Check if we're in an ad by comparing duration to known ad lengths
-    // Ads are usually 6s, 15s, 30s, or 60s exactly
-    const isLikelyAd = video.duration && (
-      Math.abs(video.duration - 6) < 0.1 ||
-      Math.abs(video.duration - 15) < 0.1 ||
-      Math.abs(video.duration - 30) < 0.1 ||
-      Math.abs(video.duration - 60) < 0.1
-    );
-
-    if (isLikelyAd) {
-      console.log(`[Markers] Detected possible ad (duration: ${video.duration}s), waiting for actual video...`);
-      const adDuration = video.duration;
-      let retryAttempted = false;
-
-      // Wait for ad to finish and actual video to load
-      const waitForActualVideo = () => {
-        if (retryAttempted) return; // Only retry once
-        retryAttempted = true;
-
-        const newVideo = document.querySelector('video');
-        // Check if duration has changed significantly (not just > 60s)
-        if (newVideo && newVideo.duration && Math.abs(newVideo.duration - adDuration) > 1) {
-          console.log(`[Markers] Actual video loaded after ad (new duration: ${newVideo.duration}s)`);
-          renderMarkers();
-        } else {
-          console.log(`[Markers] Duration unchanged (${newVideo?.duration}s) - might be false positive, rendering anyway`);
-          renderMarkers();
-        }
-      };
-
-      video.addEventListener('ended', waitForActualVideo, { once: true });
-      video.addEventListener('durationchange', waitForActualVideo, { once: true });
-
-      // Fallback: if no event fires within 2 seconds, assume false positive and render
-      setTimeout(() => {
-        if (!retryAttempted) {
-          console.log('[Markers] Ad detection timeout - rendering markers anyway');
-          retryAttempted = true;
-          renderMarkers();
-        }
-      }, 2000);
-
+    // Check if an ad is currently playing using YouTube's own class
+    const player = document.querySelector('.html5-video-player');
+    if (player && player.classList.contains('ad-showing')) {
+      console.log('[Markers] Ad is playing, deferring marker render...');
+      startAdObserver();
       return;
     }
 
@@ -360,6 +323,25 @@
     if (sidebarOpen && sidebar) {
       updateSidebarContent();
     }
+  }
+
+  // Watch for ads to finish so we can render markers with the real video duration
+  let adObserver = null;
+  function startAdObserver() {
+    if (adObserver) return; // already watching
+    const player = document.querySelector('.html5-video-player');
+    if (!player) return;
+
+    adObserver = new MutationObserver(() => {
+      if (!player.classList.contains('ad-showing')) {
+        console.log('[Markers] Ad finished, rendering markers');
+        adObserver.disconnect();
+        adObserver = null;
+        // Small delay to let the real video duration settle
+        setTimeout(() => renderMarkers(), 300);
+      }
+    });
+    adObserver.observe(player, { attributes: true, attributeFilter: ['class'] });
   }
 
   // Format date string
@@ -1172,8 +1154,8 @@
               joinedEl.textContent = `Contributor since ${months[d.getMonth()]} ${d.getFullYear()}`;
             }
             if (statNums && statNums.length >= 2) {
-              statNums[0].textContent = profile.totalAnnotations ?? 0;
-              statNums[1].textContent = profile.uniqueVideos ?? 0;
+              statNums[0].textContent = profile.stats?.totalCitations ?? 0;
+              statNums[1].textContent = profile.stats?.totalVideos ?? 0;
             }
           })
           .catch(() => {}); // silently fail — stats are non-critical
@@ -1783,6 +1765,10 @@
         if (creatorMarkersContainer) {
           creatorMarkersContainer.remove();
           creatorMarkersContainer = null;
+        }
+        if (adObserver) {
+          adObserver.disconnect();
+          adObserver = null;
         }
         if (addButton) {
           addButton.remove();

@@ -46,12 +46,15 @@ router.get('/:userId/profile', asyncHandler(async (req, res) => {
     return acc;
   }, []);
 
+  // Exclude videos where all citations were deleted
+  const activeVideoStats = videoStats.filter(v => v.citationCount > 0);
+
   // Sort by most recent
-  videoStats.sort((a, b) => new Date(b.lastCitedAt) - new Date(a.lastCitedAt));
+  activeVideoStats.sort((a, b) => new Date(b.lastCitedAt) - new Date(a.lastCitedAt));
 
   // Calculate total stats
-  const totalCitations = videoStats.reduce((sum, v) => sum + v.citationCount, 0);
-  const totalVideos = videoStats.length;
+  const totalCitations = activeVideoStats.reduce((sum, v) => sum + v.citationCount, 0);
+  const totalVideos = activeVideoStats.length;
 
   res.json({
     userId: user.id,
@@ -63,7 +66,7 @@ router.get('/:userId/profile', asyncHandler(async (req, res) => {
       totalVideos,
       citationsPerVideo: totalVideos > 0 ? (totalCitations / totalVideos).toFixed(1) : 0
     },
-    videos: videoStats.slice(0, 10), // Return top 10 videos
+    videos: activeVideoStats.slice(0, 10), // Return top 10 videos
     // Placeholder for future features
     karma: null, // TODO: Implement voting system
     approvalRate: null // TODO: Implement moderation
@@ -120,10 +123,12 @@ router.get('/by-name/:displayName/profile', asyncHandler(async (req, res) => {
     return acc;
   }, []);
 
-  videoStats.sort((a, b) => new Date(b.lastCitedAt) - new Date(a.lastCitedAt));
+  const activeVideoStats = videoStats.filter(v => v.citationCount > 0);
 
-  const totalCitations = videoStats.reduce((sum, v) => sum + v.citationCount, 0);
-  const totalVideos = videoStats.length;
+  activeVideoStats.sort((a, b) => new Date(b.lastCitedAt) - new Date(a.lastCitedAt));
+
+  const totalCitations = activeVideoStats.reduce((sum, v) => sum + v.citationCount, 0);
+  const totalVideos = activeVideoStats.length;
 
   res.json({
     userId: user.id,
@@ -135,7 +140,7 @@ router.get('/by-name/:displayName/profile', asyncHandler(async (req, res) => {
       totalVideos,
       citationsPerVideo: totalVideos > 0 ? (totalCitations / totalVideos).toFixed(1) : 0
     },
-    videos: videoStats.slice(0, 10),
+    videos: activeVideoStats.slice(0, 10),
     karma: null,
     approvalRate: null
   });
