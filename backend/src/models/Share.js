@@ -104,7 +104,7 @@ class Share {
     const query = `
       SELECT id, share_token, user_id, video_id, title, annotations, is_public, view_count, created_at, updated_at
       FROM shares
-      WHERE user_id = $1
+      WHERE user_id = $1 AND deleted_at IS NULL
       ORDER BY created_at DESC
       LIMIT $2 OFFSET $3
     `;

@@ -29,7 +29,7 @@ router.get('/:userId/profile', asyncHandler(async (req, res) => {
   // Group by video and count citations
   const videoStats = shares.reduce((acc, share) => {
     const existing = acc.find(v => v.videoId === share.video_id);
-    const citationCount = share.annotations ? share.annotations.length : 0;
+    const citationCount = (share.annotations || []).filter(a => !a.deleted_at).length;
 
     if (existing) {
       existing.citationCount += citationCount;
@@ -103,7 +103,7 @@ router.get('/by-name/:displayName/profile', asyncHandler(async (req, res) => {
 
   const videoStats = shares.reduce((acc, share) => {
     const existing = acc.find(v => v.videoId === share.video_id);
-    const citationCount = share.annotations ? share.annotations.length : 0;
+    const citationCount = (share.annotations || []).filter(a => !a.deleted_at).length;
 
     if (existing) {
       existing.citationCount += citationCount;

@@ -132,7 +132,7 @@
 - T1: Display name picker (first-time YouTube login for brand-new users)
 - T3: Connect YouTube for existing email account (needs fresh retest after DB fix)
 - T6: Dual-row UI detail verification (visual overlap, z-index, popup badges)
-- Account merge: two separate Citelines accounts (YouTube-auth + email) need a merge path — see Account Merge below
+- Account merge: two separate Citelines accounts (YouTube-auth + email) need a merge path — see Account Merge (Phase 3E) below
 
 **Subsequent (Phase 4A)**:
 - User-proposed citations that creators can approve/reject
@@ -143,23 +143,48 @@
 
 ### Account Merge (Phase 3E)
 
-**Problem**: A user may have two separate Citelines accounts — one created via YouTube OAuth ("Abe Katz") and one via email/password ("Abe") — each with independent citation histories and different display names. Currently there's no way to merge them.
+**Problem**: A user may have two separate Citelines accounts — one created via YouTube OAuth and one via email/password — each with independent citation histories. The website dashboard only shows shares from the logged-in account, so extension-created citations are invisible on the site.
 
-**Options Considered**:
+**Decision**: Implement Option A+C — merge endpoint + auto-detect at connect time.
 
-- **Option A — Simple Migration** *(planned)*: User picks a primary account. Citations from the secondary account are re-attributed to the primary (UPDATE shares SET user_id = primaryId WHERE user_id = secondaryId). Secondary account is then deleted or marked merged. Cleanest UX, permanent.
-- **Option B — Federation**: Link both accounts together so either login gives the same experience. More complex: shared citations table, identity resolution layer. Avoids data mutation but increases system complexity.
-- **Option C — Merge at Connect Time**: When an email account connects YouTube (POST /auth/youtube/connect), detect that a YouTube-auth account already owns that channel and offer to merge then. Natural trigger point, but requires careful UI and conflict resolution (e.g. duplicate display names, conflicting citations).
-- **Option D — Do Nothing** *(current state)*: Accounts remain separate. YouTube channel can be linked to multiple accounts (unique constraint removed in migration 009). User manually manages which account they use.
+**Implementation Plan**:
 
-**Decision**: Option D for now. Revisit Option A when the extension goes to production or when a real user hits this problem.
+1. **DB migration** (`backend/migrations/010_add_account_merge.sql`):
+   - Add `merged_into UUID REFERENCES users(id)` and `merged_at TIMESTAMP` to users table
+   - Update `auth_type` constraint to include `'merged'`
 
-**Implementation Notes (Option A)**:
-- New endpoint: `POST /api/users/merge` (JWT-authenticated, requires both account credentials or admin action)
-- Migrate all citations from secondary → primary with a single `UPDATE shares SET user_id = $primary WHERE user_id = $secondary`
-- Soft-delete or mark secondary account as merged (`auth_type = 'merged'`)
-- Clear secondary account's JWT tokens (no revocation list yet — just let them expire)
-- Update display name / YouTube channel info on primary if desired
+2. **User model** (`backend/src/models/User.js`) — new `mergeAccounts(primaryId, secondaryId, channelId, channelTitle)`:
+   - Database transaction via `db.getClient()`
+   - Transfer shares: `UPDATE shares SET user_id = primaryId WHERE user_id = secondaryId`
+   - Copy YouTube channel info to primary account
+   - Update `citations_count` on primary
+   - Deactivate secondary: `auth_type = 'merged'`, set `merged_into`/`merged_at`, null out `youtube_channel_id`/`display_name`
+
+3. **Backend endpoint** (`backend/src/routes/auth.js`) — `POST /api/auth/merge`:
+   - Requires JWT auth (primary account) + body `{ accessToken }` (Google OAuth token)
+   - Calls existing `fetchYouTubeChannel(accessToken)` to get channel ID
+   - Looks up secondary via `User.findByYouTubeChannelId(channelId)`
+   - Guards: no self-merge, no anonymous primary, no blocked/suspended/already-merged secondary
+   - Calls `User.mergeAccounts()`, returns new JWT
+
+4. **Auth middleware** (`backend/src/middleware/auth.js`):
+   - After blocked/suspended checks: if `user.auth_type === 'merged'`, return 401 (forces re-login into primary)
+
+5. **Auto-detect at connect time** (`backend/src/routes/auth.js` — `POST /api/auth/youtube/connect`):
+   - After fetching channel, check if a separate youtube-type account exists for that channel
+   - If so, return `{ needsMerge: true, secondaryDisplayName, secondaryShareCount }` instead of silently connecting
+   - Extension prompts user and calls `POST /api/auth/merge` on confirm
+
+6. **Extension** (`auth.js`) — new `mergeWithYouTube()` method:
+   - Launches YouTube OAuth, calls `POST /api/auth/merge`
+   - Updates stored JWT/user in `chrome.storage.local`
+
+7. **Extension UI** — merge confirmation dialog when `/youtube/connect` returns `needsMerge`
+
+**Edge cases**:
+- Old JWTs for merged account → 401 from middleware, forces re-login into correct account
+- YouTube OAuth login after merge → finds primary account (which now has the channel ID) → seamless
+- Display name conflict → secondary's name is nulled; primary keeps its name
 
 ---
 

@@ -1136,6 +1136,13 @@
           <div class="yt-annotator-account-name">${escapeHtml(user.displayName)}</div>
           <div class="yt-annotator-account-email">${escapeHtml(user.email || '')}</div>
           ${ytSection}
+          <div class="yt-annotator-account-stats">
+            <div class="yt-annotator-account-stats-joined">Contributor since —</div>
+            <div class="yt-annotator-account-stats-row">
+              <div class="yt-annotator-account-stat"><span class="yt-annotator-account-stat-num">—</span> Citations</div>
+              <div class="yt-annotator-account-stat"><span class="yt-annotator-account-stat-num">—</span> Videos</div>
+            </div>
+          </div>
           <button class="yt-annotator-account-signout">Sign Out</button>
         </div>
       `;
@@ -1150,6 +1157,27 @@
         updateCreatorMode();   // Switch accent back to teal
         if (currentVideoId) fetchAllAnnotations(currentVideoId); // Background refresh
       });
+
+      // Fetch and populate usage stats
+      const userId = user.id;
+      if (userId) {
+        fetch(`https://youtube-annotator-production.up.railway.app/api/users/${userId}/profile`)
+          .then(r => r.ok ? r.json() : Promise.reject())
+          .then(profile => {
+            const joinedEl = accountSidebar?.querySelector('.yt-annotator-account-stats-joined');
+            const statNums = accountSidebar?.querySelectorAll('.yt-annotator-account-stat-num');
+            if (joinedEl && profile.accountCreated) {
+              const d = new Date(profile.accountCreated);
+              const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+              joinedEl.textContent = `Contributor since ${months[d.getMonth()]} ${d.getFullYear()}`;
+            }
+            if (statNums && statNums.length >= 2) {
+              statNums[0].textContent = profile.totalAnnotations ?? 0;
+              statNums[1].textContent = profile.uniqueVideos ?? 0;
+            }
+          })
+          .catch(() => {}); // silently fail — stats are non-critical
+      }
 
       if (!ytVerified) {
         accountSidebar.querySelector('.yt-annotator-connect-yt-btn').addEventListener('click', async (e) => {

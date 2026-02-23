@@ -869,6 +869,44 @@ a.yt-annotator-citation-title:hover {
   margin-bottom: 1.5rem;
 }
 
+.yt-annotator-account-stats {
+  width: 100%;
+  border-top: 1px solid #333;
+  padding-top: 1rem;
+  margin-bottom: 1rem;
+}
+
+.yt-annotator-account-stats-joined {
+  color: #aaa;
+  font-size: 0.78rem;
+  text-align: center;
+  margin-bottom: 0.75rem;
+}
+
+.yt-annotator-account-stats-row {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+}
+
+.yt-annotator-account-stat {
+  color: #ccc;
+  font-size: 0.8rem;
+  text-align: center;
+}
+
+.yt-annotator-account-stat-num {
+  font-weight: 700;
+  color: #0497a6;
+  font-size: 1.1rem;
+  display: block;
+  margin-bottom: 0.15rem;
+}
+
+.yt-annotator-account-sidebar.creator-mode .yt-annotator-account-stat-num {
+  color: #ffaa3e;
+}
+
 .yt-annotator-account-signout {
   background: transparent;
   border: 1px solid #0497a6;
