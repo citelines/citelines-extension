@@ -1290,7 +1290,7 @@ async function loadAnalytics() {
         passwordUnverified: usersData.filter(u => u.auth_type === 'password' && !u.email_verified).length,
         youtube: usersData.filter(u => u.auth_type === 'youtube').length,
         youtubeMerged: usersData.filter(u => u.auth_type === 'youtube_merged').length,
-        total: usersData.length
+        total: usersData.filter(u => u.auth_type !== 'merged').length
       },
       interventions: {
         suspended: usersData.filter(u => u.is_suspended).length,
@@ -1338,12 +1338,12 @@ function renderAnalytics(data) {
           <div class="stat-value">${data.users.passwordVerified}</div>
           <div class="stat-subtitle">Email verified</div>
         </div>
-        <div class="stat-card" style="border-left-color: #ff4444;">
+        <div class="stat-card success">
           <div class="stat-label">YouTube</div>
           <div class="stat-value">${data.users.youtube}</div>
           <div class="stat-subtitle">YouTube OAuth accounts</div>
         </div>
-        <div class="stat-card" style="border-left-color: #e91e63;">
+        <div class="stat-card success">
           <div class="stat-label">YouTube + Email</div>
           <div class="stat-value">${data.users.youtubeMerged}</div>
           <div class="stat-subtitle">Merged YouTube + email accounts</div>
@@ -1377,7 +1377,7 @@ function renderAnalytics(data) {
       <h2>Citation Status</h2>
       <div class="analytics-grid">
         <div class="stat-card">
-          <div class="stat-label">Total Citations</div>
+          <div class="stat-label">Total Lifetime Citations</div>
           <div class="stat-value">${data.citations.total}</div>
         </div>
         <div class="stat-card success">
