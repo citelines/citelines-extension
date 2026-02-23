@@ -1357,7 +1357,7 @@ function renderAnalytics(data) {
                 </td>
                 <td style="text-align: right;">
                   <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
-                    <div style="height:10px;width:${((row.citation_clicked || 0)/maxClicks)*80}px;background:#e91e63;border-radius:2px;"></div>
+                    <div style="height:10px;width:${((row.citation_clicked || 0)/maxClicks)*80}px;background:#0497a6;border-radius:2px;"></div>
                     ${row.citation_clicked || 0}
                   </div>
                 </td>
@@ -1387,7 +1387,7 @@ function renderAnalytics(data) {
           <div class="stat-value">${totals.video_viewed || 0}</div>
           <div class="stat-subtitle">YouTube pages loaded with extension</div>
         </div>
-        <div class="stat-card" style="border-left-color: #e91e63;">
+        <div class="stat-card" style="border-left-color: #0497a6;">
           <div class="stat-label">Citation Clicks (30d)</div>
           <div class="stat-value">${totals.citation_clicked || 0}</div>
           <div class="stat-subtitle">Markers + sidebar clicks</div>
@@ -1410,7 +1410,7 @@ function renderAnalytics(data) {
           <div class="stat-value">${data.users.anonymous}</div>
           <div class="stat-subtitle">Temporary accounts</div>
         </div>
-        <div class="stat-card caution">
+        <div class="stat-card neutral">
           <div class="stat-label">Password - Unverified</div>
           <div class="stat-value">${data.users.passwordUnverified}</div>
           <div class="stat-subtitle">Pending email verification</div>
@@ -1420,12 +1420,12 @@ function renderAnalytics(data) {
           <div class="stat-value">${data.users.passwordVerified}</div>
           <div class="stat-subtitle">Email verified</div>
         </div>
-        <div class="stat-card success">
+        <div class="stat-card" style="border-left-color: #ffaa3e;">
           <div class="stat-label">YouTube</div>
           <div class="stat-value">${data.users.youtube}</div>
           <div class="stat-subtitle">YouTube OAuth accounts</div>
         </div>
-        <div class="stat-card success">
+        <div class="stat-card" style="border-left-color: #ffaa3e;">
           <div class="stat-label">YouTube + Email</div>
           <div class="stat-value">${data.users.youtubeMerged}</div>
           <div class="stat-subtitle">Merged YouTube + email accounts</div>
@@ -1441,7 +1441,7 @@ function renderAnalytics(data) {
           <div class="stat-label">Total Interventions</div>
           <div class="stat-value">${data.interventions.total}</div>
         </div>
-        <div class="stat-card warning">
+        <div class="stat-card caution">
           <div class="stat-label">Suspended</div>
           <div class="stat-value">${data.interventions.suspended}</div>
           <div class="stat-subtitle">Temporary suspension</div>
