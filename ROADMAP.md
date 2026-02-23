@@ -269,6 +269,50 @@
 
 ## Future Phases
 
+### Phase 4A: Creator Tools (Creator Mode Enhancements)
+
+When a verified creator is viewing their own video (orange UX), they should have additional tools beyond the standard citation flow.
+
+**Quick-Add Mode**:
+- Keyboard-driven citation entry for creators who know their own video's source timestamps
+- Input fields for timestamp + note/full citation, submit with Enter or Cmd+Enter
+- No mouse navigation to the progress bar required — optimized for bulk citation entry
+- Could live in the sidebar or as a dedicated panel
+
+**Review Others' Citations**:
+- Creator can see all viewer-contributed citations on their video
+- Action options (exact functionality TBD — present all in early mock):
+  - **Remove**: Creator directly removes a citation from their video
+  - **Edit**: Creator can correct/improve a viewer's citation
+  - **Flag for removal**: Softer option — flags for admin review rather than immediate removal
+- Need to decide on permission model: should creators have full delete power, or just flagging?
+
+**Give Props**:
+- Creator can endorse/highlight viewer citations they approve of or especially appreciate
+- Visual indicator on "propped" citations (badge, highlight, or special icon)
+- Could tie into karma/trust system (Phase 4 Quality Control)
+- Incentivizes high-quality contributions from viewers
+
+### Citation Trees (Infrastructure)
+
+The ability to add a citation to a citation — nesting sources to deeper, more original references where applicable.
+
+**Concept**: A viewer cites a secondary source in a video. Another user (or the same user) can attach a deeper citation to that citation, pointing to the primary/original source. This creates a tree of references rather than a flat list.
+
+**Use cases**:
+- Video cites a news article → user adds citation to the original study the article references
+- Creator cites a claim → viewer adds the peer-reviewed source behind that claim
+- Layered fact-checking: surface source → deeper source → original data
+
+**Design considerations**:
+- Data model: `parent_citation_id` foreign key on annotations, nullable (top-level = null)
+- UI: expand/collapse nested citations in popup and sidebar
+- Depth limit? (e.g., max 3 levels to avoid rabbit holes)
+- How to display on progress bar — nested citations share the parent's timestamp marker, or get their own?
+- Moderation complexity increases with nesting
+
+---
+
 ### Phase 3C: Community Moderation
 - User blocking (hide specific users' citations)
 - Report system (flag spam/harassment/misinformation)
@@ -343,13 +387,12 @@
 - Proper `waitForPlayer()` call on navigation
 - Clean DOM element removal on video change
 
-### Ad Detection & Marker Rendering (Fixed 2026-02-13)
-- Fixed false positive ad detection for videos with durations close to 6s/15s/30s/60s
-- Improved retry logic: checks if duration changed (not just if > 60s)
-- Added 2-second timeout fallback to ensure markers always render
-- Better logging for debugging ad detection behavior
-- Bug: Markers wouldn't appear on first load in incognito, but worked after refresh
-- Root cause: Videos incorrectly flagged as ads, retry logic assumed duration > 60s
+### Ad Detection & Marker Rendering (Revised 2026-02-22)
+- Original approach (2026-02-13): heuristic based on video duration matching standard ad lengths (6/15/30/60s) — caused false positives and missed non-standard ads
+- New approach: detect ads via YouTube's `.ad-showing` class on `.html5-video-player`
+- MutationObserver watches for class removal, then re-renders markers after 300ms settle delay
+- Observer cleaned up on SPA navigation to avoid leaks
+- Fixes: markers not appearing when YouTube force-disables ad-blocker and pre-roll ads play
 
 ### Sidebar Persistence Bug Fix
 - Explicitly remove DOM elements on navigation
@@ -470,6 +513,6 @@ node clear-data.js
 
 ---
 
-**Last Updated**: 2026-02-19
+**Last Updated**: 2026-02-22
 **Status**: Phase 3D nearly complete — creator verification, creator mode UI, and all major bug fixes done; remaining: T1 (display name picker), T3 (connect YT retest), T6 (dual-row visual polish)
-**Next**: Finish T1/T3/T6, then Legal/Publishing prerequisites or Account Merge (Phase 3E)
+**Next**: Finish T1/T3/T6, then Creator Tools (Phase 4A), Legal/Publishing prerequisites, or Account Merge (Phase 3E)
