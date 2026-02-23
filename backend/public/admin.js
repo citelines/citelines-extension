@@ -1315,6 +1315,18 @@ function renderAnalytics(data) {
   const container = document.getElementById('analyticsContent');
 
   const html = `
+    <!-- Extension Installs Section -->
+    <div class="analytics-section">
+      <h2>Extension Installs</h2>
+      <div class="analytics-grid">
+        <div class="stat-card">
+          <div class="stat-label">Chrome Web Store</div>
+          <div class="stat-value">—</div>
+          <div class="stat-subtitle">Not yet tracked</div>
+        </div>
+      </div>
+    </div>
+
     <!-- User Count Section -->
     <div class="analytics-section">
       <h2>User Count</h2>
@@ -1322,6 +1334,7 @@ function renderAnalytics(data) {
         <div class="stat-card">
           <div class="stat-label">Total Users</div>
           <div class="stat-value">${data.users.total}</div>
+          <div class="stat-subtitle">Users who have added citations to videos</div>
         </div>
         <div class="stat-card neutral">
           <div class="stat-label">Anonymous</div>
