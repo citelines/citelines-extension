@@ -289,6 +289,17 @@ When a verified creator is viewing their own video (orange UX), they should have
 - Exports all visible citations for the current video (respects active filter tab: All/Mine/Others/Creator)
 - Columns: timestamp, citation type, citation content, contributor, date added
 
+### User Dashboard Enhancements (citelines.org)
+
+Improve the logged-in user dashboard at citelines.org with richer browsing and search capabilities.
+
+- Sort citations by date added, video title, timestamp, or citation type
+- Filter citations by video, citation type, or date range
+- Group citations by video (expandable/collapsible video sections)
+- Search across all citations (full-text search on citation content)
+- Search by video title or video ID
+- Pagination or infinite scroll for users with many citations
+
 ### Account Deletion
 
 Allow users to fully delete their Citelines account and associated data.
