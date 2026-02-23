@@ -6,6 +6,7 @@ const authRoutes = require('./routes/auth');
 const sharesRoutes = require('./routes/shares');
 const usersRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
+const analyticsRoutes = require('./routes/analytics');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { setupCounterResetJobs } = require('./jobs/resetCounters');
 
@@ -107,8 +108,17 @@ const writeShareLimiter = rateLimit({
   skip: (req) => req.method === 'GET' // Don't rate limit GET requests
 });
 
+const analyticsLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 30,
+  message: { error: 'Too many analytics requests' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use('/api/', generalLimiter);
 app.use('/api/shares', writeShareLimiter);
+app.use('/api/analytics', analyticsLimiter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -129,6 +139,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/shares', sharesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/analytics', analyticsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);

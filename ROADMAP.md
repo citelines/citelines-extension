@@ -293,6 +293,27 @@ When a verified creator is viewing their own video (orange UX), they should have
 - Could tie into karma/trust system (Phase 4 Quality Control)
 - Incentivizes high-quality contributions from viewers
 
+### Export Citations as CSV
+
+**Dashboard Export** (citelines.org):
+- "Download as CSV" button on the user's dashboard
+- Exports all of the user's citations across all videos
+- Columns: video title, video URL, timestamp, citation type, citation content, date added
+
+**Sidebar Export** (extension):
+- "Download as CSV" button in the bibliography sidebar while watching a video
+- Exports all visible citations for the current video (respects active filter tab: All/Mine/Others/Creator)
+- Columns: timestamp, citation type, citation content, contributor, date added
+
+### Account Deletion
+
+Allow users to fully delete their Citelines account and associated data.
+
+- User-initiated deletion flow (from extension account sidebar or citelines.org dashboard)
+- Deletes or anonymizes: user record, shares/citations, YouTube channel link
+- Confirmation step with clear explanation of what will be removed
+- Required for compliance with data protection expectations (GDPR, etc.)
+
 ### Citation Trees (Infrastructure)
 
 The ability to add a citation to a citation — nesting sources to deeper, more original references where applicable.

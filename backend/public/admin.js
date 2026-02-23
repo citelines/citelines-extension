@@ -1282,8 +1282,15 @@ async function loadAnalytics() {
       citationsData = citationsResult.citations || [];
     }
 
+    // Fetch event analytics
+    const eventResponse = await fetch(`${API_URL}/api/admin/analytics?days=30`, {
+      headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+    });
+    const eventData = eventResponse.ok ? await eventResponse.json() : { totals: {}, timeseries: [] };
+
     // Calculate analytics
     analyticsData = {
+      events: eventData,
       users: {
         anonymous: usersData.filter(u => u.auth_type === 'anonymous' || u.auth_type === 'expired').length,
         passwordVerified: usersData.filter(u => u.auth_type === 'password' && u.email_verified).length,
@@ -1314,17 +1321,79 @@ async function loadAnalytics() {
 function renderAnalytics(data) {
   const container = document.getElementById('analyticsContent');
 
+  const events = data.events || { totals: {}, timeseries: [] };
+  const totals = events.totals || {};
+  const timeseries = events.timeseries || [];
+
+  // Build time series table rows
+  let timeseriesHtml = '';
+  if (timeseries.length > 0) {
+    // Find max values for inline bar charts
+    const maxViews = Math.max(...timeseries.map(r => r.video_viewed || 0), 1);
+    const maxClicks = Math.max(...timeseries.map(r => r.citation_clicked || 0), 1);
+
+    timeseriesHtml = `
+      <div style="max-height: 400px; overflow-y: auto; margin-top: 15px;">
+        <table style="width: 100%; font-size: 13px;">
+          <thead>
+            <tr>
+              <th style="text-align: left;">Date</th>
+              <th style="text-align: right;">Installs</th>
+              <th style="text-align: right;">Video Views</th>
+              <th style="text-align: right;">Citation Clicks</th>
+              <th style="text-align: right;">Unique Sessions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${timeseries.slice().reverse().map(row => `
+              <tr>
+                <td>${row.date}</td>
+                <td style="text-align: right;">${row.extension_installed || 0}</td>
+                <td style="text-align: right;">
+                  <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
+                    <div style="height:10px;width:${((row.video_viewed || 0)/maxViews)*80}px;background:#0497a6;border-radius:2px;"></div>
+                    ${row.video_viewed || 0}
+                  </div>
+                </td>
+                <td style="text-align: right;">
+                  <div style="display:flex;align-items:center;justify-content:flex-end;gap:6px;">
+                    <div style="height:10px;width:${((row.citation_clicked || 0)/maxClicks)*80}px;background:#e91e63;border-radius:2px;"></div>
+                    ${row.citation_clicked || 0}
+                  </div>
+                </td>
+                <td style="text-align: right;">${row.video_viewed_unique || row.citation_clicked_unique || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+    `;
+  } else {
+    timeseriesHtml = '<p style="color: #999; margin-top: 10px;">No event data yet. Events will appear after the extension update is installed.</p>';
+  }
+
   const html = `
-    <!-- Extension Installs Section -->
+    <!-- Extension Activity Section -->
     <div class="analytics-section">
-      <h2>Extension Installs</h2>
+      <h2>Extension Activity</h2>
       <div class="analytics-grid">
         <div class="stat-card">
-          <div class="stat-label">Chrome Web Store</div>
-          <div class="stat-value">—</div>
-          <div class="stat-subtitle">Not yet tracked</div>
+          <div class="stat-label">Total Installs</div>
+          <div class="stat-value">${totals.extension_installed || 0}</div>
+          <div class="stat-subtitle">All-time</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #0497a6;">
+          <div class="stat-label">Video Views (30d)</div>
+          <div class="stat-value">${totals.video_viewed || 0}</div>
+          <div class="stat-subtitle">YouTube pages loaded with extension</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #e91e63;">
+          <div class="stat-label">Citation Clicks (30d)</div>
+          <div class="stat-value">${totals.citation_clicked || 0}</div>
+          <div class="stat-subtitle">Markers + sidebar clicks</div>
         </div>
       </div>
+      ${timeseriesHtml}
     </div>
 
     <!-- User Count Section -->

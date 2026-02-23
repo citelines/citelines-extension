@@ -3,6 +3,13 @@
  * Handles operations that require extension-level APIs unavailable in content scripts.
  */
 
+// Track fresh extension installs (flag is picked up by analytics.js in content script)
+chrome.runtime.onInstalled.addListener((details) => {
+  if (details.reason === 'install') {
+    chrome.storage.local.set({ _pendingInstallEvent: true });
+  }
+});
+
 // Handle messages from content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'YOUTUBE_OAUTH') {

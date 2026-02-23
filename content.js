@@ -232,6 +232,7 @@
 
     marker.addEventListener('click', (e) => {
       e.stopPropagation();
+      if (typeof analytics !== 'undefined') analytics.track('citation_clicked', { videoId: currentVideoId, source: 'marker' });
       showAnnotationPopup(annotation, video, !annotation.isOwn);
     });
 
@@ -1476,6 +1477,7 @@
           return;
         }
         e.stopPropagation();
+        if (typeof analytics !== 'undefined') analytics.track('citation_clicked', { videoId: currentVideoId, source: 'sidebar' });
         const video = document.querySelector('video');
         if (video && annotation) {
           showAnnotationPopup(annotation, video, !annotation.isOwn);
@@ -1659,6 +1661,7 @@
     // Check if video changed
     if (videoId !== currentVideoId) {
       currentVideoId = videoId;
+      if (typeof analytics !== 'undefined') analytics.track('video_viewed', { videoId });
       annotations[videoId] = await loadAnnotations(videoId);
       sharedAnnotations = []; // Clear shared annotations
       userShareId = null; // Reset share ID for new video

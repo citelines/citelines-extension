@@ -793,4 +793,58 @@ router.get('/actions', authenticateAdmin, asyncHandler(async (req, res) => {
   });
 }));
 
+/**
+ * GET /api/admin/analytics
+ * Return aggregated analytics event data for the admin dashboard.
+ * Query params: days (default 30, max 365), period (daily|weekly|monthly)
+ */
+router.get('/analytics', authenticateAdmin, asyncHandler(async (req, res) => {
+  const days = Math.min(parseInt(req.query.days) || 30, 365);
+  const period = ['daily', 'weekly', 'monthly'].includes(req.query.period)
+    ? req.query.period : 'daily';
+
+  const dateTrunc = period === 'weekly' ? 'week' : period === 'monthly' ? 'month' : 'day';
+
+  // Time series grouped by period and event type
+  const timeseriesResult = await db.query(
+    `SELECT
+       date_trunc($1, created_at)::date AS event_date,
+       event_type,
+       COUNT(*)::int AS event_count,
+       COUNT(DISTINCT session_id)::int AS unique_sessions
+     FROM analytics_events
+     WHERE created_at >= NOW() - make_interval(days => $2)
+     GROUP BY event_date, event_type
+     ORDER BY event_date`,
+    [dateTrunc, days]
+  );
+
+  // All-time totals
+  const totalsResult = await db.query(
+    `SELECT event_type, COUNT(*)::int AS total
+     FROM analytics_events
+     GROUP BY event_type`
+  );
+
+  const totals = {};
+  for (const row of totalsResult.rows) {
+    totals[row.event_type] = row.total;
+  }
+
+  // Pivot timeseries into { date, extension_installed, video_viewed, citation_clicked, ... }
+  const dateMap = {};
+  for (const row of timeseriesResult.rows) {
+    const dateStr = row.event_date.toISOString().split('T')[0];
+    if (!dateMap[dateStr]) {
+      dateMap[dateStr] = { date: dateStr };
+    }
+    dateMap[dateStr][row.event_type] = row.event_count;
+    dateMap[dateStr][`${row.event_type}_unique`] = row.unique_sessions;
+  }
+
+  const timeseries = Object.values(dateMap).sort((a, b) => a.date.localeCompare(b.date));
+
+  res.json({ totals, timeseries, period, days });
+}));
+
 module.exports = router;
