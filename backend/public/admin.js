@@ -1403,7 +1403,7 @@ function renderAnalytics(data) {
         <div class="stat-card">
           <div class="stat-label">Total Users</div>
           <div class="stat-value">${data.users.total}</div>
-          <div class="stat-subtitle">Users who have added citations to videos</div>
+          <div class="stat-subtitle">Users who have added citations to videos or created a Citelines account</div>
         </div>
         <div class="stat-card neutral">
           <div class="stat-label">Anonymous</div>
