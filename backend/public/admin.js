@@ -6,6 +6,7 @@ console.log('[DEBUG] ===== admin.js loaded at', new Date().toISOString(), '=====
 // Map raw auth_type + email_verified to display label
 function getAuthTypeLabel(user) {
   if (user.auth_type === 'youtube') return 'YouTube';
+  if (user.auth_type === 'youtube_merged') return 'YouTube + Email';
   if (user.auth_type === 'password' && user.email_verified) return 'Password - Verified';
   if (user.auth_type === 'password' && !user.email_verified) return 'Password - Unverified';
   return 'Anonymous';
@@ -1288,6 +1289,7 @@ async function loadAnalytics() {
         passwordVerified: usersData.filter(u => u.auth_type === 'password' && u.email_verified).length,
         passwordUnverified: usersData.filter(u => u.auth_type === 'password' && !u.email_verified).length,
         youtube: usersData.filter(u => u.auth_type === 'youtube').length,
+        youtubeMerged: usersData.filter(u => u.auth_type === 'youtube_merged').length,
         total: usersData.length
       },
       interventions: {
@@ -1340,6 +1342,11 @@ function renderAnalytics(data) {
           <div class="stat-label">YouTube</div>
           <div class="stat-value">${data.users.youtube}</div>
           <div class="stat-subtitle">YouTube OAuth accounts</div>
+        </div>
+        <div class="stat-card" style="border-left-color: #e91e63;">
+          <div class="stat-label">YouTube + Email</div>
+          <div class="stat-value">${data.users.youtubeMerged}</div>
+          <div class="stat-subtitle">Merged YouTube + email accounts</div>
         </div>
       </div>
     </div>
@@ -2094,6 +2101,12 @@ function renderUserDetails(data) {
   } else if (user.auth_type === 'password' && !user.email_verified) {
     accountType = 'Unverified';
     accountTypeBadge = '<span class="badge" style="background: #ffc107; color: black;">Unverified</span>';
+  } else if (user.auth_type === 'youtube') {
+    accountType = 'YouTube';
+    accountTypeBadge = '<span class="badge" style="background: #ff4444; color: white;">YouTube</span>';
+  } else if (user.auth_type === 'youtube_merged') {
+    accountType = 'YouTube + Email';
+    accountTypeBadge = '<span class="badge" style="background: #e91e63; color: white;">YouTube + Email</span>';
   }
 
   // Status badges

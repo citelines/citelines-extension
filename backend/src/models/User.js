@@ -453,7 +453,8 @@ class User {
         if (!primary.youtube_channel_id) {
           await client.query(
             `UPDATE users
-             SET youtube_channel_id = $1, youtube_verified = true, youtube_channel_title = $2
+             SET youtube_channel_id = $1, youtube_verified = true, youtube_channel_title = $2,
+                 auth_type = 'youtube_merged'
              WHERE id = $3`,
             [secondary.youtube_channel_id, secondary.youtube_channel_title, primaryId]
           );

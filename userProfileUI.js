@@ -126,7 +126,7 @@ class UserProfileUI {
     }
 
     // Update subtitle
-    const accountType = profile.authType === 'password' ? 'Registered' : 'Temporary account';
+    const accountType = (profile.authType === 'password' || profile.authType === 'youtube_merged') ? 'Registered' : 'Temporary account';
     const joinDate = this.formatJoinDate(profile.accountCreated);
     subtitle.textContent = `${accountType} • Contributor since ${joinDate}`;
 
