@@ -5,7 +5,7 @@
 **Deployment**: ✅ Live on Railway
 **Backend URL**: `https://youtube-annotator-production.up.railway.app`
 **Database**: PostgreSQL on Railway
-**Current Phase**: Phase 3D (Creator Verification) — Core flow complete, account merge TBD
+**Current Phase**: Phase 3D (Creator Verification) — Core flow complete, account merge done
 
 ---
 
@@ -71,10 +71,11 @@
   - Removed "Share Size" column
   - Bulk delete with selection
 - **Analytics Tab**:
-  - User count cards (Total, Temporary, Verified, Unverified)
+  - Extension Activity: Total Installs, Video Views (30d), Citation Clicks (30d) with daily time series table and inline bar charts
+  - User count cards (Total, Anonymous, Password-Unverified, Password-Verified, YouTube, YouTube+Email)
   - User interventions (Suspended, Blocked)
   - Citation status (Active, Deleted)
-  - Color-coded stat cards
+  - Color-coded stat cards (grey=anonymous/unverified, green=verified, orange=YouTube, yellow=suspended, red=blocked)
 - **Audit Log Tab**:
   - View all admin actions with search
 - **Filter UI**:
@@ -88,6 +89,20 @@
   - Admin action history
   - Multiple close options (X button, overlay click, ESC key)
 - Vanilla JS + fetch API, no framework
+
+### Extension Analytics Tracking ✅
+- Self-hosted analytics system (no third-party dependencies)
+- **Privacy**: No PII collected — only anonymous session IDs and video IDs
+- **Events tracked**:
+  - `extension_installed` — on fresh install (via `chrome.runtime.onInstalled` → storage flag → content script)
+  - `video_viewed` — each time a YouTube video page loads with the extension active
+  - `citation_clicked` — when a user clicks a progress bar marker (`source: 'marker'`) or sidebar citation (`source: 'sidebar'`)
+- **Backend**: `POST /api/analytics/events` (batch up to 50, no auth required, rate limited 30/min)
+- **Backend**: `GET /api/admin/analytics?days=30&period=daily` (admin-only, returns totals + pivoted time series)
+- **Extension**: `AnalyticsTracker` class in `analytics.js` — batches events, 10s flush interval, fire-and-forget, flushes on `visibilitychange`
+- **Admin dashboard**: Extension Activity section with summary cards + daily time series table with inline bar charts
+- **DB**: `analytics_events` table (migration 012)
+- Files: `analytics.js`, `backend/src/routes/analytics.js`, `backend/migrations/012_create_analytics_events.sql`
 
 ---
 
@@ -141,50 +156,19 @@
 
 ---
 
-### Account Merge (Phase 3E)
+### Account Merge (Phase 3E) ✅
 
-**Problem**: A user may have two separate Citelines accounts — one created via YouTube OAuth and one via email/password — each with independent citation histories. The website dashboard only shows shares from the logged-in account, so extension-created citations are invisible on the site.
-
-**Decision**: Implement Option A+C — merge endpoint + auto-detect at connect time.
-
-**Implementation Plan**:
-
-1. **DB migration** (`backend/migrations/010_add_account_merge.sql`):
-   - Add `merged_into UUID REFERENCES users(id)` and `merged_at TIMESTAMP` to users table
-   - Update `auth_type` constraint to include `'merged'`
-
-2. **User model** (`backend/src/models/User.js`) — new `mergeAccounts(primaryId, secondaryId, channelId, channelTitle)`:
-   - Database transaction via `db.getClient()`
-   - Transfer shares: `UPDATE shares SET user_id = primaryId WHERE user_id = secondaryId`
-   - Copy YouTube channel info to primary account
-   - Update `citations_count` on primary
-   - Deactivate secondary: `auth_type = 'merged'`, set `merged_into`/`merged_at`, null out `youtube_channel_id`/`display_name`
-
-3. **Backend endpoint** (`backend/src/routes/auth.js`) — `POST /api/auth/merge`:
-   - Requires JWT auth (primary account) + body `{ accessToken }` (Google OAuth token)
-   - Calls existing `fetchYouTubeChannel(accessToken)` to get channel ID
-   - Looks up secondary via `User.findByYouTubeChannelId(channelId)`
-   - Guards: no self-merge, no anonymous primary, no blocked/suspended/already-merged secondary
-   - Calls `User.mergeAccounts()`, returns new JWT
-
-4. **Auth middleware** (`backend/src/middleware/auth.js`):
-   - After blocked/suspended checks: if `user.auth_type === 'merged'`, return 401 (forces re-login into primary)
-
-5. **Auto-detect at connect time** (`backend/src/routes/auth.js` — `POST /api/auth/youtube/connect`):
-   - After fetching channel, check if a separate youtube-type account exists for that channel
-   - If so, return `{ needsMerge: true, secondaryDisplayName, secondaryShareCount }` instead of silently connecting
-   - Extension prompts user and calls `POST /api/auth/merge` on confirm
-
-6. **Extension** (`auth.js`) — new `mergeWithYouTube()` method:
-   - Launches YouTube OAuth, calls `POST /api/auth/merge`
-   - Updates stored JWT/user in `chrome.storage.local`
-
-7. **Extension UI** — merge confirmation dialog when `/youtube/connect` returns `needsMerge`
-
-**Edge cases**:
-- Old JWTs for merged account → 401 from middleware, forces re-login into correct account
-- YouTube OAuth login after merge → finds primary account (which now has the channel ID) → seamless
-- Display name conflict → secondary's name is nulled; primary keeps its name
+**Completed**:
+- ✅ DB migration 010: `merged_into`, `merged_at` columns + `'merged'` auth type
+- ✅ DB migration 011: `'youtube_merged'` auth type for merged accounts that have YouTube linked
+- ✅ `User.mergeAccounts()`: transfers shares, copies YouTube info, sets `auth_type = 'youtube_merged'` on primary, deactivates secondary
+- ✅ `POST /api/auth/merge`: JWT-authenticated merge endpoint with guards
+- ✅ Auto-detect at `/api/auth/youtube/connect`: returns `needsMerge` if separate YouTube account exists
+- ✅ Extension merge UI: confirmation dialog with share count
+- ✅ Auth middleware: merged accounts return 401 (forces re-login to primary)
+- ✅ Admin dashboard: `youtube_merged` shown as "YouTube + Email" with orange badge
+- ✅ Extension profile: `youtube_merged` displays as "Registered"
+- ✅ Total Users in admin analytics excludes deactivated merged accounts
 
 ---
 
@@ -429,6 +413,21 @@ The ability to add a citation to a citation — nesting sources to deeper, more 
 
 ## Recent Commits
 
+### Session 2026-02-22
+1. Added `youtube_merged` auth type — preserves YouTube identity after account merge (migration 011)
+2. `mergeAccounts()` sets `auth_type = 'youtube_merged'` when copying YouTube info to primary
+3. Admin dashboard: "YouTube + Email" label, badge, and analytics card for `youtube_merged`
+4. Extension profile: `youtube_merged` displays as "Registered"
+5. Admin analytics: exclude merged accounts from Total Users count
+6. Admin analytics: renamed "Total Citations" → "Total Lifetime Citations"
+7. Admin analytics: green badges for Password-Verified/YouTube/YouTube+Email, grey for Anonymous/Unverified
+8. Admin analytics: added "Extension Installs" placeholder section, then replaced with real Extension Activity
+9. Self-hosted analytics system: `analytics_events` table (migration 012), ingestion endpoint, admin endpoint
+10. Extension analytics: `AnalyticsTracker` class with batching, `video_viewed`/`citation_clicked`/`extension_installed` events
+11. `background.js`: `chrome.runtime.onInstalled` listener for install tracking
+12. Admin dashboard color scheme: teal for citation clicks, grey for unverified, orange (#ffaa3e) for YouTube accounts, yellow for suspended
+13. Added Account Deletion to ROADMAP.md as future feature
+
 ### Session 2026-02-19
 1. Fixed `redirect_uri_mismatch` OAuth error: switched `background.js` from `launchWebAuthFlow` to `chrome.identity.getAuthToken`
 2. Phase 3D: YouTube creator verification + dual-row marker UI (backend + frontend)
@@ -535,5 +534,5 @@ node clear-data.js
 ---
 
 **Last Updated**: 2026-02-22
-**Status**: Phase 3D nearly complete — creator verification, creator mode UI, and all major bug fixes done; remaining: T1 (display name picker), T3 (connect YT retest), T6 (dual-row visual polish)
-**Next**: Finish T1/T3/T6, then Creator Tools (Phase 4A), Legal/Publishing prerequisites, or Account Merge (Phase 3E)
+**Status**: Phase 3D complete (creator verification + account merge done), extension analytics tracking live
+**Next**: Finish T1/T3/T6, then Creator Tools (Phase 4A), Legal/Publishing prerequisites, or Account Deletion
