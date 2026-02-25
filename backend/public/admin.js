@@ -288,7 +288,7 @@ function renderUsers(users) {
           ${columnHeader('status', 'Status', { showSort: true, showFilter: true })}
           ${columnHeader('total_annotations', 'Citations (Active / Total)', { showSort: true, showFilter: false })}
           ${columnHeader('created_at', 'Joined', { showSort: true, showFilter: true })}
-          <th style="width: 240px; padding-right: 40px;">Actions</th>
+          <th style="width: 310px; padding-right: 40px;">Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -307,7 +307,7 @@ function renderUsers(users) {
             </td>
             <td style="width: 120px;">${user.active_annotations || 0} / ${user.total_annotations || 0}</td>
             <td style="width: 120px;">${formatDate(user.created_at)}</td>
-            <td style="width: 240px; padding-right: 40px;">
+            <td style="width: 310px; padding-right: 40px;">
               <div class="action-buttons">
                 <button class="action-btn" onclick="openUserDetailsModal('${user.id}')" style="background: #0497a6; color: white;">View</button>
                 ${!user.is_banned && !user.is_suspended ?
