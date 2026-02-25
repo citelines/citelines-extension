@@ -162,6 +162,14 @@ class AuthManager {
   }
 
   /**
+   * Check if the current user is banned (permanently suspended)
+   * @returns {boolean}
+   */
+  isBanned() {
+    return !!(this.user?.isBanned);
+  }
+
+  /**
    * Get the YouTube channel ID for the current user
    * @returns {string|null}
    */

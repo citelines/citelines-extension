@@ -249,9 +249,9 @@ function renderUsers(users) {
   }
 
   // Count statistics
-  const activeUsers = users.filter(u => !u.is_blocked && !u.is_suspended);
-  const suspendedUsers = users.filter(u => u.is_suspended && !u.is_blocked);
-  const blockedUsers = users.filter(u => u.is_blocked);
+  const activeUsers = users.filter(u => !u.is_banned && !u.is_suspended);
+  const suspendedUsers = users.filter(u => u.is_suspended && !u.is_banned);
+  const bannedUsers = users.filter(u => u.is_banned);
 
   // Count display
   const countHtml = `
@@ -301,8 +301,8 @@ function renderUsers(users) {
             <td style="max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(user.email || '-')}">${user.email || '-'}</td>
             <td style="width: 160px;">${getAuthTypeLabel(user)}</td>
             <td style="width: 120px;">
-              ${user.is_blocked ? '<span class="badge badge-blocked">Blocked</span>' :
-                user.is_suspended ? '<span class="badge badge-suspended">Suspended</span>' :
+              ${user.is_banned ? '<span class="badge badge-banned">Suspended</span><span style="font-size:11px;color:#f44336;display:block;">Permanent</span>' :
+                user.is_suspended ? '<span class="badge badge-suspended">Suspended</span><span style="font-size:11px;color:#ff9800;display:block;">Until ' + formatDate(user.suspended_until) + '</span>' :
                 '<span class="badge badge-active">Active</span>'}
             </td>
             <td style="width: 120px;">${user.active_annotations || 0} / ${user.total_annotations || 0}</td>
@@ -310,13 +310,13 @@ function renderUsers(users) {
             <td style="width: 240px; padding-right: 40px;">
               <div class="action-buttons">
                 <button class="action-btn" onclick="openUserDetailsModal('${user.id}')" style="background: #0497a6; color: white;">View</button>
-                ${!user.is_blocked && !user.is_suspended ?
+                ${!user.is_banned && !user.is_suspended ?
                   `<button class="action-btn btn-danger" onclick="openSuspendModal('${user.id}', '${escapeHtml(user.display_name)}')">Suspend</button>` : ''}
-                ${user.is_suspended && !user.is_blocked ?
+                ${user.is_suspended && !user.is_banned ?
                   `<button class="action-btn btn-success" onclick="unsuspendUser('${user.id}')">Unsuspend</button>` : ''}
-                ${!user.is_blocked ?
-                  `<button class="action-btn btn-danger" onclick="openBlockModal('${user.id}', '${escapeHtml(user.display_name)}')">Block</button>` :
-                  `<button class="action-btn btn-success" onclick="unblockUser('${user.id}')">Unblock</button>`}
+                ${!user.is_banned ?
+                  `<button class="action-btn btn-danger" onclick="openBanModal('${user.id}', '${escapeHtml(user.display_name)}')">Suspend Permanently</button>` :
+                  `<button class="action-btn btn-success" onclick="unbanUser('${user.id}')">Unsuspend</button>`}
               </div>
             </td>
           </tr>
@@ -366,7 +366,7 @@ function getSortedFilteredUsers() {
           columnValue = getAuthTypeLabel(user);
           break;
         case 'status':
-          columnValue = user.is_blocked ? 'Blocked' : user.is_suspended ? 'Suspended' : 'Active';
+          columnValue = user.is_banned ? 'Suspended' : user.is_suspended ? 'Suspended' : 'Active';
           break;
         case 'total_annotations':
           columnValue = (user.total_annotations || 0).toString();
@@ -408,8 +408,8 @@ function getSortedFilteredUsers() {
         valB = getAuthTypeLabel(b);
         break;
       case 'status':
-        valA = a.is_blocked ? 2 : a.is_suspended ? 1 : 0;
-        valB = b.is_blocked ? 2 : b.is_suspended ? 1 : 0;
+        valA = a.is_banned ? 2 : a.is_suspended ? 1 : 0;
+        valB = b.is_banned ? 2 : b.is_suspended ? 1 : 0;
         break;
       case 'total_annotations':
         valA = a.total_annotations || 0;
@@ -622,7 +622,7 @@ function getUniqueUserColumnValues(column) {
         value = getAuthTypeLabel(user);
         break;
       case 'status':
-        value = user.is_blocked ? 'Blocked' : user.is_suspended ? 'Suspended' : 'Active';
+        value = user.is_banned ? 'Suspended' : user.is_suspended ? 'Suspended' : 'Active';
         break;
       case 'total_annotations':
         value = (user.total_annotations || 0).toString();
@@ -1300,9 +1300,9 @@ async function loadAnalytics() {
         total: usersData.filter(u => u.auth_type !== 'merged').length
       },
       interventions: {
-        suspended: usersData.filter(u => u.is_suspended).length,
-        blocked: usersData.filter(u => u.is_blocked).length,
-        total: usersData.filter(u => u.is_suspended || u.is_blocked).length
+        temporary: usersData.filter(u => u.is_suspended && !u.is_banned).length,
+        permanent: usersData.filter(u => u.is_banned).length,
+        total: usersData.filter(u => u.is_suspended || u.is_banned).length
       },
       citations: {
         active: citationsData.filter(c => !c.annotation_deleted_at && !c.share_deleted_at).length,
@@ -1442,14 +1442,14 @@ function renderAnalytics(data) {
           <div class="stat-value">${data.interventions.total}</div>
         </div>
         <div class="stat-card caution">
-          <div class="stat-label">Suspended</div>
-          <div class="stat-value">${data.interventions.suspended}</div>
-          <div class="stat-subtitle">Temporary suspension</div>
+          <div class="stat-label">Suspended (Temporary)</div>
+          <div class="stat-value">${data.interventions.temporary}</div>
+          <div class="stat-subtitle">Time-limited suspension</div>
         </div>
         <div class="stat-card danger">
-          <div class="stat-label">Blocked</div>
-          <div class="stat-value">${data.interventions.blocked}</div>
-          <div class="stat-subtitle">Permanent block</div>
+          <div class="stat-label">Suspended (Permanent)</div>
+          <div class="stat-value">${data.interventions.permanent}</div>
+          <div class="stat-subtitle">Permanent suspension</div>
         </div>
       </div>
     </div>
@@ -1520,20 +1520,20 @@ function openSuspendModal(userId, displayName) {
   document.getElementById('actionModal').classList.add('active');
 }
 
-function openBlockModal(userId, displayName) {
-  currentAction = { type: 'block', userId, displayName };
+function openBanModal(userId, displayName) {
+  currentAction = { type: 'ban', userId, displayName };
 
-  document.getElementById('modalTitle').textContent = 'Block User';
-  document.getElementById('modalDescription').textContent = `Permanently block ${displayName}?`;
+  document.getElementById('modalTitle').textContent = 'Suspend Permanently';
+  document.getElementById('modalDescription').textContent = `Permanently suspend ${displayName}? This will also soft-delete all their citations and ban associated IPs.`;
   document.getElementById('modalBody').innerHTML = `
     <div class="form-group">
-      <label for="blockReason">Reason</label>
-      <input type="text" id="blockReason" class="search-box" placeholder="e.g., Harassment" style="width: 100%;">
+      <label for="banReason">Reason</label>
+      <input type="text" id="banReason" class="search-box" placeholder="e.g., Harassment" style="width: 100%;">
     </div>
-    <p style="color: #dc3545; font-size: 14px; margin-top: 10px;">⚠️ This action is permanent and cannot be undone easily.</p>
+    <p style="color: #dc3545; font-size: 14px; margin-top: 10px;">⚠️ This will permanently suspend the user, soft-delete their citations, and ban their recent IPs.</p>
   `;
   const confirmBtn = document.getElementById('modalConfirmBtn');
-  confirmBtn.textContent = 'Block User';
+  confirmBtn.textContent = 'Suspend Permanently';
   confirmBtn.className = 'btn btn-danger';
   confirmBtn.disabled = false; // Ensure button is enabled
   document.getElementById('actionModal').classList.add('active');
@@ -1603,10 +1603,10 @@ async function confirmAction() {
           document.getElementById('suspendReason').value
         );
         break;
-      case 'block':
-        await blockUser(
+      case 'ban':
+        await banUser(
           currentAction.userId,
-          document.getElementById('blockReason').value
+          document.getElementById('banReason').value
         );
         break;
       case 'deleteCitation':
@@ -1679,8 +1679,8 @@ async function unsuspendUser(userId) {
   await loadAudit();
 }
 
-async function blockUser(userId, reason) {
-  const response = await fetch(`${API_URL}/api/admin/users/${userId}/block`, {
+async function banUser(userId, reason) {
+  const response = await fetch(`${API_URL}/api/admin/users/${userId}/ban`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${JWT_TOKEN}`,
@@ -1691,24 +1691,26 @@ async function blockUser(userId, reason) {
 
   if (!response.ok) {
     const data = await response.json();
-    throw new Error(data.error || 'Failed to block user');
+    throw new Error(data.error || 'Failed to suspend user');
   }
 
   await loadUsers();
+  await loadCitations();
   await loadAudit();
 }
 
-async function unblockUser(userId) {
-  if (!confirm('Unblock this user?')) return;
+async function unbanUser(userId) {
+  if (!confirm('Unsuspend this user? Their citations will be restored.')) return;
 
-  const response = await fetch(`${API_URL}/api/admin/users/${userId}/unblock`, {
+  const response = await fetch(`${API_URL}/api/admin/users/${userId}/unban`, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
   });
 
-  if (!response.ok) throw new Error('Failed to unblock user');
+  if (!response.ok) throw new Error('Failed to unsuspend user');
 
   await loadUsers();
+  await loadCitations();
   await loadAudit();
 }
 
@@ -2194,8 +2196,8 @@ function renderUserDetails(data) {
   // Status badges
   const statusBadges = [];
   if (user.is_admin) statusBadges.push('<span class="badge badge-admin">Admin</span>');
-  if (user.is_blocked) statusBadges.push('<span class="badge badge-blocked">Blocked</span>');
-  else if (user.is_suspended) statusBadges.push('<span class="badge badge-suspended">Suspended</span>');
+  if (user.is_banned) statusBadges.push('<span class="badge badge-banned">Suspended</span><span style="font-size:11px;color:#f44336;margin-left:4px;">Permanent</span>');
+  else if (user.is_suspended) statusBadges.push('<span class="badge badge-suspended">Suspended</span><span style="font-size:11px;color:#ff9800;margin-left:4px;">Until ' + formatDate(user.suspended_until) + '</span>');
   else statusBadges.push('<span class="badge badge-active">Active</span>');
 
   const html = `
@@ -2223,9 +2225,9 @@ function renderUserDetails(data) {
             <strong>Suspended Until:</strong> <span>${formatDateTime(user.suspended_until)}</span>
             <strong>Suspension Reason:</strong> <span>${user.suspension_reason || '-'}</span>
           ` : ''}
-          ${user.is_blocked ? `
-            <strong>Blocked At:</strong> <span>${formatDateTime(user.blocked_at)}</span>
-            <strong>Block Reason:</strong> <span>${user.blocked_reason || '-'}</span>
+          ${user.is_banned ? `
+            <strong>Suspended (Permanent) Since:</strong> <span>${formatDateTime(user.banned_at)}</span>
+            <strong>Reason:</strong> <span>${user.ban_reason || '-'}</span>
           ` : ''}
         </div>
       </div>

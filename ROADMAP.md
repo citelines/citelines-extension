@@ -52,11 +52,12 @@
 ### Phase 3A: Admin Moderation Backend ✅
 - Admin roles (`is_admin` flag)
 - User suspension (temporary, with expiry)
-- User blocking (permanent)
+- User banning (permanent suspension + citation soft-delete + IP enforcement)
 - Citation soft delete (reversible)
 - Audit logging (`admin_actions` table)
 - Auto-unsuspend when suspension expires
 - JWT-only authentication for admin endpoints
+- Banned users retain read-only access (can view citations, cannot create/edit/delete)
 
 ### Phase 3B: Admin Web Dashboard ✅
 - Login page with JWT authentication
@@ -64,7 +65,7 @@
 - **Users Tab**:
   - Sort and filter on Auth Type, Status, Joined columns
   - User Details modal with identifiers, citations list, admin action history
-  - Action buttons (View, Suspend, Block/Unblock)
+  - Action buttons (View, Suspend, Suspend Permanently/Unsuspend)
 - **Citations Tab**:
   - Sort and filter on Creator, Status, Created columns
   - Renamed columns: "Citation Content", "Video Timestamp"
@@ -73,9 +74,9 @@
 - **Analytics Tab**:
   - Extension Activity: Total Installs, Video Views (30d), Citation Clicks (30d) with daily time series table and inline bar charts
   - User count cards (Total, Anonymous, Password-Unverified, Password-Verified, YouTube, YouTube+Email)
-  - User interventions (Suspended, Blocked)
+  - User interventions (Suspended Temporary, Suspended Permanent)
   - Citation status (Active, Deleted)
-  - Color-coded stat cards (grey=anonymous/unverified, green=verified, orange=YouTube, yellow=suspended, red=blocked)
+  - Color-coded stat cards (grey=anonymous/unverified, green=verified, orange=YouTube, yellow=suspended-temp, red=suspended-permanent)
 - **Audit Log Tab**:
   - View all admin actions with search
 - **Filter UI**:
@@ -184,7 +185,7 @@
 ### Admin Dashboard Enhancements
 - **UI Tweak**: The values in the Title column of the Citations tab all have "... - Annotation" as part of their name; don't do that.
 - **UI Tweak**: Various places in the Admin dashboard say "Annotation" - change these to say "Citation"
-- **UI Tweak**: Enable esc key and "click away" ability to close the modals for Delete, Restore (Citations Tab) and Suspend, Block (Users Tab) to behave the same as the View popup.
+- **UI Tweak**: Enable esc key and "click away" ability to close the modals for Delete, Restore (Citations Tab) and Suspend, Suspend Permanently (Users Tab) to behave the same as the View popup.
 - **Citation Type Column**: Display citation type (Basic Note, YouTube Video, Movie, Article, etc.) in Citations tab to provide context for "Citation Content" - matches front-end UI types
 - **Citation Status Column**: Add "Citation Status" column showing lifecycle state (Proposed, Rejected, Approved, User-Deleted) - prepares for moderation workflow
 - **Date Range Filters**: Implement date range filtering for Joined and Created columns (currently placeholders)
@@ -296,8 +297,9 @@ Improve the logged-in user dashboard at citelines.org with richer browsing and s
 - Sort citations by date added, video title, timestamp, or citation type
 - Filter citations by video, citation type, or date range
 - Group citations by video (expandable/collapsible video sections)
+- Group citations by video creator (e.g. I follow a YouTube account/channel and interact with many of their videos)
 - Search across all citations (full-text search on citation content)
-- Search by video title or video ID
+- Search by video title or video ID or video creator/channel (YouTube account)
 - Pagination or infinite scroll for users with many citations
 
 ### Account Deletion

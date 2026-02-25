@@ -1,6 +1,6 @@
 const express = require('express');
 const Share = require('../models/Share');
-const { authenticateAnonymous, optionalAuth } = require('../middleware/auth');
+const { authenticateAnonymous, optionalAuth, rejectBannedWrites } = require('../middleware/auth');
 const { generateUniqueShareToken } = require('../utils/tokenGenerator');
 const {
   isValidVideoId,
@@ -23,7 +23,7 @@ const router = express.Router();
  * Create a new share
  * Requires authentication
  */
-router.post('/', authenticateAnonymous, rateLimitCitations, asyncHandler(async (req, res) => {
+router.post('/', authenticateAnonymous, rejectBannedWrites, rateLimitCitations, asyncHandler(async (req, res) => {
   const { videoId, title, annotations, isPublic = true } = req.body;
 
   // Validate video ID
@@ -227,7 +227,7 @@ router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
  * Update share
  * Requires authentication and ownership
  */
-router.put('/:token', authenticateAnonymous, rateLimitCitations, asyncHandler(async (req, res) => {
+router.put('/:token', authenticateAnonymous, rejectBannedWrites, rateLimitCitations, asyncHandler(async (req, res) => {
   const { token } = req.params;
   const { title, annotations, isPublic } = req.body;
 
@@ -323,7 +323,7 @@ router.put('/:token', authenticateAnonymous, rateLimitCitations, asyncHandler(as
  * Delete share
  * Requires authentication and ownership
  */
-router.delete('/:token', authenticateAnonymous, asyncHandler(async (req, res) => {
+router.delete('/:token', authenticateAnonymous, rejectBannedWrites, asyncHandler(async (req, res) => {
   const { token } = req.params;
 
   // Validate token format

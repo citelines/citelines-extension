@@ -8,16 +8,65 @@
 
 const User = require('../models/User');
 const { verifyToken } = require('../config/jwt');
+const db = require('../config/database');
+
+// In-memory cache of banned IPs (Set of IP strings)
+let bannedIpCache = new Set();
+let bannedIpCacheExpiry = 0;
+const BANNED_IP_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+/**
+ * Refresh the banned IP cache from the database
+ */
+async function refreshBannedIpCache() {
+  try {
+    const result = await db.query('SELECT DISTINCT host(ip_address) AS ip FROM banned_ips');
+    bannedIpCache = new Set(result.rows.map(r => r.ip));
+    bannedIpCacheExpiry = Date.now() + BANNED_IP_CACHE_TTL;
+  } catch (err) {
+    console.error('[Auth] Failed to refresh banned IP cache:', err.message);
+  }
+}
+
+/**
+ * Invalidate the banned IP cache (call after ban/unban)
+ */
+function invalidateBannedIpCache() {
+  bannedIpCacheExpiry = 0;
+}
+
+/**
+ * Check if an IP is banned
+ * @param {string} ip
+ * @returns {Promise<boolean>}
+ */
+async function isIpBanned(ip) {
+  if (!ip) return false;
+  if (Date.now() > bannedIpCacheExpiry) {
+    await refreshBannedIpCache();
+  }
+  return bannedIpCache.has(ip);
+}
 
 /**
  * Authenticate user - supports BOTH JWT and anonymous ID
  * Tries JWT first, falls back to anonymous ID
+ *
+ * Banned users authenticate normally (req.user.is_banned = true)
+ * so they retain read-only access. Write endpoints use rejectBannedWrites separately.
+ *
  * @param {Object} req - Express request
  * @param {Object} res - Express response
  * @param {Function} next - Next middleware
  */
 async function authenticateUser(req, res, next) {
   try {
+    // Check IP ban early
+    const clientIp = req.ip || req.connection?.remoteAddress;
+    if (await isIpBanned(clientIp)) {
+      req.ipBanned = true;
+    }
+
     // Strategy 1: Try JWT token first (registered users)
     const authHeader = req.headers.authorization;
 
@@ -29,16 +78,10 @@ async function authenticateUser(req, res, next) {
         const user = await User.findById(payload.userId);
 
         if (user) {
-          // Check if user is blocked
-          if (user.is_blocked) {
-            return res.status(403).json({
-              error: 'Account blocked',
-              message: 'Your account has been blocked. Reason: ' + (user.blocked_reason || 'No reason provided'),
-              blocked: true
-            });
-          }
+          // Banned users authenticate normally — read-only enforced at write endpoints
+          // (is_banned flag is already on the user object from the DB)
 
-          // Check if user is suspended
+          // Check if user is suspended (temporary)
           if (user.is_suspended) {
             const suspendedUntil = user.suspended_until ? new Date(user.suspended_until) : null;
 
@@ -93,16 +136,9 @@ async function authenticateUser(req, res, next) {
       }
 
       if (user) {
-        // Check if user is blocked
-        if (user.is_blocked) {
-          return res.status(403).json({
-            error: 'Account blocked',
-            message: 'Your account has been blocked. Reason: ' + (user.blocked_reason || 'No reason provided'),
-            blocked: true
-          });
-        }
+        // Banned users authenticate normally — read-only enforced at write endpoints
 
-        // Check if user is suspended
+        // Check if user is suspended (temporary)
         if (user.is_suspended) {
           const suspendedUntil = user.suspended_until ? new Date(user.suspended_until) : null;
 
@@ -216,6 +252,21 @@ async function optionalAuth(req, res, next) {
 }
 
 /**
+ * Middleware to reject writes from banned users or banned IPs.
+ * Apply to POST/PUT/DELETE endpoints that modify data.
+ */
+function rejectBannedWrites(req, res, next) {
+  if (req.user?.is_banned || req.ipBanned) {
+    return res.status(403).json({
+      error: 'Account suspended',
+      message: 'Your account has been suspended. You cannot create or modify citations.',
+      banned: true
+    });
+  }
+  next();
+}
+
+/**
  * Backwards compatible alias for authenticateUser
  * Existing routes using authenticateAnonymous still work
  */
@@ -224,5 +275,7 @@ const authenticateAnonymous = authenticateUser;
 module.exports = {
   authenticateUser,
   authenticateAnonymous,  // Backwards compatible
-  optionalAuth
+  optionalAuth,
+  rejectBannedWrites,
+  invalidateBannedIpCache
 };

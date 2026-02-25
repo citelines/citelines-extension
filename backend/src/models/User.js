@@ -31,7 +31,7 @@ class User {
     const query = `
       SELECT id, anonymous_id, auth_type, email, display_name, created_at,
              is_admin, is_suspended, suspended_until, suspension_reason,
-             is_blocked, blocked_at, blocked_reason
+             is_banned, banned_at, ban_reason
       FROM users
       WHERE anonymous_id = $1
     `;
@@ -49,7 +49,7 @@ class User {
     const query = `
       SELECT id, anonymous_id, auth_type, email, display_name, created_at,
              is_admin, is_suspended, suspended_until, suspension_reason,
-             is_blocked, blocked_at, blocked_reason
+             is_banned, banned_at, ban_reason
       FROM users
       WHERE id = $1
     `;
@@ -190,7 +190,8 @@ class User {
   static async findByEmail(email) {
     const query = `
       SELECT id, anonymous_id, email, password_hash, display_name, auth_type,
-             email_verified, created_at, expires_at, citations_count
+             email_verified, created_at, expires_at, citations_count,
+             youtube_channel_id, youtube_verified, youtube_channel_title, is_banned
       FROM users
       WHERE email = $1
     `;
@@ -313,7 +314,7 @@ class User {
     const query = `
       SELECT id, anonymous_id, email, display_name, auth_type,
              email_verified, youtube_channel_id, youtube_verified, youtube_channel_title,
-             is_admin, is_suspended, suspended_until, is_blocked
+             is_admin, is_suspended, suspended_until, is_banned
       FROM users WHERE youtube_channel_id = $1
     `;
     const result = await db.query(query, [channelId]);
@@ -405,7 +406,7 @@ class User {
     const query = `
       SELECT id, anonymous_id, email, display_name, auth_type,
              email_verified, youtube_channel_id, youtube_verified, youtube_channel_title,
-             is_admin, is_suspended, suspended_until, is_blocked, citations_count
+             is_admin, is_suspended, suspended_until, is_banned, citations_count
       FROM users
       WHERE youtube_channel_id = $1
         AND id != $2
@@ -491,7 +492,7 @@ class User {
       const updatedResult = await db.query(
         `SELECT id, anonymous_id, auth_type, email, display_name, created_at,
                 youtube_channel_id, youtube_verified, youtube_channel_title,
-                citations_count, is_admin, is_suspended, is_blocked
+                citations_count, is_admin, is_suspended, is_banned
          FROM users WHERE id = $1`,
         [primaryId]
       );

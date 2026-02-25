@@ -111,11 +111,11 @@
     } catch (error) {
       console.error('Failed to sync annotations to backend:', error);
 
-      // Handle suspension/block errors
-      if (error.suspended || error.blocked) {
-        const message = error.blocked
-          ? 'Your account has been blocked. Your annotations will not be saved.'
-          : `Your account is suspended until ${new Date(error.suspendedUntil).toLocaleDateString()}. Your annotations will not be saved.`;
+      // Handle suspension/ban errors
+      if (error.suspended || error.banned) {
+        const message = error.banned
+          ? 'Your account has been suspended. Your citations will not be saved.'
+          : `Your account is suspended until ${new Date(error.suspendedUntil).toLocaleDateString()}. Your citations will not be saved.`;
 
         alert(message);
 
@@ -912,10 +912,10 @@
           chrome.storage.local.set({ [storageKey]: annotations[videoId] }, resolve);
         });
 
-        if (error.suspended || error.blocked) {
-          const message = error.blocked
-            ? 'Your account has been blocked. You cannot create annotations.'
-            : `Your account is suspended until ${new Date(error.suspendedUntil).toLocaleDateString()}. You cannot create annotations.`;
+        if (error.suspended || error.banned) {
+          const message = error.banned
+            ? 'Your account has been suspended. You cannot create citations.'
+            : `Your account is suspended until ${new Date(error.suspendedUntil).toLocaleDateString()}. You cannot create citations.`;
           alert(message);
         } else {
           // Re-enable button so user can retry
@@ -1109,12 +1109,17 @@
         ? `<div class="yt-annotator-yt-status">&#10003; YouTube: ${escapeHtml(ytTitle)}</div>`
         : `<button class="yt-annotator-connect-yt-btn">Verify as YouTube Creator</button>`;
 
+      const bannedBanner = authManager.isBanned()
+        ? `<div style="background: #f44336; color: white; padding: 8px 12px; border-radius: 4px; font-size: 13px; margin-bottom: 10px; text-align: center;">Your account is suspended. You can view citations but cannot create or edit them.</div>`
+        : '';
+
       accountSidebar.innerHTML = `
         <div class="yt-annotator-sidebar-header">
           <h3>Account</h3>
           <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
         </div>
         <div class="yt-annotator-account-sidebar-body">
+          ${bannedBanner}
           <div class="yt-annotator-account-avatar">${escapeHtml(initials)}</div>
           <div class="yt-annotator-account-name">${escapeHtml(user.displayName)}</div>
           <div class="yt-annotator-account-email">${escapeHtml(user.email || '')}</div>

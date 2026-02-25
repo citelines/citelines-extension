@@ -151,11 +151,11 @@ class AnnotatorAPI {
         return this.createShare(videoId, annotations, title);
       }
 
-      // Handle suspension/block errors
-      if (response.status === 403 && (error.suspended || error.blocked)) {
-        const customError = new Error(error.message || 'Account suspended or blocked');
+      // Handle suspension/ban errors
+      if (response.status === 403 && (error.suspended || error.banned)) {
+        const customError = new Error(error.message || 'Account suspended');
         customError.suspended = error.suspended;
-        customError.blocked = error.blocked;
+        customError.banned = error.banned;
         customError.suspendedUntil = error.suspendedUntil;
         throw customError;
       }
@@ -254,11 +254,11 @@ class AnnotatorAPI {
     if (!response.ok) {
       const error = await response.json();
 
-      // Handle suspension/block errors
-      if (response.status === 403 && (error.suspended || error.blocked)) {
-        const customError = new Error(error.message || 'Account suspended or blocked');
+      // Handle suspension/ban errors
+      if (response.status === 403 && (error.suspended || error.banned)) {
+        const customError = new Error(error.message || 'Account suspended');
         customError.suspended = error.suspended;
-        customError.blocked = error.blocked;
+        customError.banned = error.banned;
         customError.suspendedUntil = error.suspendedUntil;
         throw customError;
       }

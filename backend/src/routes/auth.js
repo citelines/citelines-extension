@@ -260,7 +260,8 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
       authType: user.auth_type,
       youtubeChannelId: user.youtube_channel_id || null,
       youtubeVerified: user.youtube_verified || false,
-      youtubeChannelTitle: user.youtube_channel_title || null
+      youtubeChannelTitle: user.youtube_channel_title || null,
+      isBanned: user.is_banned || false
     }
   });
 }));
@@ -397,7 +398,8 @@ router.post('/youtube', asyncHandler(async (req, res) => {
         authType: existingUser.auth_type,
         youtubeChannelId: existingUser.youtube_channel_id,
         youtubeVerified: existingUser.youtube_verified,
-        youtubeChannelTitle: existingUser.youtube_channel_title
+        youtubeChannelTitle: existingUser.youtube_channel_title,
+        isBanned: existingUser.is_banned || false
       }
     });
   }
@@ -456,7 +458,8 @@ router.post('/youtube', asyncHandler(async (req, res) => {
       authType: user.auth_type,
       youtubeChannelId: user.youtube_channel_id,
       youtubeVerified: user.youtube_verified,
-      youtubeChannelTitle: user.youtube_channel_title
+      youtubeChannelTitle: user.youtube_channel_title,
+      isBanned: false
     }
   });
 }));
@@ -559,11 +562,11 @@ router.post('/merge', authenticateUser, asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Cannot merge account into itself' });
   }
 
-  // Guard: no merging blocked/suspended accounts
-  if (secondary.is_blocked || secondary.is_suspended) {
+  // Guard: no merging banned/suspended accounts
+  if (secondary.is_banned || secondary.is_suspended) {
     return res.status(400).json({
-      error: 'Cannot merge a blocked or suspended account',
-      message: 'The YouTube account is blocked or suspended and cannot be merged.'
+      error: 'Cannot merge a suspended account',
+      message: 'The YouTube account is suspended and cannot be merged.'
     });
   }
 
@@ -603,7 +606,8 @@ router.post('/merge', authenticateUser, asyncHandler(async (req, res) => {
       authType: updatedPrimary.auth_type,
       youtubeChannelId: updatedPrimary.youtube_channel_id,
       youtubeVerified: updatedPrimary.youtube_verified || true,
-      youtubeChannelTitle: updatedPrimary.youtube_channel_title
+      youtubeChannelTitle: updatedPrimary.youtube_channel_title,
+      isBanned: updatedPrimary.is_banned || false
     }
   });
 }));

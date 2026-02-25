@@ -7,6 +7,7 @@ const express = require('express');
 const { authenticateAdmin } = require('../middleware/adminAuth');
 const { asyncHandler } = require('../middleware/errorHandler');
 const db = require('../config/database');
+const { invalidateBannedIpCache } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -457,21 +458,23 @@ router.post('/users/:userId/unsuspend', authenticateAdmin, asyncHandler(async (r
 }));
 
 // ============================================================================
-// USER BLOCKING (Permanent)
+// USER BANNING (Permanent)
 // ============================================================================
 
 /**
- * POST /api/admin/users/:userId/block
- * Permanently block a user
+ * POST /api/admin/users/:userId/ban
+ * Permanently ban a user
+ * - Soft-deletes all their citations
+ * - Collects IPs from last 30 days and adds to banned_ips
  */
-router.post('/users/:userId/block', authenticateAdmin, asyncHandler(async (req, res) => {
+router.post('/users/:userId/ban', authenticateAdmin, asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { reason } = req.body;
 
   if (!reason || reason.trim().length === 0) {
     return res.status(400).json({
       error: 'Reason required',
-      message: 'You must provide a reason for blocking this user'
+      message: 'You must provide a reason for suspending this user'
     });
   }
 
@@ -489,50 +492,86 @@ router.post('/users/:userId/block', authenticateAdmin, asyncHandler(async (req, 
 
   const user = userResult.rows[0];
 
-  // Cannot block admins
+  // Cannot ban admins
   if (user.is_admin) {
     return res.status(403).json({
       error: 'Forbidden',
-      message: 'Cannot block admin users'
+      message: 'Cannot suspend admin users'
     });
   }
 
-  // Block user
+  // Ban user
   await db.query(
     `UPDATE users
-     SET is_blocked = true, blocked_at = NOW(), blocked_reason = $1
+     SET is_banned = true, banned_at = NOW(), ban_reason = $1
      WHERE id = $2`,
     [reason.trim(), userId]
   );
 
+  // Soft-delete all user's citations
+  const deleteResult = await db.query(
+    `UPDATE shares
+     SET deleted_by_admin = $1, deleted_at = NOW(), deletion_reason = $2
+     WHERE user_id = $3 AND deleted_at IS NULL`,
+    [req.user.id, 'Account banned: ' + reason.trim(), userId]
+  );
+  const citationsDeleted = deleteResult.rowCount;
+
+  // Collect distinct IPs from rate_limit_events in last 30 days
+  const ipResult = await db.query(
+    `SELECT DISTINCT ip_address
+     FROM rate_limit_events
+     WHERE user_id = $1
+       AND ip_address IS NOT NULL
+       AND created_at >= NOW() - INTERVAL '30 days'`,
+    [userId]
+  );
+
+  const bannedIps = [];
+  for (const row of ipResult.rows) {
+    await db.query(
+      `INSERT INTO banned_ips (ip_address, user_id, banned_by, reason)
+       VALUES ($1, $2, $3, $4)
+       ON CONFLICT DO NOTHING`,
+      [row.ip_address, userId, req.user.id, 'Account banned: ' + reason.trim()]
+    );
+    bannedIps.push(row.ip_address);
+  }
+
+  // Invalidate IP cache so new bans take effect immediately
+  invalidateBannedIpCache();
+
   // Log action
   await logAdminAction(
     req.user.id,
-    'block_user',
+    'ban_user',
     'user',
     userId,
-    reason.trim()
+    reason.trim(),
+    { citationsDeleted, bannedIps }
   );
 
   res.json({
-    message: 'User blocked permanently',
+    message: 'User suspended permanently',
     userId,
     displayName: user.display_name,
     reason: reason.trim(),
-    blockedBy: req.user.display_name
+    bannedBy: req.user.display_name,
+    citationsDeleted,
+    ipsBanned: bannedIps.length
   });
 }));
 
 /**
- * POST /api/admin/users/:userId/unblock
- * Unblock a user
+ * POST /api/admin/users/:userId/unban
+ * Unban a user, restore their citations, remove IP bans
  */
-router.post('/users/:userId/unblock', authenticateAdmin, asyncHandler(async (req, res) => {
+router.post('/users/:userId/unban', authenticateAdmin, asyncHandler(async (req, res) => {
   const { userId } = req.params;
 
   // Find user
   const userResult = await db.query(
-    'SELECT id, display_name, is_blocked FROM users WHERE id = $1',
+    'SELECT id, display_name, is_banned FROM users WHERE id = $1',
     [userId]
   );
 
@@ -544,35 +583,55 @@ router.post('/users/:userId/unblock', authenticateAdmin, asyncHandler(async (req
 
   const user = userResult.rows[0];
 
-  if (!user.is_blocked) {
+  if (!user.is_banned) {
     return res.status(400).json({
-      error: 'User not blocked',
-      message: 'This user is not currently blocked'
+      error: 'User not suspended',
+      message: 'This user is not currently suspended permanently'
     });
   }
 
-  // Unblock
+  // Unban
   await db.query(
     `UPDATE users
-     SET is_blocked = false, blocked_at = NULL, blocked_reason = NULL
+     SET is_banned = false, banned_at = NULL, ban_reason = NULL
      WHERE id = $1`,
     [userId]
   );
 
+  // Restore soft-deleted citations that were deleted as part of the ban
+  const restoreResult = await db.query(
+    `UPDATE shares
+     SET deleted_by_admin = NULL, deleted_at = NULL, deletion_reason = NULL
+     WHERE user_id = $1 AND deletion_reason LIKE 'Account banned:%'`,
+    [userId]
+  );
+  const citationsRestored = restoreResult.rowCount;
+
+  // Remove IP bans for this user
+  await db.query(
+    'DELETE FROM banned_ips WHERE user_id = $1',
+    [userId]
+  );
+
+  // Invalidate IP cache
+  invalidateBannedIpCache();
+
   // Log action
   await logAdminAction(
     req.user.id,
-    'unblock_user',
+    'unban_user',
     'user',
     userId,
-    'Block removed'
+    'Suspension lifted',
+    { citationsRestored }
   );
 
   res.json({
-    message: 'User unblocked successfully',
+    message: 'User unsuspended successfully',
     userId,
     displayName: user.display_name,
-    unblockedBy: req.user.display_name
+    unsuspendedBy: req.user.display_name,
+    citationsRestored
   });
 }));
 
@@ -592,17 +651,17 @@ router.get('/users', authenticateAdmin, asyncHandler(async (req, res) => {
 
   if (status === 'suspended') {
     whereClause = 'WHERE is_suspended = true';
-  } else if (status === 'blocked') {
-    whereClause = 'WHERE is_blocked = true';
+  } else if (status === 'blocked' || status === 'banned') {
+    whereClause = 'WHERE is_banned = true';
   } else if (status === 'active') {
-    whereClause = 'WHERE is_suspended = false AND is_blocked = false';
+    whereClause = 'WHERE is_suspended = false AND is_banned = false';
   }
 
   const result = await db.query(
     `SELECT
       id, display_name, auth_type, email, email_verified, created_at,
       is_admin, is_suspended, suspended_until, suspension_reason,
-      is_blocked, blocked_at, blocked_reason,
+      is_banned, banned_at, ban_reason,
       (SELECT COALESCE(SUM(jsonb_array_length(annotations)), 0) FROM shares WHERE user_id = users.id) as total_annotations,
       (SELECT COALESCE(SUM(
         (SELECT COUNT(*) FROM jsonb_array_elements(annotations) AS ann
@@ -635,7 +694,7 @@ router.get('/users/:userId', authenticateAdmin, asyncHandler(async (req, res) =>
     `SELECT
       id, anonymous_id, display_name, email, email_verified, auth_type,
       created_at, expires_at, is_admin, is_suspended, suspended_until,
-      suspension_reason, is_blocked, blocked_at, blocked_reason
+      suspension_reason, is_banned, banned_at, ban_reason
      FROM users
      WHERE id = $1`,
     [userId]

@@ -103,7 +103,19 @@ expires_at              TIMESTAMP            -- NULL = never expires
 is_admin                BOOLEAN DEFAULT false
 is_suspended            BOOLEAN DEFAULT false
 suspended_until         TIMESTAMP
-is_blocked              BOOLEAN DEFAULT false
+is_banned               BOOLEAN DEFAULT false
+banned_at               TIMESTAMP
+ban_reason              TEXT
+```
+
+**banned_ips** (IP-based enforcement)
+```sql
+id                      UUID PRIMARY KEY
+ip_address              INET NOT NULL
+user_id                 UUID REFERENCES users(id)
+banned_by               UUID REFERENCES users(id)
+reason                  TEXT
+created_at              TIMESTAMPTZ
 ```
 
 **shares** (citations)
@@ -209,8 +221,8 @@ DELETE /api/admin/citations/:token          - Soft delete citation
 POST   /api/admin/citations/:token/restore  - Restore deleted citation
 POST   /api/admin/users/:userId/suspend     - Suspend user (temp)
 POST   /api/admin/users/:userId/unsuspend   - Lift suspension
-POST   /api/admin/users/:userId/block       - Block user (permanent)
-POST   /api/admin/users/:userId/unblock     - Unblock user
+POST   /api/admin/users/:userId/ban         - Ban user (permanent suspension + soft-delete citations + IP ban)
+POST   /api/admin/users/:userId/unban       - Unban user (restore citations + remove IP bans)
 GET    /api/admin/users                     - List users with moderation status
 GET    /api/admin/citations                 - List citations (including deleted)
 GET    /api/admin/actions                   - View audit log
@@ -410,9 +422,9 @@ curl -X POST https://youtube-annotator-production.up.railway.app/api/admin/users
   -d '{"duration": 7, "reason": "Spam"}'
 ```
 
-**Block User** (permanent):
+**Ban User** (permanent suspension + soft-delete citations + IP ban):
 ```bash
-curl -X POST https://youtube-annotator-production.up.railway.app/api/admin/users/USER_ID/block \
+curl -X POST https://youtube-annotator-production.up.railway.app/api/admin/users/USER_ID/ban \
   -H "Authorization: Bearer $JWT" \
   -H "Content-Type: application/json" \
   -d '{"reason": "Harassment"}'
