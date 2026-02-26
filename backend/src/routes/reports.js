@@ -170,4 +170,99 @@ router.put('/:reportId', authenticateAnonymous, asyncHandler(async (req, res) =>
   });
 }));
 
+/**
+ * POST /api/reports/:reportId/accept
+ * Accept a suggestion — applies changes to the citation and marks suggestion as resolved.
+ * Only the citation owner can accept.
+ */
+router.post('/:reportId/accept', authenticateAnonymous, asyncHandler(async (req, res) => {
+  const { reportId } = req.params;
+
+  const report = await Report.findById(reportId);
+  if (!report) {
+    return res.status(404).json({ error: 'Suggestion not found' });
+  }
+  if (report.status !== 'pending') {
+    return res.status(400).json({ error: 'Suggestion is no longer pending' });
+  }
+  if (report.report_type !== 'suggestion') {
+    return res.status(400).json({ error: 'Only suggestions can be accepted' });
+  }
+
+  // Verify the current user owns the citation
+  const share = await Share.findByToken(report.share_token);
+  if (!share) {
+    return res.status(404).json({ error: 'Citation not found' });
+  }
+  if (share.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden', message: 'Only the citation owner can accept suggestions' });
+  }
+
+  // Parse suggested changes and apply them to the annotation
+  let changes;
+  try {
+    changes = JSON.parse(report.suggested_text);
+  } catch (e) {
+    return res.status(400).json({ error: 'Invalid suggestion data' });
+  }
+
+  const updatedAnnotations = (share.annotations || []).map(ann => {
+    if (ann.id !== report.annotation_id) return ann;
+
+    const updated = { ...ann, editedAt: new Date().toISOString() };
+
+    // Apply text change
+    if (changes.text !== undefined) {
+      updated.text = sanitizeText(changes.text).substring(0, 2000);
+    }
+
+    // Apply citation field changes
+    if (changes.citation) {
+      updated.citation = { ...(updated.citation || {}) };
+      for (const [key, val] of Object.entries(changes.citation)) {
+        updated.citation[key] = sanitizeText(val);
+      }
+    }
+
+    return updated;
+  });
+
+  // Update the share with applied changes
+  await Share.update(report.share_token, { annotations: updatedAnnotations });
+
+  // Mark suggestion as resolved
+  await Report.updateStatus(reportId, 'resolved', req.user.id);
+
+  res.json({ message: 'Suggestion accepted and applied' });
+}));
+
+/**
+ * POST /api/reports/:reportId/dismiss
+ * Dismiss a suggestion. Only the citation owner can dismiss.
+ */
+router.post('/:reportId/dismiss', authenticateAnonymous, asyncHandler(async (req, res) => {
+  const { reportId } = req.params;
+
+  const report = await Report.findById(reportId);
+  if (!report) {
+    return res.status(404).json({ error: 'Suggestion not found' });
+  }
+  if (report.status !== 'pending') {
+    return res.status(400).json({ error: 'Suggestion is no longer pending' });
+  }
+
+  // Verify the current user owns the citation
+  const share = await Share.findByToken(report.share_token);
+  if (!share) {
+    return res.status(404).json({ error: 'Citation not found' });
+  }
+  if (share.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden', message: 'Only the citation owner can dismiss suggestions' });
+  }
+
+  await Report.updateStatus(reportId, 'dismissed', req.user.id);
+
+  res.json({ message: 'Suggestion dismissed' });
+}));
+
 module.exports = router;

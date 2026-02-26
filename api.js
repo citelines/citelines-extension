@@ -493,6 +493,48 @@ class AnnotatorAPI {
   }
 
   /**
+   * Accept a suggestion (citation owner only)
+   * @param {string} reportId
+   * @returns {Promise<Object>}
+   */
+  async acceptSuggestion(reportId) {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(`${this.baseUrl}/reports/${reportId}/accept`, {
+      method: 'POST',
+      headers
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to accept suggestion');
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Dismiss a suggestion (citation owner only)
+   * @param {string} reportId
+   * @returns {Promise<Object>}
+   */
+  async dismissSuggestion(reportId) {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(`${this.baseUrl}/reports/${reportId}/dismiss`, {
+      method: 'POST',
+      headers
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to dismiss suggestion');
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Check API health
    * @returns {Promise<Object>} Health status
    */

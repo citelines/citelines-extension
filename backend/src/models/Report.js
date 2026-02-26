@@ -153,6 +153,17 @@ class Report {
   }
 
   /**
+   * Find a report by ID
+   * @param {string} reportId
+   * @returns {Promise<Object|null>}
+   */
+  static async findById(reportId) {
+    const query = 'SELECT * FROM citation_reports WHERE id = $1';
+    const result = await db.query(query, [reportId]);
+    return result.rows[0] || null;
+  }
+
+  /**
    * Update report status
    * @param {string} reportId
    * @param {string} status

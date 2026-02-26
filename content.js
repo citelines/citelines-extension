@@ -721,8 +721,67 @@
               changesHTML = `<div style="color: #aaa;">${escapeHtml(s.suggestedText)}</div>`;
             }
             const reasonHTML = s.reason ? `<div class="yt-annotator-suggestion-reason">Reason: ${escapeHtml(s.reason)}</div>` : '';
-            return `<div class="yt-annotator-suggestion-item"><div class="yt-annotator-suggestion-item-header">${escapeHtml(s.reporterDisplayName || 'Anonymous')}</div>${changesHTML}${reasonHTML}</div>`;
+            return `<div class="yt-annotator-suggestion-item" data-suggestion-id="${s.id}">
+              <div class="yt-annotator-suggestion-item-header">${escapeHtml(s.reporterDisplayName || 'Anonymous')}</div>
+              ${changesHTML}${reasonHTML}
+              <div class="yt-annotator-suggestion-actions">
+                <button class="yt-annotator-btn yt-annotator-suggestion-accept" data-suggestion-id="${s.id}">Accept</button>
+                <button class="yt-annotator-btn yt-annotator-suggestion-dismiss" data-suggestion-id="${s.id}">Dismiss</button>
+              </div>
+            </div>`;
           }).join('');
+
+          // Wire up accept/dismiss handlers
+          detailDiv.querySelectorAll('.yt-annotator-suggestion-accept').forEach(btn => {
+            btn.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              const sid = btn.dataset.suggestionId;
+              btn.disabled = true;
+              btn.textContent = 'Accepting...';
+              try {
+                await api.acceptSuggestion(sid);
+                const card = detailDiv.querySelector(`.yt-annotator-suggestion-item[data-suggestion-id="${sid}"]`);
+                if (card) {
+                  card.innerHTML = '<div style="color: #4caf50; font-size: 12px; padding: 4px;">Accepted and applied.</div>';
+                }
+                // Refresh annotations to reflect the applied changes
+                if (currentVideoId) fetchAllAnnotations(currentVideoId);
+              } catch (error) {
+                console.error('Failed to accept suggestion:', error);
+                btn.disabled = false;
+                btn.textContent = 'Accept';
+              }
+            });
+          });
+
+          detailDiv.querySelectorAll('.yt-annotator-suggestion-dismiss').forEach(btn => {
+            btn.addEventListener('click', async (ev) => {
+              ev.stopPropagation();
+              const sid = btn.dataset.suggestionId;
+              btn.disabled = true;
+              btn.textContent = 'Dismissing...';
+              try {
+                await api.dismissSuggestion(sid);
+                const card = detailDiv.querySelector(`.yt-annotator-suggestion-item[data-suggestion-id="${sid}"]`);
+                if (card) card.remove();
+                // Update badge count
+                const remaining = detailDiv.querySelectorAll('.yt-annotator-suggestion-item').length;
+                if (remaining === 0) {
+                  detailDiv.style.display = 'none';
+                  const badge = popup.querySelector('.yt-annotator-suggestion-badge');
+                  if (badge) badge.remove();
+                }
+                if (suggestionBadge && remaining > 0) {
+                  suggestionBadge.innerHTML = `&#128161; ${remaining} suggestion${remaining !== 1 ? 's' : ''}`;
+                }
+                annotation.suggestionCount = remaining;
+              } catch (error) {
+                console.error('Failed to dismiss suggestion:', error);
+                btn.disabled = false;
+                btn.textContent = 'Dismiss';
+              }
+            });
+          });
         } catch (error) {
           console.error('Failed to load suggestions:', error);
           detailDiv.innerHTML = '<div style="color: #f44; font-size: 12px; padding: 8px;">Failed to load suggestions.</div>';

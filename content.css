@@ -1845,6 +1845,54 @@ a.yt-annotator-citation-title:hover {
   font-style: italic;
 }
 
+/* Suggestion accept/dismiss actions */
+.yt-annotator-suggestion-actions {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.yt-annotator-suggestion-accept {
+  background: #4caf50 !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 4px !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+.yt-annotator-suggestion-accept:hover {
+  opacity: 0.85;
+}
+
+.yt-annotator-suggestion-accept:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.yt-annotator-suggestion-dismiss {
+  background: transparent !important;
+  color: #aaa !important;
+  border: 1px solid #555 !important;
+  border-radius: 4px !important;
+  padding: 3px 10px !important;
+  font-size: 11px !important;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.yt-annotator-suggestion-dismiss:hover {
+  color: #f44 !important;
+  border-color: #f44 !important;
+}
+
+.yt-annotator-suggestion-dismiss:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 /* Sidebar three-dots positioning */
 .yt-annotator-sidebar-item-header {
   position: relative;
