@@ -5,7 +5,7 @@
 **Deployment**: ✅ Live on Railway
 **Backend URL**: `https://youtube-annotator-production.up.railway.app`
 **Database**: PostgreSQL on Railway
-**Current Phase**: Phase 3D (Creator Verification) — Core flow complete, account merge done
+**Current Phase**: Phase 3D complete, Account Deletion complete, Display Name Profanity Filter complete, Privacy Policy in progress
 
 ---
 
@@ -34,13 +34,11 @@
 
 ### Phase 2.3: Email/Password Authentication ✅
 - JWT token-based authentication
-- Email verification flow (dev mode: console logging)
-- Password reset functionality
+- Email verification flow (Resend transactional email)
+- Password reset functionality (backend + extension UI built; citelines.org `/reset-password` landing page still needed; not yet live-tested)
 - Dual auth support (JWT + Anonymous ID)
 - Account registration with citation preservation
-- **⏳ Pending**: Real email sending requires custom domain + email service (SendGrid/AWS SES)
-  - Currently in dev mode: verification URLs logged to Railway console
-  - Waiting for domain configuration before enabling real email delivery
+- Email sending via Resend from noreply@citelines.org (SPF/DKIM/DMARC configured)
 
 ### Phase 2.4: User Profiles ✅
 - Clickable user badges showing stats
@@ -91,6 +89,16 @@
   - Multiple close options (X button, overlay click, ESC key)
 - Vanilla JS + fetch API, no framework
 
+### Account Merge (Phase 3E) ✅
+- DB migrations 010–011: `merged_into`, `merged_at` columns, `'merged'` + `'youtube_merged'` auth types
+- `User.mergeAccounts()`: transfers shares, copies YouTube info, deactivates secondary
+- `POST /api/auth/merge`: JWT-authenticated merge endpoint with guards
+- Auto-detect at `/api/auth/youtube/connect`: returns `needsMerge` if separate YouTube account exists
+- Extension merge UI: confirmation dialog with share count
+- Auth middleware: merged accounts return 401 (forces re-login to primary)
+- Admin dashboard: `youtube_merged` shown as "YouTube + Email" with orange badge
+- Total Users in admin analytics excludes deactivated merged accounts
+
 ### Extension Analytics Tracking ✅
 - Self-hosted analytics system (no third-party dependencies)
 - **Privacy**: No PII collected — only anonymous session IDs and video IDs
@@ -109,7 +117,7 @@
 
 ## Next Improvements
 
-### Phase 3D: YouTube Creator Verification 🔧 IN PROGRESS
+### Phase 3D: YouTube Creator Verification ✅
 
 **Completed**:
 - ✅ DB migration: `youtube_channel_id`, `youtube_verified`, `youtube_channel_title` on users table
@@ -144,38 +152,43 @@
 - ✅ Channel ID detection fixed for SPA navigation: `movie_player.getVideoData()` as primary (replaces stale `ytInitialData`)
 - ✅ Creator mode applied immediately on page load: channel ID fetched in parallel with auth/API init to reduce teal→orange flash
 
-**Remaining Work**:
-- T1: Display name picker (first-time YouTube login for brand-new users)
-- T3: Connect YouTube for existing email account (needs fresh retest after DB fix)
-- T6: Dual-row UI detail verification (visual overlap, z-index, popup badges)
-- Account merge: two separate Citelines accounts (YouTube-auth + email) need a merge path — see Account Merge (Phase 3E) below
+---
 
-**Subsequent (Phase 4A)**:
-- User-proposed citations that creators can approve/reject
-- `citation_status` field: Proposed → Approved/Rejected
-- Creator moderation queue in sidebar
+### Needs Live Testing
+
+Features that are fully implemented but have not been tested end-to-end against the deployed backend.
+
+- **Display name picker on first YouTube login** — when a new user's channel name is unavailable (taken, too short, or profane), backend returns `needsDisplayName: true` and the extension should prompt the user to choose a different name
+- **Connect YouTube channel to existing email account** — `POST /api/auth/youtube/connect` flow from extension account sidebar
+- **Account Deletion** — self-delete via citelines.org `/account-settings`, extension auto-logout on 401
+- **Display Name Profanity Filter** — profane names blocked at `register-email` and `youtube` endpoints
+- **Forgot Password** — end-to-end flow (also needs `/reset-password` landing page on citelines.org)
 
 ---
 
-### Account Merge (Phase 3E) ✅
+### Safety & Content Moderation
 
-**Completed**:
-- ✅ DB migration 010: `merged_into`, `merged_at` columns + `'merged'` auth type
-- ✅ DB migration 011: `'youtube_merged'` auth type for merged accounts that have YouTube linked
-- ✅ `User.mergeAccounts()`: transfers shares, copies YouTube info, sets `auth_type = 'youtube_merged'` on primary, deactivates secondary
-- ✅ `POST /api/auth/merge`: JWT-authenticated merge endpoint with guards
-- ✅ Auto-detect at `/api/auth/youtube/connect`: returns `needsMerge` if separate YouTube account exists
-- ✅ Extension merge UI: confirmation dialog with share count
-- ✅ Auth middleware: merged accounts return 401 (forces re-login to primary)
-- ✅ Admin dashboard: `youtube_merged` shown as "YouTube + Email" with orange badge
-- ✅ Extension profile: `youtube_merged` displays as "Registered"
-- ✅ Total Users in admin analytics excludes deactivated merged accounts
+**Display Name Profanity Filter** ✅:
+- [`obscenity`](https://github.com/jo3-l/obscenity) npm package — handles leetspeak, unicode evasion, low false positives, runs locally
+- Singleton `RegExpMatcher` in `backend/src/utils/validator.js` → `validateDisplayName(name)`
+- Hooked into `POST /api/auth/register-email` (returns 400) and `POST /api/auth/youtube` (sets `needsDisplayName: true` with `nameError`)
+- CLI test script: `backend/test-display-name.js` — verified: normal names pass, profanity blocked, evasion ("fuuuck") blocked, no false positives ("Scunthorpe" passes)
+- Future: supplement with [IFTAS Spam User Name Text Strings](https://about.iftas.org/trust-safety-services/) list
+
+**Malicious URL Blocklist** (planned — implement closer to public launch):
+- Full design doc: `dev-docs/bad-url-block.md`
+
+**Citation Text Moderation**:
+- Full design doc: `dev-docs/citation-text-moderation.md`
 
 ---
 
-### Legal & Publishing Prerequisites
+### Operations
+- [ ] Pay for Railway server hosting (trial expiration)
+
+### Legal & Publishing Prerequisites 🔧 IN PROGRESS
+- **Privacy Policy**: 🔧 IN PROGRESS — covering data collected (annotations, YouTube channel ID, email), usage, retention, user rights. Required by YouTube API Services ToS, Chrome Web Store, Google OAuth consent screen, and GDPR/CCPA
 - **Terms of Service**: Write TOS for Citelines covering user-generated content, acceptable use, account termination, and disclaimer of liability
-- **Privacy Policy**: Write Privacy Policy covering what data is collected (annotations, YouTube channel ID, email), how it's used, retention policy, and user rights — required by Chrome Web Store, YouTube OAuth consent screen, and GDPR/CCPA compliance
 - **Hosting**: Publish both documents at a public URL (e.g. `citelines.org/terms` and `citelines.org/privacy`) before submitting to Chrome Web Store or going to YouTube API production mode
 - **Google OAuth Consent Screen**: Link privacy policy URL in Google Cloud Console → OAuth consent screen (currently in "Testing" mode — publishing requires verified policy URL)
 - **Chrome Web Store listing**: Both URLs required in the store developer dashboard before public listing
@@ -203,11 +216,13 @@
 - [ ] After choosing name: logged in, sidebar shows account info
 - [ ] Account sidebar shows "Connect YouTube Channel" button (login-via-YouTube should auto-connect — verify it shows channel name instead)
 
+
 ### T2: YouTube Login (returning user)
 - [ ] Click "Continue with YouTube"
 - [ ] No account picker (token cached) or picker appears and auto-selects
 - [ ] Logged in immediately with existing account
 - [ ] Markers update colors correctly (teal = mine, grey = others)
+- [ ] On citelines.org account dropdown --> account settings, it displays "auth type." For YouTube Auth'd accounts, make that a link to their YouTube account or channel or something like that.
 
 ### T3: Connect YouTube Channel (existing email account)
 - [ ] Log in with email/password
@@ -260,6 +275,7 @@ When a verified creator is viewing their own video (orange UX), they should have
 
 **Quick-Add Mode**:
 - Keyboard-driven citation entry for creators who know their own video's source timestamps
+- Plug-in on YouTube Studio -> editor page, for adding citations during video upload flow?
 - Input fields for timestamp + note/full citation, submit with Enter or Cmd+Enter
 - No mouse navigation to the progress bar required — optimized for bulk citation entry
 - Could live in the sidebar or as a dedicated panel
@@ -272,44 +288,57 @@ When a verified creator is viewing their own video (orange UX), they should have
   - **Flag for removal**: Softer option — flags for admin review rather than immediate removal
 - Need to decide on permission model: should creators have full delete power, or just flagging?
 
-**Give Props**:
+**Give Props/Gratitude**:
 - Creator can endorse/highlight viewer citations they approve of or especially appreciate
 - Visual indicator on "propped" citations (badge, highlight, or special icon)
 - Could tie into karma/trust system (Phase 4 Quality Control)
 - Incentivizes high-quality contributions from viewers
 
-### Export Citations as CSV
+### Citations Library
 
-**Dashboard Export** (citelines.org):
-- "Download as CSV" button on the user's dashboard
-- Exports all of the user's citations across all videos
-- Columns: video title, video URL, timestamp, citation type, citation content, date added
+Make browsing, searching, and exporting citations a core product capability — across both the website dashboard and the extension.
 
-**Sidebar Export** (extension):
-- "Download as CSV" button in the bibliography sidebar while watching a video
-- Exports all visible citations for the current video (respects active filter tab: All/Mine/Others/Creator)
-- Columns: timestamp, citation type, citation content, contributor, date added
-
-### User Dashboard Enhancements (citelines.org)
-
-Improve the logged-in user dashboard at citelines.org with richer browsing and search capabilities.
-
+**Dashboard Browse & Search** *(citelines.org — affects citelines-site repo)*:
 - Sort citations by date added, video title, timestamp, or citation type
 - Filter citations by video, citation type, or date range
 - Group citations by video (expandable/collapsible video sections)
-- Group citations by video creator (e.g. I follow a YouTube account/channel and interact with many of their videos)
-- Search across all citations (full-text search on citation content)
-- Search by video title or video ID or video creator/channel (YouTube account)
+- Group citations by video creator (e.g. I follow a channel and interact with many of their videos)
+- Full-text search on citation content
+- Search by video title, video ID, or video creator/channel
 - Pagination or infinite scroll for users with many citations
+- "My citations" vs "saved citations" — save/bookmark other users' citations for later reference
 
-### Account Deletion
+**Export as CSV**:
+- Dashboard *(citelines.org)*: "Download as CSV" — all user citations across all videos
+  - Columns: video title, video URL, timestamp, citation type, citation content, date added
+- Extension sidebar: "Download as CSV" — citations for current video (respects active filter tab: All/Mine/Others/Creator)
+  - Columns: timestamp, citation type, citation content, contributor, date added
 
-Allow users to fully delete their Citelines account and associated data.
+**Editing**:
+- Editability of "mine" citations pre-submission — allow users to revise citation text before finalizing
 
-- User-initiated deletion flow (from extension account sidebar or citelines.org dashboard)
-- Deletes or anonymizes: user record, shares/citations, YouTube channel link
-- Confirmation step with clear explanation of what will be removed
-- Required for compliance with data protection expectations (GDPR, etc.)
+**Citation Format & Validation**:
+- Validate citations to a timeblock (minimum granularity — prevent citations at arbitrary milliseconds)
+- Validate citations against existing citations / 3rd party databases
+- Citation type metadata (Basic Note, YouTube Video, Movie, Article, etc.) — already in front-end UI, surface in dashboard and admin views
+
+**External Integrations** *(exploratory)*:
+- Zotero integration — import/export citations in Zotero-compatible format
+- Wikipedia citation format — explore feasibility of structured citation output
+
+### Account Deletion ✅
+
+- Soft delete: `auth_type = 'deleted'`, PII cleared (email, password, YouTube fields), `display_name` preserved for citation attribution
+- `DELETE /api/auth/account`: JWT-required, password confirmation for email users, `{ confirm: true }` for YouTube-only users
+- Login/auth guards block deleted accounts (JWT + anonymous paths)
+- Profile endpoint returns `{ deleted: true }` with display name only
+- `GET /api/auth/me`: returns fresh user data for citelines.org localStorage sync
+- Citelines.org: `/account-settings` page with danger zone UI
+- Citelines.org: Layout.astro refreshes user data on every page load
+- Extension: "Account Settings" link in account sidebar → opens citelines.org
+- Extension: auto-logout on 401 "Account deleted" response
+- Auth middleware blocks `deleted_` anonymous IDs (security hardening)
+- DB migration 014: `deleted_at` column on users table
 
 ### Citation Trees (Infrastructure)
 
@@ -331,14 +360,22 @@ The ability to add a citation to a citation — nesting sources to deeper, more 
 
 ---
 
+Three-dot menu on each citation: **BUILT (untested)**. See three-dots.md for design details.
+- ⋮ menu on popup + sidebar: Edit/Delete (own), Report/Suggest (others)
+- Inline edit mode with editedAt timestamp
+- Report modal (5 reasons + optional details)
+- Suggest edit modal (pre-populated text + reason)
+- Backend: PATCH /api/shares/:token/annotations/:annotationId, POST /api/reports
+- Migration 015_create_citation_reports.sql deployed
+- TODO: "Suggest" UX needs to reflect the different types of citation formats; not one-size-fits all.
+
 ### Phase 3C: Community Moderation
 - User blocking (hide specific users' citations)
-- Report system (flag spam/harassment/misinformation)
-- Report reasons dropdown
+- ~~Report system (flag spam/harassment/misinformation)~~ — built (untested), part of three-dots menu
+- ~~Report reasons dropdown~~ — built (untested), part of three-dots menu
 - User-level filtering (toggle show/hide others)
 
 ### Phase 4: Quality Control & Voting
-- Validate citations against existing citations / 3rd party database of citations
 - Upvote/downvote system
 - Karma scores for users
 - Trust levels (auto-calculated from karma)
@@ -353,7 +390,6 @@ The ability to add a citation to a citation — nesting sources to deeper, more 
 ### Phase 6: Advanced Features
 - Edit annotations (version history)
 - Reply threads (nested comments)
-- Full-text search (PostgreSQL full-text)
 - Trending annotations
 - Multi-browser support (Firefox, Safari)
 - Cross-device sync for registered users
@@ -502,15 +538,8 @@ The ability to add a citation to a citation — nesting sources to deeper, more 
 **Root cause**: Stale `userShareId` pointing to anonymous share token after login → 403 on update.
 **Fix**: Reset `userShareId = null` at top of `fetchAllAnnotations` (commit `6d7f69e`).
 
-### UX: Duplicate creator accounts cause confusing sidebar filters — LOW PRIORITY
-**Repro**: User has two accounts (email + YouTube-auth) both with the same YouTube channel linked. On their own video: "Mine" shows citations from the current login only (1), "Creator" shows citations from both accounts (2). Same citation appears in both filters if it's own + creator.
-**Root cause**: Two separate accounts own separate shares but share the same `youtube_channel_id`. The sidebar filters are technically correct (`isOwn` = current account only, `isCreatorCitation` = any account with matching channel), but the overlap is confusing.
-**Resolution**: This will resolve naturally with Account Merge (Phase 3E). No code fix needed — the real fix is having a single account.
-
-**Admin Security**:
-- ⚠️ Admin endpoints exist but are disabled (no users have admin status)
-- Must set up JWT authentication before enabling admin access
-- See CLAUDE.md for security analysis and setup options
+### ~~UX: Duplicate creator accounts cause confusing sidebar filters~~ — RESOLVED ✅
+Resolved by Account Merge (Phase 3E). Users can now merge duplicate accounts into one.
 
 ---
 
@@ -546,6 +575,6 @@ node clear-data.js
 
 ---
 
-**Last Updated**: 2026-02-22
-**Status**: Phase 3D complete (creator verification + account merge done), extension analytics tracking live
-**Next**: Finish T1/T3/T6, then Creator Tools (Phase 4A), Legal/Publishing prerequisites, or Account Deletion
+**Last Updated**: 2026-02-25
+**Status**: Phase 3D complete, Account Merge complete, Account Deletion complete, Display Name Profanity Filter complete, Privacy Policy in progress
+**Next**: Live-test items in "Needs Live Testing" section, finish Privacy Policy + TOS, then Creator Tools (Phase 4A) or Chrome Web Store publishing

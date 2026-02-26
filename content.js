@@ -626,17 +626,13 @@
     const popup = document.createElement('div');
     popup.className = 'yt-annotator-popup';
 
-    const deleteButton = isShared ? '' : '<button class="yt-annotator-btn yt-annotator-btn-danger" data-action="delete">Delete</button>';
-
     // Show creator's display name for all annotations
     const creatorName = annotation.creatorDisplayName || 'Anonymous';
     let badge;
     if (annotation.isCreatorCitation) {
-      // Creator citations always get orange badge; "(YOU)" added if it's also the viewer's own
       const ownSuffix = !isShared ? ' (YOU)' : '';
       badge = `<span style="background: #ffaa3e; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Creator${ownSuffix} - ${escapeHtml(creatorName)}</span>`;
     } else if (!isShared) {
-      // Own non-creator annotation — teal badge
       badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px; border: 2px solid #3a3a3a;">YOU - ${escapeHtml(creatorName)}</span>`;
     } else {
       badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
@@ -645,23 +641,93 @@
     const citationHTML = formatCitation(annotation.citation, !isShared);
     const creationTime = formatCreationTime(annotation.createdAt);
     const creationTimeHTML = creationTime ? `<div class="yt-annotator-creation-time">Created ${creationTime}</div>` : '';
+    const editedTimeHTML = annotation.editedAt ? `<div class="yt-annotator-edited-time">Edited ${formatCreationTime(annotation.editedAt)}</div>` : '';
 
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
         <span class="yt-annotator-popup-timestamp">${formatTime(annotation.timestamp)}${badge}</span>
-        <button class="yt-annotator-popup-close">&times;</button>
+        <div style="display: flex; align-items: center; gap: 4px;">
+          <button class="yt-annotator-actions-btn" title="Actions">&#8942;</button>
+          <button class="yt-annotator-popup-close">&times;</button>
+        </div>
       </div>
       ${citationHTML}
       <div class="yt-annotator-popup-content">${escapeHtml(annotation.text)}</div>
       ${creationTimeHTML}
+      ${editedTimeHTML}
       <div class="yt-annotator-popup-actions">
-        ${deleteButton}
         <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="goto">Go to</button>
       </div>
     `;
 
     // Event listeners
     popup.querySelector('.yt-annotator-popup-close').addEventListener('click', closePopup);
+
+    // Three-dots menu
+    const actionsBtn = popup.querySelector('.yt-annotator-actions-btn');
+    actionsBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      // Close any existing menu
+      const existing = popup.querySelector('.yt-annotator-actions-menu');
+      if (existing) { existing.remove(); return; }
+
+      const menu = document.createElement('div');
+      menu.className = 'yt-annotator-actions-menu';
+
+      if (!isShared) {
+        // Own citation: Edit + Delete
+        menu.innerHTML = `
+          <button class="yt-annotator-actions-menu-item" data-menu-action="edit">
+            <span class="yt-annotator-actions-menu-icon">&#9998;</span> Edit
+          </button>
+          <button class="yt-annotator-actions-menu-item danger" data-menu-action="delete">
+            <span class="yt-annotator-actions-menu-icon">&#128465;</span> Delete
+          </button>
+        `;
+      } else {
+        // Other's citation: Report + Suggest
+        menu.innerHTML = `
+          <button class="yt-annotator-actions-menu-item" data-menu-action="report">
+            <span class="yt-annotator-actions-menu-icon">&#9873;</span> Report
+          </button>
+          <button class="yt-annotator-actions-menu-item" data-menu-action="suggest">
+            <span class="yt-annotator-actions-menu-icon">&#9998;</span> Suggest
+          </button>
+        `;
+      }
+
+      // Position relative to the header
+      const header = popup.querySelector('.yt-annotator-popup-header');
+      header.appendChild(menu);
+
+      // Menu action handlers
+      menu.querySelectorAll('.yt-annotator-actions-menu-item').forEach(item => {
+        item.addEventListener('click', (ev) => {
+          ev.stopPropagation();
+          const action = item.dataset.menuAction;
+          menu.remove();
+
+          if (action === 'edit') {
+            enterEditMode(popup, annotation, video);
+          } else if (action === 'delete') {
+            handleDeleteAnnotation(annotation);
+          } else if (action === 'report') {
+            showReportModal(annotation);
+          } else if (action === 'suggest') {
+            showSuggestModal(annotation);
+          }
+        });
+      });
+
+      // Close menu on outside click
+      const closeMenu = (ev) => {
+        if (!menu.contains(ev.target) && ev.target !== actionsBtn) {
+          menu.remove();
+          document.removeEventListener('click', closeMenu, true);
+        }
+      };
+      setTimeout(() => document.addEventListener('click', closeMenu, true), 0);
+    });
 
     // Badge click handler - show user profile
     const badgeElement = popup.querySelector('.yt-annotator-popup-header span');
@@ -671,44 +737,6 @@
         e.stopPropagation();
         const userProfileUI = new UserProfileUI();
         userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User', annotation.isOwn);
-      });
-    }
-
-    if (!isShared) {
-      popup.querySelector('[data-action="delete"]').addEventListener('click', async () => {
-        const videoId = getVideoId();
-
-        // Find the user's share and remove this annotation from it
-        const shareToken = annotation.shareToken;
-        if (shareToken) {
-          try {
-            // Get current share data
-            const shareData = await api.getShare(shareToken);
-
-            // Filter out the deleted annotation
-            const updatedAnnotations = shareData.annotations.filter(a => a.id !== annotation.id);
-
-            if (updatedAnnotations.length === 0) {
-              // If no annotations left, delete the entire share
-              await api.deleteShare(shareToken);
-            } else {
-              // Update the share with remaining annotations
-              await api.updateShare(shareToken, { annotations: updatedAnnotations });
-            }
-
-            // Update local storage
-            annotations[videoId] = updatedAnnotations;
-            const storageKey = getAnnotationsStorageKey(videoId);
-            await chrome.storage.local.set({ [storageKey]: updatedAnnotations });
-
-            // Re-fetch all annotations to update display
-            await fetchAllAnnotations(videoId);
-          } catch (error) {
-            console.error('Failed to delete annotation:', error);
-          }
-        }
-
-        closePopup();
       });
     }
 
@@ -722,6 +750,250 @@
 
     // Position popup near the marker
     positionPopupNearMarker(popup, annotation, video);
+  }
+
+  // Delete annotation handler (extracted from popup)
+  async function handleDeleteAnnotation(annotation) {
+    const videoId = getVideoId();
+    const shareToken = annotation.shareToken;
+    if (!shareToken) return;
+
+    try {
+      const shareData = await api.getShare(shareToken);
+      const updatedAnnotations = shareData.annotations.filter(a => a.id !== annotation.id);
+
+      if (updatedAnnotations.length === 0) {
+        await api.deleteShare(shareToken);
+      } else {
+        await api.updateShare(shareToken, { annotations: updatedAnnotations });
+      }
+
+      annotations[videoId] = updatedAnnotations;
+      const storageKey = getAnnotationsStorageKey(videoId);
+      await chrome.storage.local.set({ [storageKey]: updatedAnnotations });
+      await fetchAllAnnotations(videoId);
+    } catch (error) {
+      console.error('Failed to delete annotation:', error);
+    }
+
+    closePopup();
+  }
+
+  // Enter inline edit mode in popup
+  function enterEditMode(popup, annotation, video) {
+    const contentDiv = popup.querySelector('.yt-annotator-popup-content');
+    const actionsDiv = popup.querySelector('.yt-annotator-popup-actions');
+    const actionsBtn = popup.querySelector('.yt-annotator-actions-btn');
+
+    // Hide three-dots button during edit
+    if (actionsBtn) actionsBtn.style.display = 'none';
+
+    // Replace text with textarea
+    const originalText = annotation.text || '';
+    contentDiv.innerHTML = `<textarea class="yt-annotator-edit-textarea">${escapeHtml(originalText)}</textarea>`;
+    const textarea = contentDiv.querySelector('textarea');
+    textarea.addEventListener('keydown', (e) => e.stopPropagation());
+    textarea.addEventListener('keyup', (e) => e.stopPropagation());
+    textarea.addEventListener('keypress', (e) => e.stopPropagation());
+    textarea.focus();
+    textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+    // Replace actions with Cancel/Save
+    actionsDiv.innerHTML = `
+      <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="cancel-edit">Cancel</button>
+      <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="save-edit">Save</button>
+    `;
+
+    actionsDiv.querySelector('[data-action="cancel-edit"]').addEventListener('click', () => {
+      // Re-render popup in view mode
+      showAnnotationPopup(annotation, video, false);
+    });
+
+    actionsDiv.querySelector('[data-action="save-edit"]').addEventListener('click', async () => {
+      const newText = textarea.value.trim();
+      if (!newText) return;
+      if (newText === originalText) {
+        showAnnotationPopup(annotation, video, false);
+        return;
+      }
+
+      try {
+        await api.editAnnotationText(annotation.shareToken, annotation.id, newText);
+
+        // Re-fetch to get updated data
+        const videoId = getVideoId();
+        await fetchAllAnnotations(videoId);
+
+        // Find updated annotation and re-show popup
+        const updated = sharedAnnotations.find(a => a.id === annotation.id);
+        if (updated) {
+          showAnnotationPopup(updated, video, false);
+        } else {
+          closePopup();
+        }
+      } catch (error) {
+        console.error('Failed to edit annotation:', error);
+        textarea.style.borderColor = '#f44336';
+      }
+    });
+  }
+
+  // Show report modal for a citation
+  function showReportModal(annotation) {
+    const reasons = [
+      'Inaccurate or misleading',
+      'Spam or self-promotion',
+      'Offensive or inappropriate',
+      'Irrelevant to video',
+      'Other'
+    ];
+
+    const modal = document.createElement('div');
+    modal.className = 'yt-annotator-report-modal';
+    modal.innerHTML = `
+      <div class="yt-annotator-report-content">
+        <button class="yt-annotator-report-close">&times;</button>
+        <h3>Report Citation</h3>
+        <p style="color: #aaa; font-size: 13px; margin: 0 0 16px 0;">Why are you reporting this citation?</p>
+        <div class="yt-annotator-report-reasons">
+          ${reasons.map((r, i) => `
+            <label class="yt-annotator-report-reason">
+              <input type="radio" name="report-reason" value="${escapeHtml(r)}" ${i === 0 ? 'checked' : ''}>
+              <span>${escapeHtml(r)}</span>
+            </label>
+          `).join('')}
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span class="yt-annotator-report-label">Additional details (optional):</span>
+          <textarea class="yt-annotator-report-textarea" placeholder="Provide any extra context..."></textarea>
+        </div>
+        <div class="yt-annotator-report-actions">
+          <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="cancel">Cancel</button>
+          <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="submit">Submit</button>
+        </div>
+      </div>
+    `;
+
+    // Stop keyboard events from propagating to YouTube
+    modal.querySelectorAll('textarea').forEach(ta => {
+      ta.addEventListener('keydown', (e) => e.stopPropagation());
+      ta.addEventListener('keyup', (e) => e.stopPropagation());
+      ta.addEventListener('keypress', (e) => e.stopPropagation());
+    });
+
+    const closeModal = () => modal.remove();
+
+    modal.querySelector('.yt-annotator-report-close').addEventListener('click', closeModal);
+    modal.querySelector('[data-action="cancel"]').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    modal.querySelector('[data-action="submit"]').addEventListener('click', async () => {
+      const reason = modal.querySelector('input[name="report-reason"]:checked')?.value;
+      const details = modal.querySelector('.yt-annotator-report-textarea').value.trim();
+
+      try {
+        await api.reportCitation(annotation.shareToken, annotation.id, reason, details);
+
+        // Show success
+        const content = modal.querySelector('.yt-annotator-report-content');
+        content.innerHTML = `
+          <button class="yt-annotator-report-close">&times;</button>
+          <h3>Report Citation</h3>
+          <div class="yt-annotator-report-success">
+            Thank you for your report. Our team will<br>review this citation.
+          </div>
+          <div class="yt-annotator-report-actions">
+            <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="close">Close</button>
+          </div>
+        `;
+        content.querySelector('.yt-annotator-report-close').addEventListener('click', closeModal);
+        content.querySelector('[data-action="close"]').addEventListener('click', closeModal);
+      } catch (error) {
+        console.error('Failed to submit report:', error);
+      }
+    });
+
+    document.body.appendChild(modal);
+  }
+
+  // Show suggest-edit modal for a citation
+  function showSuggestModal(annotation) {
+    const originalText = annotation.text || '';
+
+    const modal = document.createElement('div');
+    modal.className = 'yt-annotator-report-modal';
+    modal.innerHTML = `
+      <div class="yt-annotator-report-content">
+        <button class="yt-annotator-report-close">&times;</button>
+        <h3>Suggest a Change</h3>
+        <div style="margin-bottom: 14px;">
+          <span class="yt-annotator-report-label">Original:</span>
+          <div class="yt-annotator-report-original">${escapeHtml(originalText)}</div>
+        </div>
+        <div style="margin-bottom: 14px;">
+          <span class="yt-annotator-report-label">Your suggestion:</span>
+          <textarea class="yt-annotator-report-textarea" style="min-height: 70px;">${escapeHtml(originalText)}</textarea>
+        </div>
+        <div style="margin-bottom: 4px;">
+          <span class="yt-annotator-report-label">Reason (optional):</span>
+          <textarea class="yt-annotator-report-textarea yt-annotator-suggest-reason" placeholder="Why this change?"></textarea>
+        </div>
+        <div class="yt-annotator-report-actions">
+          <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="cancel">Cancel</button>
+          <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="submit">Submit</button>
+        </div>
+      </div>
+    `;
+
+    // Stop keyboard events
+    modal.querySelectorAll('textarea').forEach(ta => {
+      ta.addEventListener('keydown', (e) => e.stopPropagation());
+      ta.addEventListener('keyup', (e) => e.stopPropagation());
+      ta.addEventListener('keypress', (e) => e.stopPropagation());
+    });
+
+    const closeModal = () => modal.remove();
+
+    modal.querySelector('.yt-annotator-report-close').addEventListener('click', closeModal);
+    modal.querySelector('[data-action="cancel"]').addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    modal.querySelector('[data-action="submit"]').addEventListener('click', async () => {
+      const textareas = modal.querySelectorAll('.yt-annotator-report-textarea');
+      const suggestedText = textareas[0].value.trim();
+      const reason = modal.querySelector('.yt-annotator-suggest-reason').value.trim();
+
+      if (!suggestedText) return;
+      if (suggestedText === originalText) return;
+
+      try {
+        await api.suggestEdit(annotation.shareToken, annotation.id, suggestedText, reason);
+
+        // Show success
+        const content = modal.querySelector('.yt-annotator-report-content');
+        content.innerHTML = `
+          <button class="yt-annotator-report-close">&times;</button>
+          <h3>Suggest a Change</h3>
+          <div class="yt-annotator-report-success">
+            Your suggestion has been submitted.<br>
+            The citation author will be notified.
+          </div>
+          <div class="yt-annotator-report-actions">
+            <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="close">Close</button>
+          </div>
+        `;
+        content.querySelector('.yt-annotator-report-close').addEventListener('click', closeModal);
+        content.querySelector('[data-action="close"]').addEventListener('click', closeModal);
+      } catch (error) {
+        console.error('Failed to submit suggestion:', error);
+      }
+    });
+
+    document.body.appendChild(modal);
   }
 
   // Show popup for creating new annotation
@@ -1131,6 +1403,8 @@
               <div class="yt-annotator-account-stat"><span class="yt-annotator-account-stat-num">—</span> Videos</div>
             </div>
           </div>
+          <a class="yt-annotator-account-settings-link" href="https://www.citelines.org/my-dashboard" target="_blank">My Dashboard</a>
+          <a class="yt-annotator-account-settings-link" href="https://www.citelines.org/account-settings" target="_blank">Account Settings</a>
           <button class="yt-annotator-account-signout">Sign Out</button>
         </div>
       `;
@@ -1462,6 +1736,7 @@
           <div class="yt-annotator-sidebar-item-header">
             <span class="yt-annotator-sidebar-time">${formatTime(annotation.timestamp)}</span>
             ${ownerBadge}
+            <button class="yt-annotator-actions-btn" title="Actions">&#8942;</button>
           </div>
           ${citationPreview}
           ${textPreview}
@@ -1475,10 +1750,10 @@
     contentDiv.querySelectorAll('.yt-annotator-sidebar-item').forEach((item, index) => {
       const annotation = filtered[index];
 
-      // Click on item (but not badge) shows popup
+      // Click on item (but not badge or actions btn) shows popup
       item.addEventListener('click', (e) => {
-        // Don't show popup if clicking on badge
-        if (e.target.classList.contains('yt-annotator-sidebar-badge')) {
+        if (e.target.classList.contains('yt-annotator-sidebar-badge') ||
+            e.target.classList.contains('yt-annotator-actions-btn')) {
           return;
         }
         e.stopPropagation();
@@ -1496,6 +1771,77 @@
           e.stopPropagation();
           const userProfileUI = new UserProfileUI();
           userProfileUI.show(annotation.creatorUserId, annotation.creatorDisplayName || 'User', annotation.isOwn);
+        });
+      }
+
+      // Three-dots menu in sidebar
+      const sidebarActionsBtn = item.querySelector('.yt-annotator-actions-btn');
+      if (sidebarActionsBtn) {
+        sidebarActionsBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          // Close any existing menus in sidebar
+          sidebar.querySelectorAll('.yt-annotator-actions-menu').forEach(m => m.remove());
+
+          const menu = document.createElement('div');
+          menu.className = 'yt-annotator-actions-menu';
+
+          if (annotation.isOwn) {
+            menu.innerHTML = `
+              <button class="yt-annotator-actions-menu-item" data-menu-action="edit">
+                <span class="yt-annotator-actions-menu-icon">&#9998;</span> Edit
+              </button>
+              <button class="yt-annotator-actions-menu-item danger" data-menu-action="delete">
+                <span class="yt-annotator-actions-menu-icon">&#128465;</span> Delete
+              </button>
+            `;
+          } else {
+            menu.innerHTML = `
+              <button class="yt-annotator-actions-menu-item" data-menu-action="report">
+                <span class="yt-annotator-actions-menu-icon">&#9873;</span> Report
+              </button>
+              <button class="yt-annotator-actions-menu-item" data-menu-action="suggest">
+                <span class="yt-annotator-actions-menu-icon">&#9998;</span> Suggest
+              </button>
+            `;
+          }
+
+          const header = item.querySelector('.yt-annotator-sidebar-item-header');
+          header.appendChild(menu);
+
+          menu.querySelectorAll('.yt-annotator-actions-menu-item').forEach(menuItem => {
+            menuItem.addEventListener('click', (ev) => {
+              ev.stopPropagation();
+              const action = menuItem.dataset.menuAction;
+              menu.remove();
+
+              if (action === 'edit') {
+                // Open popup in edit mode
+                const video = document.querySelector('video');
+                if (video) {
+                  showAnnotationPopup(annotation, video, false);
+                  // Trigger edit mode on the newly created popup
+                  setTimeout(() => {
+                    if (activePopup) enterEditMode(activePopup, annotation, video);
+                  }, 50);
+                }
+              } else if (action === 'delete') {
+                handleDeleteAnnotation(annotation);
+              } else if (action === 'report') {
+                showReportModal(annotation);
+              } else if (action === 'suggest') {
+                showSuggestModal(annotation);
+              }
+            });
+          });
+
+          // Close menu on outside click
+          const closeMenu = (ev) => {
+            if (!menu.contains(ev.target) && ev.target !== sidebarActionsBtn) {
+              menu.remove();
+              document.removeEventListener('click', closeMenu, true);
+            }
+          };
+          setTimeout(() => document.addEventListener('click', closeMenu, true), 0);
         });
       }
     });

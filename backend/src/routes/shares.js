@@ -319,6 +319,67 @@ router.put('/:token', authenticateAnonymous, rejectBannedWrites, rateLimitCitati
 }));
 
 /**
+ * PATCH /api/shares/:token/annotations/:annotationId
+ * Edit a single annotation's text within a share
+ * Requires authentication and ownership
+ */
+router.patch('/:token/annotations/:annotationId', authenticateAnonymous, rejectBannedWrites, asyncHandler(async (req, res) => {
+  const { token, annotationId } = req.params;
+  const { text } = req.body;
+
+  // Validate token format
+  if (!isValidShareToken(token)) {
+    return res.status(400).json({ error: 'Invalid share token' });
+  }
+
+  if (!text || typeof text !== 'string' || text.trim().length === 0) {
+    return res.status(400).json({ error: 'Text is required' });
+  }
+
+  if (text.length > 2000) {
+    return res.status(400).json({ error: 'Text too long', message: 'Maximum 2000 characters' });
+  }
+
+  // Find share
+  const share = await Share.findByToken(token);
+  if (!share) {
+    return res.status(404).json({ error: 'Share not found' });
+  }
+
+  // Check ownership
+  if (share.user_id !== req.user.id) {
+    return res.status(403).json({ error: 'Forbidden', message: 'You can only edit your own annotations' });
+  }
+
+  // Find and update the specific annotation in the JSONB array
+  const updatedAnnotations = (share.annotations || []).map(ann => {
+    if (ann.id === annotationId) {
+      return {
+        ...ann,
+        text: sanitizeText(text),
+        editedAt: new Date().toISOString()
+      };
+    }
+    return ann;
+  });
+
+  // Verify annotation was found
+  const found = updatedAnnotations.some(ann => ann.id === annotationId);
+  if (!found) {
+    return res.status(404).json({ error: 'Annotation not found' });
+  }
+
+  // Update the share
+  const updatedShare = await Share.update(token, { annotations: updatedAnnotations });
+
+  res.json({
+    shareToken: updatedShare.share_token,
+    annotationId,
+    updatedAt: updatedShare.updated_at
+  });
+}));
+
+/**
  * DELETE /api/shares/:token
  * Delete share
  * Requires authentication and ownership

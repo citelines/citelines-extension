@@ -338,6 +338,92 @@ class AnnotatorAPI {
   }
 
   /**
+   * Edit annotation text (updates a single annotation within a share)
+   * @param {string} shareToken - Share token
+   * @param {string} annotationId - Annotation ID within the share
+   * @param {string} newText - New annotation text
+   * @returns {Promise<Object>} Updated share data
+   */
+  async editAnnotationText(shareToken, annotationId, newText) {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(`${this.baseUrl}/shares/${shareToken}/annotations/${annotationId}`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ text: newText })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to edit annotation');
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Report a citation
+   * @param {string} shareToken - Share token
+   * @param {string} annotationId - Annotation ID
+   * @param {string} reason - Report reason
+   * @param {string} details - Additional details
+   * @returns {Promise<Object>} Report result
+   */
+  async reportCitation(shareToken, annotationId, reason, details = '') {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(`${this.baseUrl}/reports`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        shareToken,
+        annotationId,
+        reportType: 'report',
+        reason,
+        details
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to submit report');
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Suggest an edit to a citation
+   * @param {string} shareToken - Share token
+   * @param {string} annotationId - Annotation ID
+   * @param {string} suggestedText - Suggested replacement text
+   * @param {string} reason - Reason for suggestion
+   * @returns {Promise<Object>} Suggestion result
+   */
+  async suggestEdit(shareToken, annotationId, suggestedText, reason = '') {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(`${this.baseUrl}/reports`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        shareToken,
+        annotationId,
+        reportType: 'suggestion',
+        suggestedText,
+        reason
+      })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to submit suggestion');
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Check API health
    * @returns {Promise<Object>} Health status
    */

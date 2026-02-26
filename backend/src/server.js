@@ -7,6 +7,7 @@ const sharesRoutes = require('./routes/shares');
 const usersRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const analyticsRoutes = require('./routes/analytics');
+const reportsRoutes = require('./routes/reports');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { setupCounterResetJobs } = require('./jobs/resetCounters');
 
@@ -140,6 +141,7 @@ app.use('/api/shares', sharesRoutes);
 app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
+app.use('/api/reports', reportsRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
