@@ -348,7 +348,7 @@ class AnnotatorAPI {
     const headers = await this.getAuthHeaders();
 
     const response = await fetch(`${this.baseUrl}/shares/${shareToken}/annotations/${annotationId}`, {
-      method: 'PATCH',
+      method: 'PUT',
       headers,
       body: JSON.stringify({ text: newText })
     });

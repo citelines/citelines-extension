@@ -319,11 +319,11 @@ router.put('/:token', authenticateAnonymous, rejectBannedWrites, rateLimitCitati
 }));
 
 /**
- * PATCH /api/shares/:token/annotations/:annotationId
+ * PUT /api/shares/:token/annotations/:annotationId
  * Edit a single annotation's text within a share
  * Requires authentication and ownership
  */
-router.patch('/:token/annotations/:annotationId', authenticateAnonymous, rejectBannedWrites, asyncHandler(async (req, res) => {
+router.put('/:token/annotations/:annotationId', authenticateAnonymous, rejectBannedWrites, asyncHandler(async (req, res) => {
   const { token, annotationId } = req.params;
   const { text } = req.body;
 
