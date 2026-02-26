@@ -424,6 +424,75 @@ class AnnotatorAPI {
   }
 
   /**
+   * Get the current user's pending suggestion for a specific annotation
+   * @param {string} shareToken
+   * @param {string} annotationId
+   * @returns {Promise<Object>} { suggestion: { id, suggestedText, reason, createdAt } | null }
+   */
+  async getMySuggestion(shareToken, annotationId) {
+    const headers = await this.getAuthHeaders();
+    delete headers['Content-Type'];
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/my-suggestion/${shareToken}/${encodeURIComponent(annotationId)}`,
+      { headers }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get suggestion');
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Get all pending suggestions for a share (owner only)
+   * @param {string} shareToken
+   * @returns {Promise<Object>} { suggestions: [...] }
+   */
+  async getSuggestions(shareToken) {
+    const headers = await this.getAuthHeaders();
+    delete headers['Content-Type'];
+
+    const response = await fetch(
+      `${this.baseUrl}/reports/suggestions/${shareToken}`,
+      { headers }
+    );
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to get suggestions');
+    }
+
+    return await response.json();
+  }
+
+  /**
+   * Update an existing suggestion
+   * @param {string} reportId
+   * @param {string} suggestedText - JSON string of changes
+   * @param {string} reason
+   * @returns {Promise<Object>}
+   */
+  async updateSuggestion(reportId, suggestedText, reason = '') {
+    const headers = await this.getAuthHeaders();
+
+    const response = await fetch(`${this.baseUrl}/reports/${reportId}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify({ suggestedText, reason })
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.message || 'Failed to update suggestion');
+    }
+
+    return await response.json();
+  }
+
+  /**
    * Check API health
    * @returns {Promise<Object>} Health status
    */

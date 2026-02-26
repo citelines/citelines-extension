@@ -16,6 +16,7 @@
     "express-rate-limit": "^7.1.5",
     "jsonwebtoken": "^9.0.2",
     "node-cron": "^3.0.3",
+    "obscenity": "^0.4.6",
     "pg": "^8.11.3",
     "resend": "^6.9.2",
     "validator": "^13.11.0"

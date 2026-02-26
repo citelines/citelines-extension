@@ -1,5 +1,6 @@
 const express = require('express');
 const Share = require('../models/Share');
+const Report = require('../models/Report');
 const { authenticateAnonymous, optionalAuth, rejectBannedWrites } = require('../middleware/auth');
 const { generateUniqueShareToken } = require('../utils/tokenGenerator');
 const {
@@ -198,6 +199,21 @@ router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
   // Find shares
   const shares = await Share.findByVideoId(videoId, limit, offset);
 
+  // Batch query suggestion counts for all share tokens
+  const shareTokens = shares.map(s => s.share_token);
+  const userId = req.user ? req.user.id : null;
+  const suggestionRows = await Report.findByShareTokens(shareTokens, userId);
+
+  // Build lookup: { shareToken: { annotationId: { count, userHasSuggestion } } }
+  const suggestionMap = {};
+  for (const row of suggestionRows) {
+    if (!suggestionMap[row.share_token]) suggestionMap[row.share_token] = {};
+    suggestionMap[row.share_token][row.annotation_id] = {
+      count: parseInt(row.suggestion_count, 10),
+      userHasSuggestion: row.user_has_suggestion || false
+    };
+  }
+
   // Format response — include full annotations so client needs only one request
   const formattedShares = shares.map(share => ({
     shareToken: share.share_token,
@@ -210,7 +226,8 @@ router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
     userId: share.user_id,
     creatorDisplayName: share.creator_display_name,
     creatorAuthType: share.creator_auth_type,
-    creatorYoutubeChannelId: share.creator_youtube_channel_id || null
+    creatorYoutubeChannelId: share.creator_youtube_channel_id || null,
+    suggestionCounts: suggestionMap[share.share_token] || {}
   }));
 
   res.json({

@@ -360,14 +360,13 @@ The ability to add a citation to a citation — nesting sources to deeper, more 
 
 ---
 
-Three-dot menu on each citation: **BUILT (untested)**. See three-dots.md for design details.
-- ⋮ menu on popup + sidebar: Edit/Delete (own), Report/Suggest (others)
-- Inline edit mode with editedAt timestamp
-- Report modal (5 reasons + optional details)
-- Suggest edit modal (pre-populated text + reason)
-- Backend: PATCH /api/shares/:token/annotations/:annotationId, POST /api/reports
-- Migration 015_create_citation_reports.sql deployed
-- TODO: "Suggest" UX needs to reflect the different types of citation formats; not one-size-fits all.
+Three-dot menu on each citation. See three-dots.md for design details.
+- [x] ⋮ menu on popup + sidebar: Edit/Delete (own), Report/Suggest (others)
+- [x] Inline edit mode with editedAt timestamp — **tested, working** (CORS fix: PATCH→PUT)
+- [x] Report modal (5 reasons + optional details)
+- 🚧 Suggest edit modal — needs redesign to show citation-type-specific fields (see three-dots.md)
+- [x] Backend: PUT /api/shares/:token/annotations/:annotationId, POST /api/reports
+- [x] Migration 015_create_citation_reports.sql deployed
 
 ### Phase 3C: Community Moderation
 - User blocking (hide specific users' citations)

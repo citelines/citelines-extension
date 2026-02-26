@@ -9,6 +9,7 @@ const { sendVerificationEmail, sendPasswordResetEmail, sendWelcomeEmail } = requ
 const validator = require('validator');
 const { getExpiryInfo } = require('../middleware/checkExpiry');
 const { authenticateUser } = require('../middleware/auth');
+const { validateDisplayName } = require('../utils/validator');
 
 const router = express.Router();
 
@@ -104,6 +105,12 @@ router.post('/register-email', asyncHandler(async (req, res) => {
 
   if (displayName.length > 50) {
     return res.status(400).json({ error: 'Display name must be less than 50 characters' });
+  }
+
+  // Check for profanity
+  const nameCheck = validateDisplayName(displayName.trim());
+  if (!nameCheck.valid) {
+    return res.status(400).json({ error: nameCheck.error });
   }
 
   // Check if display name already exists (case-insensitive)
@@ -226,6 +233,14 @@ router.post('/login', loginLimiter, asyncHandler(async (req, res) => {
     });
   }
 
+  // Check if account is deleted
+  if (user.auth_type === 'deleted') {
+    return res.status(401).json({
+      error: 'Account deleted',
+      message: 'This account has been deleted.'
+    });
+  }
+
   // Verify password
   const isValid = await verifyPassword(password, user.password_hash);
 
@@ -333,6 +348,38 @@ router.post('/reset-password', asyncHandler(async (req, res) => {
 }));
 
 /**
+ * GET /api/auth/me
+ * Return the current user's account info. Requires JWT auth.
+ * Used by citelines.org to keep localStorage in sync.
+ */
+router.get('/me', authenticateUser, asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  // Fetch full user row to get YouTube fields (findById doesn't include them)
+  const db = require('../config/database');
+  const result = await db.query(
+    `SELECT id, email, display_name, auth_type, citations_count,
+            youtube_channel_id, youtube_verified, youtube_channel_title,
+            is_banned
+     FROM users WHERE id = $1`,
+    [user.id]
+  );
+  const full = result.rows[0];
+
+  res.json({
+    id: full.id,
+    email: full.email || null,
+    displayName: full.display_name,
+    citationsCount: full.citations_count || 0,
+    authType: full.auth_type,
+    youtubeChannelId: full.youtube_channel_id || null,
+    youtubeVerified: full.youtube_verified || false,
+    youtubeChannelTitle: full.youtube_channel_title || null,
+    isBanned: full.is_banned || false
+  });
+}));
+
+/**
  * GET /api/auth/expiry-info
  * Get account expiry information
  */
@@ -385,6 +432,12 @@ router.post('/youtube', asyncHandler(async (req, res) => {
   // Check for existing account linked to this channel
   const existingUser = await User.findByYouTubeChannelId(channelId);
   if (existingUser) {
+    if (existingUser.auth_type === 'deleted') {
+      return res.status(401).json({
+        error: 'Account deleted',
+        message: 'This account has been deleted.'
+      });
+    }
     const token = generateJWT(existingUser);
     console.log(`[Auth] YouTube login: ${existingUser.display_name} (${channelId})`);
     return res.json({
@@ -409,21 +462,32 @@ router.post('/youtube', asyncHandler(async (req, res) => {
 
   // Validate proposed display name
   let resolvedName = null;
+  let nameError = null;
   if (rawName && rawName.length >= 2 && rawName.length <= 50) {
-    const taken = await User.findByDisplayName(rawName);
-    if (!taken) {
-      resolvedName = rawName;
+    const nameCheck = validateDisplayName(rawName);
+    if (!nameCheck.valid) {
+      nameError = nameCheck.error;
+    } else {
+      const taken = await User.findByDisplayName(rawName);
+      if (!taken) {
+        resolvedName = rawName;
+      }
     }
   }
 
   // If we still don't have a valid name, ask the client to provide one
   if (!resolvedName) {
-    return res.status(200).json({
+    const response = {
       needsDisplayName: true,
       channelId,
       channelTitle,
       suggestedName: channelTitle ? channelTitle.trim().substring(0, 50) : ''
-    });
+    };
+    if (nameError) {
+      response.nameError = nameError;
+      response.suggestedName = '';
+    }
+    return res.status(200).json(response);
   }
 
   // Create or upgrade account
@@ -611,5 +675,76 @@ router.post('/merge', authenticateUser, asyncHandler(async (req, res) => {
     }
   });
 }));
+
+// ==================== ACCOUNT DELETION ====================
+
+/**
+ * DELETE /api/auth/account
+ * Delete the authenticated user's own account (soft delete).
+ * Requires JWT auth. Email/password users must confirm password.
+ */
+router.delete('/account', loginLimiter, authenticateUser, asyncHandler(async (req, res) => {
+  const user = req.user;
+
+  // Must be JWT auth (registered user), not anonymous
+  if (req.authType !== 'jwt') {
+    return res.status(403).json({
+      error: 'Requires registered account',
+      message: 'Only registered accounts can be deleted via this endpoint.'
+    });
+  }
+
+  // Already deleted
+  if (user.auth_type === 'deleted') {
+    return res.status(400).json({ error: 'Account already deleted' });
+  }
+
+  // For email/password users: require password confirmation
+  // For YouTube-only users: require explicit { confirm: true }
+  const hasPassword = !!(await getUserPasswordHash(user.id));
+  if (hasPassword) {
+    const { password } = req.body || {};
+    if (!password) {
+      return res.status(400).json({
+        error: 'Password required',
+        message: 'Please provide your password to confirm account deletion.'
+      });
+    }
+
+    const hash = await getUserPasswordHash(user.id);
+    const isValid = await verifyPassword(password, hash);
+    if (!isValid) {
+      return res.status(401).json({
+        error: 'Invalid password',
+        message: 'The password you entered is incorrect.'
+      });
+    }
+  } else {
+    // YouTube-only users: require explicit confirmation flag
+    const { confirm } = req.body || {};
+    if (confirm !== true) {
+      return res.status(400).json({
+        error: 'Confirmation required',
+        message: 'Please confirm account deletion.'
+      });
+    }
+  }
+
+  // Perform soft delete
+  await User.softDelete(user.id);
+
+  console.log(`[Auth] Account self-deleted: ${user.display_name} (${user.id})`);
+
+  res.json({ message: 'Account deleted' });
+}));
+
+/**
+ * Helper: get user's password_hash directly (not exposed on findById)
+ */
+async function getUserPasswordHash(userId) {
+  const db = require('../config/database');
+  const result = await db.query('SELECT password_hash FROM users WHERE id = $1', [userId]);
+  return result.rows[0]?.password_hash || null;
+}
 
 module.exports = router;

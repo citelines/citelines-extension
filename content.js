@@ -185,16 +185,23 @@
           share.creatorYoutubeChannelId === videoChannelId
         );
 
+        const suggestionCounts = share.suggestionCounts || {};
+
         const mapped = share.annotations
           .filter(ann => !ann.deleted_at)
-          .map(ann => ({
-            ...ann,
-            shareToken: share.shareToken,
-            isOwn,
-            creatorDisplayName: share.creatorDisplayName,
-            creatorUserId: share.userId,
-            isCreatorCitation
-          }));
+          .map(ann => {
+            const sc = suggestionCounts[ann.id];
+            return {
+              ...ann,
+              shareToken: share.shareToken,
+              isOwn,
+              creatorDisplayName: share.creatorDisplayName,
+              creatorUserId: share.userId,
+              isCreatorCitation,
+              suggestionCount: sc ? sc.count : 0,
+              userHasSuggestion: sc ? sc.userHasSuggestion : false
+            };
+          });
 
         sharedAnnotations.push(...mapped);
       }
@@ -643,6 +650,12 @@
     const creationTimeHTML = creationTime ? `<div class="yt-annotator-creation-time">Created ${creationTime}</div>` : '';
     const editedTimeHTML = annotation.editedAt ? `<div class="yt-annotator-edited-time">Edited ${formatCreationTime(annotation.editedAt)}</div>` : '';
 
+    // Suggestion count badge (for own citations only)
+    const suggestionCount = annotation.suggestionCount || 0;
+    const suggestionBadgeHTML = (!isShared && suggestionCount > 0)
+      ? `<div class="yt-annotator-suggestion-badge" title="View suggestions">&#128161; ${suggestionCount} suggestion${suggestionCount !== 1 ? 's' : ''}</div>`
+      : '';
+
     popup.innerHTML = `
       <div class="yt-annotator-popup-header">
         <span class="yt-annotator-popup-timestamp">${formatTime(annotation.timestamp)}${badge}</span>
@@ -655,6 +668,8 @@
       <div class="yt-annotator-popup-content">${escapeHtml(annotation.text)}</div>
       ${creationTimeHTML}
       ${editedTimeHTML}
+      ${suggestionBadgeHTML}
+      <div class="yt-annotator-suggestion-detail" style="display: none;"></div>
       <div class="yt-annotator-popup-actions">
         <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="goto">Go to</button>
       </div>
@@ -662,6 +677,58 @@
 
     // Event listeners
     popup.querySelector('.yt-annotator-popup-close').addEventListener('click', closePopup);
+
+    // Suggestion badge click handler (owner view)
+    const suggestionBadge = popup.querySelector('.yt-annotator-suggestion-badge');
+    if (suggestionBadge) {
+      suggestionBadge.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const detailDiv = popup.querySelector('.yt-annotator-suggestion-detail');
+        if (!detailDiv) return;
+
+        // Toggle visibility
+        if (detailDiv.style.display !== 'none') {
+          detailDiv.style.display = 'none';
+          return;
+        }
+
+        detailDiv.style.display = 'block';
+        detailDiv.innerHTML = '<div style="color: #aaa; font-size: 12px; padding: 8px;">Loading suggestions...</div>';
+
+        try {
+          const result = await api.getSuggestions(annotation.shareToken);
+          const suggestions = (result.suggestions || []).filter(s => s.annotationId === annotation.id);
+
+          if (suggestions.length === 0) {
+            detailDiv.innerHTML = '<div style="color: #aaa; font-size: 12px; padding: 8px;">No suggestions found.</div>';
+            return;
+          }
+
+          detailDiv.innerHTML = suggestions.map(s => {
+            let changesHTML = '';
+            try {
+              const changes = JSON.parse(s.suggestedText);
+              if (changes.text) {
+                changesHTML += `<div class="yt-annotator-suggestion-diff"><span class="yt-annotator-suggestion-diff-label">Note:</span> <span class="yt-annotator-suggestion-diff-old">${escapeHtml(annotation.text || '')}</span> <span class="yt-annotator-suggestion-diff-arrow">&rarr;</span> <span class="yt-annotator-suggestion-diff-new">${escapeHtml(changes.text)}</span></div>`;
+              }
+              if (changes.citation) {
+                for (const [key, val] of Object.entries(changes.citation)) {
+                  const origVal = (annotation.citation || {})[key] || '';
+                  changesHTML += `<div class="yt-annotator-suggestion-diff"><span class="yt-annotator-suggestion-diff-label">${escapeHtml(key)}:</span> <span class="yt-annotator-suggestion-diff-old">${escapeHtml(origVal)}</span> <span class="yt-annotator-suggestion-diff-arrow">&rarr;</span> <span class="yt-annotator-suggestion-diff-new">${escapeHtml(val)}</span></div>`;
+                }
+              }
+            } catch (e) {
+              changesHTML = `<div style="color: #aaa;">${escapeHtml(s.suggestedText)}</div>`;
+            }
+            const reasonHTML = s.reason ? `<div class="yt-annotator-suggestion-reason">Reason: ${escapeHtml(s.reason)}</div>` : '';
+            return `<div class="yt-annotator-suggestion-item"><div class="yt-annotator-suggestion-item-header">${escapeHtml(s.reporterDisplayName || 'Anonymous')}</div>${changesHTML}${reasonHTML}</div>`;
+          }).join('');
+        } catch (error) {
+          console.error('Failed to load suggestions:', error);
+          detailDiv.innerHTML = '<div style="color: #f44; font-size: 12px; padding: 8px;">Failed to load suggestions.</div>';
+        }
+      });
+    }
 
     // Three-dots menu
     const actionsBtn = popup.querySelector('.yt-annotator-actions-btn');
@@ -685,13 +752,14 @@
           </button>
         `;
       } else {
-        // Other's citation: Report + Suggest
+        // Other's citation: Report + Suggest/View My Suggestion
+        const suggestLabel = annotation.userHasSuggestion ? 'View My Suggestion' : 'Suggest a Change';
         menu.innerHTML = `
           <button class="yt-annotator-actions-menu-item" data-menu-action="report">
             <span class="yt-annotator-actions-menu-icon">&#9873;</span> Report
           </button>
           <button class="yt-annotator-actions-menu-item" data-menu-action="suggest">
-            <span class="yt-annotator-actions-menu-icon">&#9998;</span> Suggest
+            <span class="yt-annotator-actions-menu-icon">&#9998;</span> ${suggestLabel}
           </button>
         `;
       }
@@ -714,7 +782,7 @@
           } else if (action === 'report') {
             showReportModal(annotation);
           } else if (action === 'suggest') {
-            showSuggestModal(annotation);
+            handleSuggestAction(annotation);
           }
         });
       });
@@ -918,41 +986,198 @@
     document.body.appendChild(modal);
   }
 
+  // Handle suggest action: fetch existing suggestion if user has one, then open modal
+  async function handleSuggestAction(annotation) {
+    if (annotation.userHasSuggestion) {
+      try {
+        const result = await api.getMySuggestion(annotation.shareToken, annotation.id);
+        if (result.suggestion) {
+          showSuggestModal(annotation, result.suggestion);
+          return;
+        }
+      } catch (error) {
+        console.error('Failed to fetch existing suggestion:', error);
+      }
+    }
+    showSuggestModal(annotation, null);
+  }
+
   // Show suggest-edit modal for a citation
-  function showSuggestModal(annotation) {
+  function showSuggestModal(annotation, existingSuggestion = null) {
+    const citation = annotation.citation || {};
+    const citationType = citation.type || 'note';
     const originalText = annotation.text || '';
+
+    // Define fields per citation type
+    const fieldDefs = {
+      note: [],
+      youtube: [
+        { key: 'title', label: 'Title', source: 'citation' },
+        { key: 'url', label: 'URL', source: 'citation' },
+        { key: 'date', label: 'Date', source: 'citation', isDate: true },
+      ],
+      movie: [
+        { key: 'title', label: 'Title', source: 'citation' },
+        { key: 'year', label: 'Year', source: 'citation' },
+        { key: 'director', label: 'Director', source: 'citation' },
+      ],
+      article: [
+        { key: 'title', label: 'Title', source: 'citation' },
+        { key: 'url', label: 'URL', source: 'citation' },
+        { key: 'author', label: 'Author', source: 'citation' },
+        { key: 'date', label: 'Date', source: 'citation', isDate: true },
+      ],
+    };
+
+    // Always include the text (note) field
+    const fields = [
+      ...(fieldDefs[citationType] || []),
+      { key: 'text', label: 'Note', source: 'text' },
+    ];
+
+    // Get original value for a field
+    function getOriginalValue(field) {
+      if (field.isDate) {
+        return formatDate(citation);
+      }
+      if (field.source === 'citation') return citation[field.key] || '';
+      return originalText;
+    }
+
+    // Build field rows HTML
+    let fieldsHTML = '';
+    for (const field of fields) {
+      const origVal = getOriginalValue(field);
+      const displayVal = origVal || '(empty)';
+
+      if (field.isDate) {
+        fieldsHTML += `
+          <div class="yt-annotator-suggest-field" data-field="${field.key}">
+            <span class="yt-annotator-report-label">${field.label}</span>
+            <div class="yt-annotator-suggest-row">
+              <div class="yt-annotator-suggest-original">${escapeHtml(displayVal)}</div>
+              <button class="yt-annotator-suggest-edit-btn" title="Suggest change">&#9998;</button>
+            </div>
+            <div class="yt-annotator-suggest-input-wrap" style="display: none;">
+              <div style="display: flex; gap: 6px; flex: 1;">
+                <input type="text" class="yt-annotator-suggest-input" data-date-part="month" placeholder="Month" value="${escapeHtml(citation.month || '')}" style="flex: 1;" />
+                <input type="text" class="yt-annotator-suggest-input" data-date-part="day" placeholder="Day" value="${escapeHtml(citation.day || '')}" style="flex: 1;" />
+                <input type="text" class="yt-annotator-suggest-input" data-date-part="year" placeholder="Year" value="${escapeHtml(citation.year || '')}" style="flex: 1;" />
+              </div>
+              <button class="yt-annotator-suggest-collapse-btn" title="Cancel edit">&times;</button>
+            </div>
+          </div>`;
+      } else {
+        const isTextarea = field.key === 'text';
+        const inputTag = isTextarea
+          ? `<textarea class="yt-annotator-suggest-input" data-field-key="${field.key}">${escapeHtml(origVal)}</textarea>`
+          : `<input type="text" class="yt-annotator-suggest-input" data-field-key="${field.key}" value="${escapeHtml(origVal)}" />`;
+
+        fieldsHTML += `
+          <div class="yt-annotator-suggest-field" data-field="${field.key}">
+            <span class="yt-annotator-report-label">${field.label}</span>
+            <div class="yt-annotator-suggest-row">
+              <div class="yt-annotator-suggest-original">${escapeHtml(displayVal)}</div>
+              <button class="yt-annotator-suggest-edit-btn" title="Suggest change">&#9998;</button>
+            </div>
+            <div class="yt-annotator-suggest-input-wrap" style="display: none;">
+              ${inputTag}
+              <button class="yt-annotator-suggest-collapse-btn" title="Cancel edit">&times;</button>
+            </div>
+          </div>`;
+      }
+    }
+
+    const isEditing = !!existingSuggestion;
+    const modalTitle = isEditing ? 'View My Suggestion' : 'Suggest a Change';
+    const submitLabel = isEditing ? 'Update Suggestion' : 'Submit';
+    const existingReason = isEditing ? (existingSuggestion.reason || '') : '';
+
+    // Parse existing suggestion changes for pre-filling
+    let existingChanges = {};
+    if (isEditing && existingSuggestion.suggestedText) {
+      try { existingChanges = JSON.parse(existingSuggestion.suggestedText); } catch (e) {}
+    }
 
     const modal = document.createElement('div');
     modal.className = 'yt-annotator-report-modal';
     modal.innerHTML = `
       <div class="yt-annotator-report-content">
         <button class="yt-annotator-report-close">&times;</button>
-        <h3>Suggest a Change</h3>
-        <div style="margin-bottom: 14px;">
-          <span class="yt-annotator-report-label">Original:</span>
-          <div class="yt-annotator-report-original">${escapeHtml(originalText)}</div>
-        </div>
-        <div style="margin-bottom: 14px;">
-          <span class="yt-annotator-report-label">Your suggestion:</span>
-          <textarea class="yt-annotator-report-textarea" style="min-height: 70px;">${escapeHtml(originalText)}</textarea>
-        </div>
-        <div style="margin-bottom: 4px;">
+        <h3>${modalTitle}</h3>
+        ${fieldsHTML}
+        <div style="margin-top: 14px; margin-bottom: 4px;">
           <span class="yt-annotator-report-label">Reason (optional):</span>
-          <textarea class="yt-annotator-report-textarea yt-annotator-suggest-reason" placeholder="Why this change?"></textarea>
+          <textarea class="yt-annotator-report-textarea yt-annotator-suggest-reason" placeholder="Why this change?">${escapeHtml(existingReason)}</textarea>
         </div>
         <div class="yt-annotator-report-actions">
           <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="cancel">Cancel</button>
-          <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="submit">Submit</button>
+          <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="submit">${submitLabel}</button>
         </div>
       </div>
     `;
 
-    // Stop keyboard events
-    modal.querySelectorAll('textarea').forEach(ta => {
-      ta.addEventListener('keydown', (e) => e.stopPropagation());
-      ta.addEventListener('keyup', (e) => e.stopPropagation());
-      ta.addEventListener('keypress', (e) => e.stopPropagation());
+    // Stop keyboard events on all inputs/textareas
+    function stopKeys(el) {
+      el.addEventListener('keydown', (e) => e.stopPropagation());
+      el.addEventListener('keyup', (e) => e.stopPropagation());
+      el.addEventListener('keypress', (e) => e.stopPropagation());
+    }
+    modal.querySelectorAll('textarea, input').forEach(stopKeys);
+
+    // Wire up pen/collapse toggle for each field
+    modal.querySelectorAll('.yt-annotator-suggest-field').forEach(fieldEl => {
+      const editBtn = fieldEl.querySelector('.yt-annotator-suggest-edit-btn');
+      const inputWrap = fieldEl.querySelector('.yt-annotator-suggest-input-wrap');
+      const collapseBtn = fieldEl.querySelector('.yt-annotator-suggest-collapse-btn');
+
+      const toggle = () => {
+        const visible = inputWrap.style.display !== 'none';
+        inputWrap.style.display = visible ? 'none' : 'flex';
+        editBtn.classList.toggle('active', !visible);
+      };
+      editBtn.addEventListener('click', toggle);
+      collapseBtn.addEventListener('click', toggle);
     });
+
+    // Pre-fill and pre-expand fields from existing suggestion
+    if (isEditing && Object.keys(existingChanges).length > 0) {
+      for (const field of fields) {
+        let hasChange = false;
+        if (field.isDate && existingChanges.citation) {
+          hasChange = 'month' in existingChanges.citation || 'day' in existingChanges.citation || 'year' in existingChanges.citation;
+        } else if (field.source === 'citation' && existingChanges.citation && field.key in existingChanges.citation) {
+          hasChange = true;
+        } else if (field.key === 'text' && 'text' in existingChanges) {
+          hasChange = true;
+        }
+
+        if (hasChange) {
+          const fieldEl = modal.querySelector(`.yt-annotator-suggest-field[data-field="${field.key}"]`);
+          if (!fieldEl) continue;
+          const inputWrap = fieldEl.querySelector('.yt-annotator-suggest-input-wrap');
+          const editBtn = fieldEl.querySelector('.yt-annotator-suggest-edit-btn');
+          inputWrap.style.display = 'flex';
+          editBtn.classList.add('active');
+
+          // Fill in the suggested values
+          if (field.isDate && existingChanges.citation) {
+            const mInput = fieldEl.querySelector('[data-date-part="month"]');
+            const dInput = fieldEl.querySelector('[data-date-part="day"]');
+            const yInput = fieldEl.querySelector('[data-date-part="year"]');
+            if (mInput && existingChanges.citation.month !== undefined) mInput.value = existingChanges.citation.month;
+            if (dInput && existingChanges.citation.day !== undefined) dInput.value = existingChanges.citation.day;
+            if (yInput && existingChanges.citation.year !== undefined) yInput.value = existingChanges.citation.year;
+          } else if (field.source === 'citation' && existingChanges.citation) {
+            const input = fieldEl.querySelector(`[data-field-key="${field.key}"]`);
+            if (input) input.value = existingChanges.citation[field.key];
+          } else if (field.key === 'text') {
+            const input = fieldEl.querySelector(`[data-field-key="text"]`);
+            if (input) input.value = existingChanges.text;
+          }
+        }
+      }
+    }
 
     const closeModal = () => modal.remove();
 
@@ -963,24 +1188,70 @@
     });
 
     modal.querySelector('[data-action="submit"]').addEventListener('click', async () => {
-      const textareas = modal.querySelectorAll('.yt-annotator-report-textarea');
-      const suggestedText = textareas[0].value.trim();
       const reason = modal.querySelector('.yt-annotator-suggest-reason').value.trim();
 
-      if (!suggestedText) return;
-      if (suggestedText === originalText) return;
+      // Collect changes from opened/edited fields
+      const changes = {};
+      const citationChanges = {};
+
+      for (const field of fields) {
+        const fieldEl = modal.querySelector(`.yt-annotator-suggest-field[data-field="${field.key}"]`);
+        const inputWrap = fieldEl.querySelector('.yt-annotator-suggest-input-wrap');
+        if (inputWrap.style.display === 'none') continue; // Not opened
+
+        if (field.isDate) {
+          const m = fieldEl.querySelector('[data-date-part="month"]').value.trim();
+          const d = fieldEl.querySelector('[data-date-part="day"]').value.trim();
+          const y = fieldEl.querySelector('[data-date-part="year"]').value.trim();
+          const origM = citation.month || '';
+          const origD = citation.day || '';
+          const origY = citation.year || '';
+          if (m !== origM || d !== origD || y !== origY) {
+            citationChanges.month = m;
+            citationChanges.day = d;
+            citationChanges.year = y;
+          }
+        } else if (field.source === 'citation') {
+          const val = fieldEl.querySelector(`[data-field-key="${field.key}"]`).value.trim();
+          const orig = citation[field.key] || '';
+          if (val !== orig) {
+            citationChanges[field.key] = val;
+          }
+        } else {
+          // text field
+          const val = fieldEl.querySelector(`[data-field-key="${field.key}"]`).value.trim();
+          if (val !== originalText) {
+            changes.text = val;
+          }
+        }
+      }
+
+      if (Object.keys(citationChanges).length > 0) {
+        changes.citation = citationChanges;
+      }
+
+      if (Object.keys(changes).length === 0) return; // Nothing changed
+
+      const suggestedText = JSON.stringify(changes);
 
       try {
-        await api.suggestEdit(annotation.shareToken, annotation.id, suggestedText, reason);
+        if (isEditing) {
+          await api.updateSuggestion(existingSuggestion.id, suggestedText, reason);
+        } else {
+          await api.suggestEdit(annotation.shareToken, annotation.id, suggestedText, reason);
+        }
+
+        // Mark that user now has a suggestion for this annotation
+        annotation.userHasSuggestion = true;
 
         // Show success
+        const successMsg = isEditing ? 'Your suggestion has been updated.' : 'Your suggestion has been submitted.<br>The citation author will be notified.';
         const content = modal.querySelector('.yt-annotator-report-content');
         content.innerHTML = `
           <button class="yt-annotator-report-close">&times;</button>
-          <h3>Suggest a Change</h3>
+          <h3>${modalTitle}</h3>
           <div class="yt-annotator-report-success">
-            Your suggestion has been submitted.<br>
-            The citation author will be notified.
+            ${successMsg}
           </div>
           <div class="yt-annotator-report-actions">
             <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="close">Close</button>
@@ -1731,11 +2002,16 @@
         ownerBadge = `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
       }
 
+      const sidebarSuggestionIndicator = (annotation.isOwn && annotation.suggestionCount > 0)
+        ? `<span class="yt-annotator-suggestion-badge-small" title="${annotation.suggestionCount} suggestion${annotation.suggestionCount !== 1 ? 's' : ''}">&#128161; ${annotation.suggestionCount}</span>`
+        : '';
+
       return `
         <div class="yt-annotator-sidebar-item ${ownerClass}" data-timestamp="${annotation.timestamp}">
           <div class="yt-annotator-sidebar-item-header">
             <span class="yt-annotator-sidebar-time">${formatTime(annotation.timestamp)}</span>
             ${ownerBadge}
+            ${sidebarSuggestionIndicator}
             <button class="yt-annotator-actions-btn" title="Actions">&#8942;</button>
           </div>
           ${citationPreview}
@@ -1795,12 +2071,13 @@
               </button>
             `;
           } else {
+            const suggestLabel = annotation.userHasSuggestion ? 'View My Suggestion' : 'Suggest a Change';
             menu.innerHTML = `
               <button class="yt-annotator-actions-menu-item" data-menu-action="report">
                 <span class="yt-annotator-actions-menu-icon">&#9873;</span> Report
               </button>
               <button class="yt-annotator-actions-menu-item" data-menu-action="suggest">
-                <span class="yt-annotator-actions-menu-icon">&#9998;</span> Suggest
+                <span class="yt-annotator-actions-menu-icon">&#9998;</span> ${suggestLabel}
               </button>
             `;
           }
@@ -1829,7 +2106,7 @@
               } else if (action === 'report') {
                 showReportModal(annotation);
               } else if (action === 'suggest') {
-                showSuggestModal(annotation);
+                handleSuggestAction(annotation);
               }
             });
           });

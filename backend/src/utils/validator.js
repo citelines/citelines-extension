@@ -2,6 +2,13 @@
  * Validation utilities for input data
  */
 
+const { RegExpMatcher, englishDataset, englishRecommendedTransformers } = require('obscenity');
+
+const matcher = new RegExpMatcher({
+  ...englishDataset.build(),
+  ...englishRecommendedTransformers,
+});
+
 const VIDEO_ID_REGEX = /^[a-zA-Z0-9_-]{11}$/;
 const MAX_ANNOTATIONS = 100;
 const MAX_ANNOTATION_TEXT_LENGTH = 500;
@@ -93,12 +100,25 @@ function sanitizeText(text) {
     .trim();
 }
 
+/**
+ * Validate display name for profanity
+ * @param {string} name
+ * @returns {Object} { valid: boolean, error?: string }
+ */
+function validateDisplayName(name) {
+  if (matcher.hasMatch(name)) {
+    return { valid: false, error: 'Display name contains inappropriate language. Please choose a different name.' };
+  }
+  return { valid: true };
+}
+
 module.exports = {
   isValidVideoId,
   validateAnnotations,
   isValidTitle,
   isValidShareToken,
   sanitizeText,
+  validateDisplayName,
   MAX_ANNOTATIONS,
   MAX_ANNOTATION_TEXT_LENGTH,
   MAX_TITLE_LENGTH

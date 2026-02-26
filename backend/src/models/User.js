@@ -506,6 +506,47 @@ class User {
   }
 
   /**
+   * Soft-delete a user account: strip PII, set auth_type='deleted'.
+   * Keeps display_name for citation attribution (Wikipedia-style).
+   * @param {string} userId
+   * @returns {Promise<void>}
+   */
+  static async softDelete(userId) {
+    const client = await db.getClient();
+
+    try {
+      await client.query('BEGIN');
+
+      await client.query(
+        `UPDATE users
+         SET auth_type = 'deleted',
+             email = NULL,
+             password_hash = NULL,
+             email_verified = false,
+             email_verification_token = NULL,
+             email_verification_expires = NULL,
+             password_reset_token = NULL,
+             password_reset_expires = NULL,
+             youtube_channel_id = NULL,
+             youtube_channel_title = NULL,
+             youtube_verified = false,
+             anonymous_id = 'deleted_' || id::text,
+             deleted_at = NOW()
+         WHERE id = $1`,
+        [userId]
+      );
+
+      await client.query('COMMIT');
+      console.log(`[User] Account soft-deleted: ${userId}`);
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  }
+
+  /**
    * Auto-unsuspend user (called when suspension expires)
    * @param {string} userId
    * @returns {Promise<void>}

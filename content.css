@@ -1652,6 +1652,199 @@ a.yt-annotator-citation-title:hover {
   line-height: 1.6;
 }
 
+/* Suggest modal field styles */
+.yt-annotator-suggest-field {
+  margin-bottom: 12px;
+}
+
+.yt-annotator-suggest-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.yt-annotator-suggest-original {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #444;
+  padding: 6px 10px;
+  color: #999;
+  font-size: 13px;
+  line-height: 1.4;
+  font-style: italic;
+  border-radius: 0 4px 4px 0;
+  min-height: 18px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.yt-annotator-suggest-edit-btn {
+  background: none;
+  border: 1px solid #444;
+  color: #888;
+  font-size: 14px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.yt-annotator-suggest-edit-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: #666;
+}
+
+.yt-annotator-suggest-edit-btn.active {
+  background: rgba(4, 151, 166, 0.15);
+  color: #0497a6;
+  border-color: #0497a6;
+}
+
+.yt-annotator-suggest-input-wrap {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.yt-annotator-suggest-input-wrap input.yt-annotator-suggest-input,
+.yt-annotator-suggest-input-wrap textarea.yt-annotator-suggest-input {
+  flex: 1;
+  background: #2a2a2a;
+  border: 1px solid #0497a6;
+  border-radius: 4px;
+  padding: 6px 10px;
+  color: #fff;
+  font-size: 13px;
+  font-family: 'Roboto', Arial, sans-serif;
+  box-sizing: border-box;
+}
+
+.yt-annotator-suggest-input-wrap textarea.yt-annotator-suggest-input {
+  min-height: 50px;
+  resize: vertical;
+}
+
+.yt-annotator-suggest-input-wrap input.yt-annotator-suggest-input:focus,
+.yt-annotator-suggest-input-wrap textarea.yt-annotator-suggest-input:focus {
+  outline: none;
+  border-color: #06c5d8;
+}
+
+.yt-annotator-suggest-collapse-btn {
+  background: none;
+  border: 1px solid #444;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.yt-annotator-suggest-collapse-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border-color: #666;
+}
+
+/* Suggestion badge (popup) */
+.yt-annotator-suggestion-badge {
+  display: inline-block;
+  background: rgba(255, 170, 62, 0.15);
+  color: #ffaa3e;
+  border: 1px solid rgba(255, 170, 62, 0.3);
+  border-radius: 12px;
+  padding: 3px 10px;
+  font-size: 12px;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 0.15s;
+}
+
+.yt-annotator-suggestion-badge:hover {
+  background: rgba(255, 170, 62, 0.25);
+}
+
+/* Suggestion badge small (sidebar) */
+.yt-annotator-suggestion-badge-small {
+  display: inline-block;
+  background: rgba(255, 170, 62, 0.2);
+  color: #ffaa3e;
+  border-radius: 8px;
+  padding: 1px 6px;
+  font-size: 10px;
+  margin-left: 4px;
+  flex-shrink: 0;
+}
+
+/* Suggestion detail (expandable in popup) */
+.yt-annotator-suggestion-detail {
+  margin-top: 6px;
+  border-top: 1px solid #3a3a3a;
+  padding-top: 6px;
+}
+
+.yt-annotator-suggestion-item {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+}
+
+.yt-annotator-suggestion-item-header {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ccc;
+  margin-bottom: 4px;
+}
+
+.yt-annotator-suggestion-diff {
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 2px;
+}
+
+.yt-annotator-suggestion-diff-label {
+  color: #aaa;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.yt-annotator-suggestion-diff-old {
+  color: #f44;
+  text-decoration: line-through;
+}
+
+.yt-annotator-suggestion-diff-arrow {
+  color: #888;
+  margin: 0 4px;
+}
+
+.yt-annotator-suggestion-diff-new {
+  color: #4caf50;
+}
+
+.yt-annotator-suggestion-reason {
+  font-size: 11px;
+  color: #aaa;
+  margin-top: 4px;
+  font-style: italic;
+}
+
 /* Sidebar three-dots positioning */
 .yt-annotator-sidebar-item-header {
   position: relative;

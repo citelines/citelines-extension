@@ -23,6 +23,15 @@ router.get('/:userId/profile', asyncHandler(async (req, res) => {
     });
   }
 
+  // Deleted accounts return minimal info (display_name preserved for attribution)
+  if (user.auth_type === 'deleted') {
+    return res.json({
+      userId: user.id,
+      displayName: user.display_name,
+      deleted: true
+    });
+  }
+
   // Get user's shares (videos they've cited)
   const shares = await Share.findByUserId(userId, 100, 0);
 
