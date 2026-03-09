@@ -5,7 +5,7 @@
 **Deployment**: ✅ Live on Railway
 **Backend URL**: `https://youtube-annotator-production.up.railway.app`
 **Database**: PostgreSQL on Railway
-**Current Phase**: Phase 3D complete, Account Deletion complete, Display Name Profanity Filter complete, Privacy Policy in progress
+**Current Phase**: Phase 3D complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, Privacy Policy in progress
 
 ---
 
@@ -59,7 +59,7 @@
 
 ### Phase 3B: Admin Web Dashboard ✅
 - Login page with JWT authentication
-- Four tabs: Users | Citations | Analytics | Audit Log
+- Five tabs: Users | Citations | Reports | Analytics | Audit Log
 - **Users Tab**:
   - Sort and filter on Auth Type, Status, Joined columns
   - User Details modal with identifiers, citations list, admin action history
@@ -75,6 +75,16 @@
   - User interventions (Suspended Temporary, Suspended Permanent)
   - Citation status (Active, Deleted)
   - Color-coded stat cards (grey=anonymous/unverified, green=verified, orange=YouTube, yellow=suspended-temp, red=suspended-permanent)
+- **Reports Tab**:
+  - View citation reports submitted by users (from three-dot menu)
+  - Filter by status (Pending / All) with search
+  - Actions per report: Dismiss, Delete Citation (auto-resolves report), View User, Suspend, Ban
+  - Structured citation content display (movie, article, YouTube types)
+- **Citations Tab — REPORTED Badge**:
+  - Citations with pending reports show "REPORTED" badge (pink) alongside ACTIVE/DELETED status
+  - "Reported" added to status filter dropdown
+- **Structured Citation Display**:
+  - All admin views (Citations, Reports, User Details) show formatted citation data for typed citations (movie, article, YouTube) — not just free-text notes
 - **Audit Log Tab**:
   - View all admin actions with search
 - **Filter UI**:
@@ -340,6 +350,14 @@ Make browsing, searching, and exporting citations a core product capability — 
 - Auth middleware blocks `deleted_` anonymous IDs (security hardening)
 - DB migration 014: `deleted_at` column on users table
 
+### Citelines.org Website ✅
+- **Homepage**: Animated quote carousel with 5 rotating quote+citation pairs, styled Citelines citation cards with teal triangle markers, varying positions per quote, carousel dot indicators
+- **About page**: Full mission statement with Naomi Klein blockquote + static styled citation card, Mission section (Build/Collaborate/Teach), Team section placeholder
+- **Brand**: "Cite|ines" logo with teal text and orange vertical divider line
+- **Navigation**: About, Get Involved, Blog links; active page highlighted in teal; user account icon shows initials when logged in (teal circle matching extension style)
+- **Auth**: Sign Up / Log In dropdown from nav, logged-in state with display name + dashboard/settings links, logout
+- Repo: `citelines-site` (Astro static site)
+
 ### Citation Trees (Infrastructure)
 
 The ability to add a citation to a citation — nesting sources to deeper, more original references where applicable.
@@ -368,6 +386,11 @@ Three-dot menu on each citation. See three-dots.md for design details.
 - [x] Suggest edit modal — redesigned with click-to-edit fields per citation type (see three-dots.md)
 - [x] Backend: PUT /api/shares/:token/annotations/:annotationId accepts { text?, citation? }, POST /api/reports
 - [x] Migration 015_create_citation_reports.sql deployed
+
+### Moderator Removal Placeholder (Extension) ✅
+- When an admin deletes a user's citation, the user sees a grayed-out "This citation was removed by a moderator" placeholder in their sidebar (instead of silent disappearance)
+- Admin-deleted own annotations: kept in fetch with `adminDeleted: true` flag, skipped in marker rendering, shown as placeholder in sidebar
+- No ⋮ menu on removed citations
 
 ### Phase 3C: Community Moderation
 - User blocking (hide specific users' citations)
@@ -575,6 +598,6 @@ node clear-data.js
 
 ---
 
-**Last Updated**: 2026-02-25
-**Status**: Phase 3D complete, Account Merge complete, Account Deletion complete, Display Name Profanity Filter complete, Privacy Policy in progress
+**Last Updated**: 2026-03-09
+**Status**: Phase 3D complete, Account Merge complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, Privacy Policy in progress
 **Next**: Live-test items in "Needs Live Testing" section, finish Privacy Policy + TOS, then Creator Tools (Phase 4A) or Chrome Web Store publishing
