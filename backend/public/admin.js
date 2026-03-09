@@ -18,6 +18,7 @@ let currentUser = null;
 let usersData = [];
 let citationsData = [];
 let auditData = [];
+let reportsData = [];
 let analyticsData = null;
 let currentAction = null;
 let selectedCitations = new Set();
@@ -129,13 +130,15 @@ function switchTab(tabName) {
     loadAnalytics();
   } else if (tabName === 'audit' && auditData.length === 0) {
     loadAudit();
+  } else if (tabName === 'reports' && reportsData.length === 0) {
+    loadReports();
   }
 }
 
 // Restore last active tab on page load
 function restoreActiveTab() {
   const savedTab = localStorage.getItem('admin_active_tab');
-  if (savedTab && ['users', 'citations', 'analytics', 'audit'].includes(savedTab)) {
+  if (savedTab && ['users', 'citations', 'analytics', 'audit', 'reports'].includes(savedTab)) {
     // Remove default active states
     document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
@@ -144,7 +147,8 @@ function restoreActiveTab() {
     const tabs = document.querySelectorAll('.tab');
     tabs.forEach(tab => {
       if (tab.textContent.toLowerCase() === savedTab ||
-          (savedTab === 'audit' && tab.textContent === 'Audit Log')) {
+          (savedTab === 'audit' && tab.textContent === 'Audit Log') ||
+          (savedTab === 'reports' && tab.textContent === 'Reports')) {
         tab.classList.add('active');
       }
     });
@@ -161,6 +165,8 @@ function restoreActiveTab() {
       loadAnalytics();
     } else if (savedTab === 'audit') {
       loadAudit();
+    } else if (savedTab === 'reports') {
+      loadReports();
     }
   } else {
     // Default to users tab
@@ -865,6 +871,7 @@ function renderCitations(citations) {
                 ${isDeleted ?
                   '<span class="badge badge-deleted">Deleted</span>' :
                   '<span class="badge badge-active">Active</span>'}
+                ${citation.has_pending_report ? ' <span class="badge badge-reported">Reported</span>' : ''}
               </td>
               <td>${formatDate(citation.created_at)}</td>
               <td>
@@ -913,6 +920,18 @@ function getSortedFilteredCitations() {
     for (const [column, values] of Object.entries(citationsFilters)) {
       if (values.length === 0) continue;
 
+      if (column === 'status') {
+        // Status is multi-valued: a citation can be Active+Reported or Deleted+Reported
+        const statusValue = (citation.annotation_deleted_at || citation.share_deleted_at) ? 'Deleted' : 'Active';
+        const citationStatuses = [statusValue];
+        if (citation.has_pending_report) citationStatuses.push('Reported');
+        // Match if any of the citation's statuses are in the filter
+        if (!citationStatuses.some(s => values.includes(s))) {
+          return false;
+        }
+        continue;
+      }
+
       let columnValue;
       switch (column) {
         case 'video_id':
@@ -923,9 +942,6 @@ function getSortedFilteredCitations() {
           break;
         case 'creator_display_name':
           columnValue = citation.creator_display_name || '';
-          break;
-        case 'status':
-          columnValue = (citation.annotation_deleted_at || citation.share_deleted_at) ? 'Deleted' : 'Active';
           break;
         case 'created_at':
           columnValue = formatDate(citation.created_at);
@@ -1155,9 +1171,12 @@ function getUniqueCitationColumnValues(column) {
       case 'creator_display_name':
         value = citation.creator_display_name || '';
         break;
-      case 'status':
+      case 'status': {
         value = (citation.annotation_deleted_at || citation.share_deleted_at) ? 'Deleted' : 'Active';
-        break;
+        values.add(value);
+        if (citation.has_pending_report) values.add('Reported');
+        return; // Already added
+      }
       case 'created_at':
         value = formatDate(citation.created_at);
         break;
@@ -1613,7 +1632,8 @@ async function confirmAction() {
         await deleteCitation(
           currentAction.token,
           document.getElementById('deleteReason').value,
-          currentAction.annotationId
+          currentAction.annotationId,
+          currentAction.reportId
         );
         break;
       case 'restoreAnnotation':
@@ -1750,8 +1770,12 @@ async function deleteCitationRequest(token, reason, annotationId) {
   return result;
 }
 
-async function deleteCitation(token, reason, annotationId) {
+async function deleteCitation(token, reason, annotationId, reportId) {
   await deleteCitationRequest(token, reason, annotationId);
+  if (reportId) {
+    await resolveReport(reportId);
+    await loadReports();
+  }
   await loadCitations();
   await loadAudit();
   await refreshUserDetailsModalIfOpen();
@@ -2052,6 +2076,176 @@ async function bulkRestoreCitations(citationKeys, reason) {
 
   await loadCitations();
   await loadAudit();
+}
+
+// ============================================================================
+// Reports
+// ============================================================================
+
+async function loadReports() {
+  const container = document.getElementById('reportsTable');
+  container.innerHTML = '<div class="loading">Loading reports...</div>';
+
+  const status = document.getElementById('reportStatusFilter')?.value || 'pending';
+
+  try {
+    const response = await fetch(`${API_URL}/api/admin/reports?status=${status}&limit=200`, {
+      headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+    });
+
+    if (!response.ok) throw new Error('Failed to load reports');
+
+    const data = await response.json();
+    reportsData = data.reports || [];
+    renderReports(reportsData);
+
+  } catch (error) {
+    container.innerHTML = `<div class="empty-state">Error: ${error.message}</div>`;
+  }
+}
+
+function renderReports(reports) {
+  const container = document.getElementById('reportsTable');
+
+  if (reports.length === 0) {
+    container.innerHTML = '<div class="empty-state">No reports found</div>';
+    return;
+  }
+
+  const html = `
+    <div style="margin-bottom: 15px; padding: 10px; background: #f5f5f5; border-radius: 4px; font-size: 14px;">
+      <strong>Showing ${reports.length} report(s)</strong>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Reporter</th>
+          <th>Type</th>
+          <th>Share Token</th>
+          <th>Video ID</th>
+          <th>Annotation Text</th>
+          <th>Reason</th>
+          <th>Details</th>
+          <th>Status</th>
+          <th style="width: 280px;">Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        ${reports.map(report => {
+          const isPending = report.status === 'pending';
+          const annotationText = report.annotation_text || '-';
+          const displayText = annotationText.length > 60 ? annotationText.substring(0, 60) + '...' : annotationText;
+
+          return `
+            <tr>
+              <td>${formatDateTime(report.created_at)}</td>
+              <td>${report.reporter_display_name || '-'}</td>
+              <td>${report.report_type || '-'}</td>
+              <td><code>${report.share_token || '-'}</code></td>
+              <td>${report.video_id || '-'}</td>
+              <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(annotationText)}">${escapeHtml(displayText)}</td>
+              <td>${escapeHtml(report.reason || '-')}</td>
+              <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(report.details || '')}">${escapeHtml(report.details || '-')}</td>
+              <td>
+                ${report.status === 'pending' ? '<span class="badge badge-reported">Pending</span>' :
+                  report.status === 'dismissed' ? '<span class="badge badge-deleted">Dismissed</span>' :
+                  report.status === 'resolved' ? '<span class="badge badge-active">Resolved</span>' :
+                  `<span class="badge">${report.status}</span>`}
+              </td>
+              <td>
+                <div class="action-buttons" style="flex-wrap: wrap;">
+                  ${isPending ? `
+                    <button class="action-btn btn-secondary" onclick="dismissReport('${report.id}')">Dismiss</button>
+                    <button class="action-btn btn-danger" onclick="deleteReportedCitation('${report.id}', '${report.share_token}', '${escapeHtml(report.title || report.video_id || '')}', '${report.annotation_id}')">Delete Citation</button>
+                    ${report.target_user_id ? `
+                      <button class="action-btn" onclick="openUserDetailsModal('${report.target_user_id}')" style="background: #0497a6; color: white;">View User</button>
+                      <button class="action-btn btn-danger" onclick="openSuspendModal('${report.target_user_id}', 'User')">Suspend</button>
+                      <button class="action-btn btn-danger" onclick="openBanModal('${report.target_user_id}', 'User')">Ban</button>
+                    ` : ''}
+                  ` : `
+                    <span style="color: #999; font-size: 12px;">${report.status === 'dismissed' ? 'Dismissed' : 'Resolved'} ${report.reviewed_at ? formatDate(report.reviewed_at) : ''}</span>
+                  `}
+                </div>
+              </td>
+            </tr>
+          `;
+        }).join('')}
+      </tbody>
+    </table>
+  `;
+
+  container.innerHTML = html;
+}
+
+function filterReports() {
+  const search = document.getElementById('reportSearch').value.toLowerCase();
+  const filtered = reportsData.filter(report =>
+    (report.reporter_display_name?.toLowerCase().includes(search)) ||
+    (report.share_token?.toLowerCase().includes(search)) ||
+    (report.video_id?.toLowerCase().includes(search)) ||
+    (report.reason?.toLowerCase().includes(search)) ||
+    (report.details?.toLowerCase().includes(search)) ||
+    (report.annotation_text?.toLowerCase().includes(search))
+  );
+  renderReports(filtered);
+}
+
+async function dismissReport(reportId) {
+  if (!confirm('Dismiss this report?')) return;
+
+  try {
+    const response = await fetch(`${API_URL}/api/admin/reports/${reportId}/dismiss`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to dismiss report');
+    }
+
+    await loadReports();
+    await loadCitations();
+  } catch (error) {
+    alert(`Error: ${error.message}`);
+  }
+}
+
+async function resolveReport(reportId) {
+  try {
+    const response = await fetch(`${API_URL}/api/admin/reports/${reportId}/resolve`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${JWT_TOKEN}` }
+    });
+
+    if (!response.ok) {
+      const data = await response.json();
+      throw new Error(data.error || 'Failed to resolve report');
+    }
+  } catch (error) {
+    console.error('Failed to auto-resolve report:', error);
+  }
+}
+
+function deleteReportedCitation(reportId, shareToken, title, annotationId) {
+  // Store report ID so we can auto-resolve after deletion
+  currentAction = { type: 'deleteCitation', token: shareToken, title, annotationId, reportId };
+
+  document.getElementById('modalTitle').textContent = 'Delete Reported Annotation';
+  document.getElementById('modalDescription').textContent = `Delete annotation from "${title}"?`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group">
+      <label for="deleteReason">Reason</label>
+      <input type="text" id="deleteReason" class="search-box" placeholder="e.g., Inappropriate content" style="width: 100%;">
+    </div>
+    <p style="color: #666; font-size: 14px; margin-top: 10px;">This will delete the annotation and auto-resolve the associated report.</p>
+  `;
+  const confirmBtn = document.getElementById('modalConfirmBtn');
+  confirmBtn.textContent = 'Delete';
+  confirmBtn.className = 'btn btn-danger';
+  confirmBtn.disabled = false;
+  document.getElementById('actionModal').classList.add('active');
 }
 
 // ============================================================================

@@ -9,6 +9,8 @@ const { asyncHandler } = require('../middleware/errorHandler');
 const db = require('../config/database');
 const { invalidateBannedIpCache } = require('../middleware/auth');
 
+const Report = require('../models/Report');
+
 const router = express.Router();
 
 /**
@@ -787,6 +789,10 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
     [parseInt(limit), parseInt(offset)]
   );
 
+  // Fetch reported annotation keys to flag reported citations
+  const reportedKeys = await Report.findReportedAnnotationKeys();
+  const reportedSet = new Set(reportedKeys.map(r => `${r.share_token}:${r.annotation_id}`));
+
   // Expand each share into individual annotations for admin view
   const expandedCitations = [];
 
@@ -811,7 +817,9 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
           // Share-level deletion (entire share soft-deleted)
           share_deleted_at: share.deleted_at,
           share_deleted_by_display_name: share.deleted_by_display_name,
-          share_deletion_reason: share.deletion_reason
+          share_deletion_reason: share.deletion_reason,
+          // Report flag
+          has_pending_report: reportedSet.has(`${share.share_token}:${annotation.id}`)
         });
       });
     }
@@ -904,6 +912,119 @@ router.get('/analytics', authenticateAdmin, asyncHandler(async (req, res) => {
   const timeseries = Object.values(dateMap).sort((a, b) => a.date.localeCompare(b.date));
 
   res.json({ totals, timeseries, period, days });
+}));
+
+// ============================================================================
+// REPORTS
+// ============================================================================
+
+/**
+ * GET /api/admin/reports
+ * List reports with optional status filter
+ */
+router.get('/reports', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { status = 'pending', limit = 100, offset = 0 } = req.query;
+
+  let whereClause = '';
+  const params = [parseInt(limit), parseInt(offset)];
+
+  if (status !== 'all') {
+    whereClause = 'WHERE r.status = $3';
+    params.push(status);
+  }
+
+  const result = await db.query(
+    `SELECT
+      r.id, r.report_type, r.share_token, r.annotation_id, r.reason, r.details,
+      r.status, r.created_at, r.reviewed_at,
+      reporter.display_name as reporter_display_name,
+      s.video_id, s.title, s.user_id as target_user_id, s.annotations
+     FROM citation_reports r
+     LEFT JOIN users reporter ON r.reporter_id = reporter.id
+     LEFT JOIN shares s ON r.share_token = s.share_token
+     ${whereClause}
+     ORDER BY r.created_at DESC
+     LIMIT $1 OFFSET $2`,
+    params
+  );
+
+  // Extract annotation text from JSONB for each report
+  const reports = result.rows.map(row => {
+    let annotation_text = null;
+    if (row.annotations && Array.isArray(row.annotations) && row.annotation_id) {
+      const ann = row.annotations.find(a => String(a.id) === String(row.annotation_id));
+      if (ann) annotation_text = ann.text || null;
+    }
+    const { annotations, ...rest } = row;
+    return { ...rest, annotation_text };
+  });
+
+  res.json({
+    reports,
+    count: reports.length,
+    limit: parseInt(limit),
+    offset: parseInt(offset)
+  });
+}));
+
+/**
+ * POST /api/admin/reports/:id/dismiss
+ * Mark a report as dismissed
+ */
+router.post('/reports/:id/dismiss', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const report = await Report.findById(id);
+  if (!report) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  if (report.status !== 'pending') {
+    return res.status(400).json({ error: 'Report is not pending' });
+  }
+
+  await Report.updateStatus(id, 'dismissed', req.user.id);
+
+  await logAdminAction(
+    req.user.id,
+    'dismiss_report',
+    'report',
+    id,
+    'Report dismissed',
+    { share_token: report.share_token, annotation_id: report.annotation_id }
+  );
+
+  res.json({ message: 'Report dismissed', reportId: id });
+}));
+
+/**
+ * POST /api/admin/reports/:id/resolve
+ * Mark a report as resolved
+ */
+router.post('/reports/:id/resolve', authenticateAdmin, asyncHandler(async (req, res) => {
+  const { id } = req.params;
+
+  const report = await Report.findById(id);
+  if (!report) {
+    return res.status(404).json({ error: 'Report not found' });
+  }
+
+  if (report.status !== 'pending') {
+    return res.status(400).json({ error: 'Report is not pending' });
+  }
+
+  await Report.updateStatus(id, 'resolved', req.user.id);
+
+  await logAdminAction(
+    req.user.id,
+    'resolve_report',
+    'report',
+    id,
+    'Report resolved',
+    { share_token: report.share_token, annotation_id: report.annotation_id }
+  );
+
+  res.json({ message: 'Report resolved', reportId: id });
 }));
 
 module.exports = router;

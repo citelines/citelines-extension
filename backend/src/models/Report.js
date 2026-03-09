@@ -164,6 +164,21 @@ class Report {
   }
 
   /**
+   * Find distinct (share_token, annotation_id) pairs with pending reports.
+   * Used by admin citations endpoint to flag reported annotations.
+   * @returns {Promise<Array<{share_token: string, annotation_id: string}>>}
+   */
+  static async findReportedAnnotationKeys() {
+    const query = `
+      SELECT DISTINCT share_token, annotation_id
+      FROM citation_reports
+      WHERE report_type = 'report' AND status = 'pending'
+    `;
+    const result = await db.query(query);
+    return result.rows;
+  }
+
+  /**
    * Update report status
    * @param {string} reportId
    * @param {string} status

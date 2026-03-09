@@ -188,9 +188,15 @@
         const suggestionCounts = share.suggestionCounts || {};
 
         const mapped = share.annotations
-          .filter(ann => !ann.deleted_at)
+          .filter(ann => {
+            if (!ann.deleted_at) return true;
+            // Keep own annotations that were admin-deleted (have deleted_by)
+            // so we can show a "removed by moderator" placeholder
+            return isOwn && !!ann.deleted_by;
+          })
           .map(ann => {
             const sc = suggestionCounts[ann.id];
+            const adminDeleted = !!(ann.deleted_at && ann.deleted_by);
             return {
               ...ann,
               shareToken: share.shareToken,
@@ -198,6 +204,7 @@
               creatorDisplayName: share.creatorDisplayName,
               creatorUserId: share.userId,
               isCreatorCitation,
+              adminDeleted,
               suggestionCount: sc ? sc.count : 0,
               userHasSuggestion: sc ? sc.userHasSuggestion : false
             };
@@ -308,6 +315,9 @@
 
     // Render ALL annotations from sharedAnnotations (includes everyone's)
     sharedAnnotations.forEach((annotation) => {
+      // Skip admin-deleted annotations (no marker on progress bar)
+      if (annotation.adminDeleted) return;
+
       if (annotation.isCreatorCitation) {
         // Creator citations go in the upper orange row (regardless of ownership)
         if (creatorMarkersContainer) {
@@ -777,6 +787,11 @@
   // Show popup for viewing/editing annotation
   function showAnnotationPopup(annotation, video, isShared = false) {
     closePopup();
+
+    // Admin-deleted annotations: show removal notice instead of full popup
+    if (annotation.adminDeleted) {
+      return; // No popup for moderator-removed annotations
+    }
 
     const playerContainer = document.querySelector('#movie_player');
     if (!playerContainer) return;
@@ -2115,6 +2130,18 @@
     }
 
     const listHTML = filtered.map(annotation => {
+      // Admin-deleted annotations: show grayed-out placeholder
+      if (annotation.adminDeleted) {
+        return `
+          <div class="yt-annotator-sidebar-item other" data-timestamp="${annotation.timestamp}" style="opacity: 0.5;">
+            <div class="yt-annotator-sidebar-item-header">
+              <span class="yt-annotator-sidebar-time">${formatTime(annotation.timestamp)}</span>
+            </div>
+            <div class="yt-annotator-sidebar-text" style="color: #999; font-style: italic;">This citation was removed by a moderator</div>
+          </div>
+        `;
+      }
+
       const citationPreview = annotation.citation ?
         `<div class="yt-annotator-sidebar-citation">
           ${annotation.citation.type === 'youtube' ? '🎥' : annotation.citation.type === 'movie' ? '🎬' : '📄'}
@@ -2160,6 +2187,9 @@
     // Add click handlers to show annotation popup
     contentDiv.querySelectorAll('.yt-annotator-sidebar-item').forEach((item, index) => {
       const annotation = filtered[index];
+
+      // Skip admin-deleted items — no interactions
+      if (annotation.adminDeleted) return;
 
       // Click on item (but not badge or actions btn) shows popup
       item.addEventListener('click', (e) => {

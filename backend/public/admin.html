@@ -306,6 +306,11 @@
       color: white;
     }
 
+    .badge-reported {
+      background: #e91e63;
+      color: white;
+    }
+
     .action-buttons {
       display: flex;
       gap: 5px;
@@ -642,6 +647,7 @@
         <button class="tab" onclick="switchTab('citations')">Citations</button>
         <button class="tab" onclick="switchTab('analytics')">Analytics</button>
         <button class="tab" onclick="switchTab('audit')">Audit Log</button>
+        <button class="tab" onclick="switchTab('reports')">Reports</button>
       </div>
 
       <!-- Users Tab -->
@@ -679,6 +685,23 @@
             <input type="text" class="search-box" placeholder="Search actions..." id="auditSearch" oninput="filterAudit()">
           </div>
           <div id="auditTable"></div>
+        </div>
+      </div>
+
+      <!-- Reports Tab -->
+      <div id="reportsTab" class="tab-content">
+        <div class="table-container">
+          <div class="table-header">
+            <h2>Reports</h2>
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <select id="reportStatusFilter" onchange="loadReports()" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                <option value="pending">Pending</option>
+                <option value="all">All</option>
+              </select>
+              <input type="text" class="search-box" placeholder="Search reports..." id="reportSearch" oninput="filterReports()">
+            </div>
+          </div>
+          <div id="reportsTable"></div>
         </div>
       </div>
     </div>
