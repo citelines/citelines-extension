@@ -338,19 +338,19 @@ class AnnotatorAPI {
   }
 
   /**
-   * Edit annotation text (updates a single annotation within a share)
+   * Edit annotation fields (updates a single annotation within a share)
    * @param {string} shareToken - Share token
    * @param {string} annotationId - Annotation ID within the share
-   * @param {string} newText - New annotation text
+   * @param {Object} changes - Changes to apply: { text?: string, citation?: {...} }
    * @returns {Promise<Object>} Updated share data
    */
-  async editAnnotationText(shareToken, annotationId, newText) {
+  async editAnnotation(shareToken, annotationId, changes) {
     const headers = await this.getAuthHeaders();
 
     const response = await fetch(`${this.baseUrl}/shares/${shareToken}/annotations/${annotationId}`, {
       method: 'PUT',
       headers,
-      body: JSON.stringify({ text: newText })
+      body: JSON.stringify(changes)
     });
 
     if (!response.ok) {
@@ -359,6 +359,17 @@ class AnnotatorAPI {
     }
 
     return await response.json();
+  }
+
+  /**
+   * Edit annotation text (backward-compatible wrapper)
+   * @param {string} shareToken - Share token
+   * @param {string} annotationId - Annotation ID within the share
+   * @param {string} newText - New annotation text
+   * @returns {Promise<Object>} Updated share data
+   */
+  async editAnnotationText(shareToken, annotationId, newText) {
+    return this.editAnnotation(shareToken, annotationId, { text: newText });
   }
 
   /**

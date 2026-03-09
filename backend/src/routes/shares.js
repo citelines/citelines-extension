@@ -342,19 +342,41 @@ router.put('/:token', authenticateAnonymous, rejectBannedWrites, rateLimitCitati
  */
 router.put('/:token/annotations/:annotationId', authenticateAnonymous, rejectBannedWrites, asyncHandler(async (req, res) => {
   const { token, annotationId } = req.params;
-  const { text } = req.body;
+  const { text, citation } = req.body;
 
   // Validate token format
   if (!isValidShareToken(token)) {
     return res.status(400).json({ error: 'Invalid share token' });
   }
 
-  if (!text || typeof text !== 'string' || text.trim().length === 0) {
-    return res.status(400).json({ error: 'Text is required' });
+  // At least one of text or citation must be provided
+  if (!text && !citation) {
+    return res.status(400).json({ error: 'At least one of text or citation is required' });
   }
 
-  if (text.length > 2000) {
-    return res.status(400).json({ error: 'Text too long', message: 'Maximum 2000 characters' });
+  // Validate text if provided
+  if (text !== undefined) {
+    if (typeof text !== 'string' || text.trim().length === 0) {
+      return res.status(400).json({ error: 'Text must be a non-empty string' });
+    }
+    if (text.length > 2000) {
+      return res.status(400).json({ error: 'Text too long', message: 'Maximum 2000 characters' });
+    }
+  }
+
+  // Validate citation fields if provided
+  if (citation !== undefined) {
+    if (typeof citation !== 'object' || citation === null || Array.isArray(citation)) {
+      return res.status(400).json({ error: 'Citation must be an object' });
+    }
+    for (const [key, val] of Object.entries(citation)) {
+      if (typeof val !== 'string') {
+        return res.status(400).json({ error: `Citation field "${key}" must be a string` });
+      }
+      if (val.length > 500) {
+        return res.status(400).json({ error: `Citation field "${key}" too long`, message: 'Maximum 500 characters' });
+      }
+    }
   }
 
   // Find share
@@ -371,11 +393,19 @@ router.put('/:token/annotations/:annotationId', authenticateAnonymous, rejectBan
   // Find and update the specific annotation in the JSONB array
   const updatedAnnotations = (share.annotations || []).map(ann => {
     if (ann.id === annotationId) {
-      return {
-        ...ann,
-        text: sanitizeText(text),
-        editedAt: new Date().toISOString()
-      };
+      const updated = { ...ann, editedAt: new Date().toISOString() };
+      if (text !== undefined) {
+        updated.text = sanitizeText(text);
+      }
+      if (citation !== undefined) {
+        // Merge citation changes into existing citation object
+        const sanitizedCitation = {};
+        for (const [key, val] of Object.entries(citation)) {
+          sanitizedCitation[key] = sanitizeText(val);
+        }
+        updated.citation = { ...(ann.citation || {}), ...sanitizedCitation };
+      }
+      return updated;
     }
     return ann;
   });

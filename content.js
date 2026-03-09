@@ -364,6 +364,157 @@
     return parts.join(' ');
   }
 
+  // Field definitions per citation type — shared by suggest modal and edit mode
+  const CITATION_FIELD_DEFS = {
+    note: [],
+    youtube: [
+      { key: 'title', label: 'Title', source: 'citation' },
+      { key: 'url', label: 'URL', source: 'citation' },
+      { key: 'date', label: 'Date', source: 'citation', isDate: true },
+    ],
+    movie: [
+      { key: 'title', label: 'Title', source: 'citation' },
+      { key: 'year', label: 'Year', source: 'citation' },
+      { key: 'director', label: 'Director', source: 'citation' },
+    ],
+    article: [
+      { key: 'title', label: 'Title', source: 'citation' },
+      { key: 'url', label: 'URL', source: 'citation' },
+      { key: 'author', label: 'Author', source: 'citation' },
+      { key: 'date', label: 'Date', source: 'citation', isDate: true },
+    ],
+  };
+
+  // Build the fields list for a given citation type (always includes Note at the end)
+  function getFieldsForCitation(citationType) {
+    return [
+      ...(CITATION_FIELD_DEFS[citationType] || []),
+      { key: 'text', label: 'Note', source: 'text' },
+    ];
+  }
+
+  // Get original value for a field from citation/text
+  function getFieldOriginalValue(field, citation, originalText) {
+    if (field.isDate) return formatDate(citation);
+    if (field.source === 'citation') return citation[field.key] || '';
+    return originalText;
+  }
+
+  // Build field editor HTML rows (read-only value + pencil + collapsible input)
+  function buildFieldEditorHTML(fields, citation, originalText) {
+    let html = '';
+    for (const field of fields) {
+      const origVal = getFieldOriginalValue(field, citation, originalText);
+      const displayVal = origVal || '(empty)';
+
+      if (field.isDate) {
+        html += `
+          <div class="yt-annotator-suggest-field" data-field="${field.key}">
+            <span class="yt-annotator-report-label">${field.label}</span>
+            <div class="yt-annotator-suggest-row">
+              <div class="yt-annotator-suggest-original">${escapeHtml(displayVal)}</div>
+              <button class="yt-annotator-suggest-edit-btn" title="Edit">&#9998;</button>
+            </div>
+            <div class="yt-annotator-suggest-input-wrap" style="display: none;">
+              <div style="display: flex; gap: 6px; flex: 1;">
+                <input type="text" class="yt-annotator-suggest-input" data-date-part="month" placeholder="Month" value="${escapeHtml(citation.month || '')}" style="flex: 1;" />
+                <input type="text" class="yt-annotator-suggest-input" data-date-part="day" placeholder="Day" value="${escapeHtml(citation.day || '')}" style="flex: 1;" />
+                <input type="text" class="yt-annotator-suggest-input" data-date-part="year" placeholder="Year" value="${escapeHtml(citation.year || '')}" style="flex: 1;" />
+              </div>
+              <button class="yt-annotator-suggest-collapse-btn" title="Cancel edit">&times;</button>
+            </div>
+          </div>`;
+      } else {
+        const isTextarea = field.key === 'text';
+        const inputTag = isTextarea
+          ? `<textarea class="yt-annotator-suggest-input" data-field-key="${field.key}">${escapeHtml(origVal)}</textarea>`
+          : `<input type="text" class="yt-annotator-suggest-input" data-field-key="${field.key}" value="${escapeHtml(origVal)}" />`;
+
+        html += `
+          <div class="yt-annotator-suggest-field" data-field="${field.key}">
+            <span class="yt-annotator-report-label">${field.label}</span>
+            <div class="yt-annotator-suggest-row">
+              <div class="yt-annotator-suggest-original">${escapeHtml(displayVal)}</div>
+              <button class="yt-annotator-suggest-edit-btn" title="Edit">&#9998;</button>
+            </div>
+            <div class="yt-annotator-suggest-input-wrap" style="display: none;">
+              ${inputTag}
+              <button class="yt-annotator-suggest-collapse-btn" title="Cancel edit">&times;</button>
+            </div>
+          </div>`;
+      }
+    }
+    return html;
+  }
+
+  // Wire pencil/collapse toggle handlers on field editor rows inside a container
+  function wireFieldEditorToggle(container) {
+    container.querySelectorAll('.yt-annotator-suggest-field').forEach(fieldEl => {
+      const editBtn = fieldEl.querySelector('.yt-annotator-suggest-edit-btn');
+      const inputWrap = fieldEl.querySelector('.yt-annotator-suggest-input-wrap');
+      const collapseBtn = fieldEl.querySelector('.yt-annotator-suggest-collapse-btn');
+
+      const toggle = () => {
+        const visible = inputWrap.style.display !== 'none';
+        inputWrap.style.display = visible ? 'none' : 'flex';
+        editBtn.classList.toggle('active', !visible);
+      };
+      editBtn.addEventListener('click', toggle);
+      collapseBtn.addEventListener('click', toggle);
+    });
+
+    // Stop keyboard events on all inputs/textareas
+    container.querySelectorAll('textarea, input').forEach(el => {
+      el.addEventListener('keydown', (e) => e.stopPropagation());
+      el.addEventListener('keyup', (e) => e.stopPropagation());
+      el.addEventListener('keypress', (e) => e.stopPropagation());
+    });
+  }
+
+  // Collect changed values from field editor rows. Returns { text?, citation? } or empty object.
+  function collectFieldChanges(container, fields, citation, originalText) {
+    const changes = {};
+    const citationChanges = {};
+
+    for (const field of fields) {
+      const fieldEl = container.querySelector(`.yt-annotator-suggest-field[data-field="${field.key}"]`);
+      const inputWrap = fieldEl.querySelector('.yt-annotator-suggest-input-wrap');
+      if (inputWrap.style.display === 'none') continue; // Not opened
+
+      if (field.isDate) {
+        const m = fieldEl.querySelector('[data-date-part="month"]').value.trim();
+        const d = fieldEl.querySelector('[data-date-part="day"]').value.trim();
+        const y = fieldEl.querySelector('[data-date-part="year"]').value.trim();
+        const origM = citation.month || '';
+        const origD = citation.day || '';
+        const origY = citation.year || '';
+        if (m !== origM || d !== origD || y !== origY) {
+          citationChanges.month = m;
+          citationChanges.day = d;
+          citationChanges.year = y;
+        }
+      } else if (field.source === 'citation') {
+        const val = fieldEl.querySelector(`[data-field-key="${field.key}"]`).value.trim();
+        const orig = citation[field.key] || '';
+        if (val !== orig) {
+          citationChanges[field.key] = val;
+        }
+      } else {
+        // text field
+        const val = fieldEl.querySelector(`[data-field-key="${field.key}"]`).value.trim();
+        if (val !== originalText) {
+          changes.text = val;
+        }
+      }
+    }
+
+    if (Object.keys(citationChanges).length > 0) {
+      changes.citation = citationChanges;
+    }
+
+    return changes;
+  }
+
   // Format creation timestamp for display
   function formatCreationTime(isoString) {
     if (!isoString) return '';
@@ -908,6 +1059,19 @@
 
   // Enter inline edit mode in popup
   function enterEditMode(popup, annotation, video) {
+    const citation = annotation.citation || {};
+    const citationType = citation.type || 'note';
+    const isStructured = citationType !== 'note';
+
+    if (isStructured) {
+      enterStructuredEditMode(popup, annotation, video);
+    } else {
+      enterSimpleEditMode(popup, annotation, video);
+    }
+  }
+
+  // Simple edit mode: plain textarea for note-type citations
+  function enterSimpleEditMode(popup, annotation, video) {
     const contentDiv = popup.querySelector('.yt-annotator-popup-content');
     const actionsDiv = popup.querySelector('.yt-annotator-popup-actions');
     const actionsBtn = popup.querySelector('.yt-annotator-actions-btn');
@@ -932,7 +1096,6 @@
     `;
 
     actionsDiv.querySelector('[data-action="cancel-edit"]').addEventListener('click', () => {
-      // Re-render popup in view mode
       showAnnotationPopup(annotation, video, false);
     });
 
@@ -945,13 +1108,11 @@
       }
 
       try {
-        await api.editAnnotationText(annotation.shareToken, annotation.id, newText);
+        await api.editAnnotation(annotation.shareToken, annotation.id, { text: newText });
 
-        // Re-fetch to get updated data
         const videoId = getVideoId();
         await fetchAllAnnotations(videoId);
 
-        // Find updated annotation and re-show popup
         const updated = sharedAnnotations.find(a => a.id === annotation.id);
         if (updated) {
           showAnnotationPopup(updated, video, false);
@@ -961,6 +1122,58 @@
       } catch (error) {
         console.error('Failed to edit annotation:', error);
         textarea.style.borderColor = '#f44336';
+      }
+    });
+  }
+
+  // Structured edit mode: field-by-field editor for movie/article/youtube citations
+  function enterStructuredEditMode(popup, annotation, video) {
+    const contentDiv = popup.querySelector('.yt-annotator-popup-content');
+    const actionsDiv = popup.querySelector('.yt-annotator-popup-actions');
+    const actionsBtn = popup.querySelector('.yt-annotator-actions-btn');
+
+    if (actionsBtn) actionsBtn.style.display = 'none';
+
+    const citation = annotation.citation || {};
+    const citationType = citation.type || 'note';
+    const originalText = annotation.text || '';
+    const fields = getFieldsForCitation(citationType);
+
+    // Render field editor
+    contentDiv.innerHTML = buildFieldEditorHTML(fields, citation, originalText);
+    wireFieldEditorToggle(contentDiv);
+
+    // Replace actions with Cancel/Save
+    actionsDiv.innerHTML = `
+      <button class="yt-annotator-btn yt-annotator-btn-secondary" data-action="cancel-edit">Cancel</button>
+      <button class="yt-annotator-btn yt-annotator-btn-primary" data-action="save-edit">Save</button>
+    `;
+
+    actionsDiv.querySelector('[data-action="cancel-edit"]').addEventListener('click', () => {
+      showAnnotationPopup(annotation, video, false);
+    });
+
+    actionsDiv.querySelector('[data-action="save-edit"]').addEventListener('click', async () => {
+      const changes = collectFieldChanges(contentDiv, fields, citation, originalText);
+      if (Object.keys(changes).length === 0) {
+        showAnnotationPopup(annotation, video, false);
+        return;
+      }
+
+      try {
+        await api.editAnnotation(annotation.shareToken, annotation.id, changes);
+
+        const videoId = getVideoId();
+        await fetchAllAnnotations(videoId);
+
+        const updated = sharedAnnotations.find(a => a.id === annotation.id);
+        if (updated) {
+          showAnnotationPopup(updated, video, false);
+        } else {
+          closePopup();
+        }
+      } catch (error) {
+        console.error('Failed to edit annotation:', error);
       }
     });
   }
@@ -1067,85 +1280,8 @@
     const citationType = citation.type || 'note';
     const originalText = annotation.text || '';
 
-    // Define fields per citation type
-    const fieldDefs = {
-      note: [],
-      youtube: [
-        { key: 'title', label: 'Title', source: 'citation' },
-        { key: 'url', label: 'URL', source: 'citation' },
-        { key: 'date', label: 'Date', source: 'citation', isDate: true },
-      ],
-      movie: [
-        { key: 'title', label: 'Title', source: 'citation' },
-        { key: 'year', label: 'Year', source: 'citation' },
-        { key: 'director', label: 'Director', source: 'citation' },
-      ],
-      article: [
-        { key: 'title', label: 'Title', source: 'citation' },
-        { key: 'url', label: 'URL', source: 'citation' },
-        { key: 'author', label: 'Author', source: 'citation' },
-        { key: 'date', label: 'Date', source: 'citation', isDate: true },
-      ],
-    };
-
-    // Always include the text (note) field
-    const fields = [
-      ...(fieldDefs[citationType] || []),
-      { key: 'text', label: 'Note', source: 'text' },
-    ];
-
-    // Get original value for a field
-    function getOriginalValue(field) {
-      if (field.isDate) {
-        return formatDate(citation);
-      }
-      if (field.source === 'citation') return citation[field.key] || '';
-      return originalText;
-    }
-
-    // Build field rows HTML
-    let fieldsHTML = '';
-    for (const field of fields) {
-      const origVal = getOriginalValue(field);
-      const displayVal = origVal || '(empty)';
-
-      if (field.isDate) {
-        fieldsHTML += `
-          <div class="yt-annotator-suggest-field" data-field="${field.key}">
-            <span class="yt-annotator-report-label">${field.label}</span>
-            <div class="yt-annotator-suggest-row">
-              <div class="yt-annotator-suggest-original">${escapeHtml(displayVal)}</div>
-              <button class="yt-annotator-suggest-edit-btn" title="Suggest change">&#9998;</button>
-            </div>
-            <div class="yt-annotator-suggest-input-wrap" style="display: none;">
-              <div style="display: flex; gap: 6px; flex: 1;">
-                <input type="text" class="yt-annotator-suggest-input" data-date-part="month" placeholder="Month" value="${escapeHtml(citation.month || '')}" style="flex: 1;" />
-                <input type="text" class="yt-annotator-suggest-input" data-date-part="day" placeholder="Day" value="${escapeHtml(citation.day || '')}" style="flex: 1;" />
-                <input type="text" class="yt-annotator-suggest-input" data-date-part="year" placeholder="Year" value="${escapeHtml(citation.year || '')}" style="flex: 1;" />
-              </div>
-              <button class="yt-annotator-suggest-collapse-btn" title="Cancel edit">&times;</button>
-            </div>
-          </div>`;
-      } else {
-        const isTextarea = field.key === 'text';
-        const inputTag = isTextarea
-          ? `<textarea class="yt-annotator-suggest-input" data-field-key="${field.key}">${escapeHtml(origVal)}</textarea>`
-          : `<input type="text" class="yt-annotator-suggest-input" data-field-key="${field.key}" value="${escapeHtml(origVal)}" />`;
-
-        fieldsHTML += `
-          <div class="yt-annotator-suggest-field" data-field="${field.key}">
-            <span class="yt-annotator-report-label">${field.label}</span>
-            <div class="yt-annotator-suggest-row">
-              <div class="yt-annotator-suggest-original">${escapeHtml(displayVal)}</div>
-              <button class="yt-annotator-suggest-edit-btn" title="Suggest change">&#9998;</button>
-            </div>
-            <div class="yt-annotator-suggest-input-wrap" style="display: none;">
-              ${inputTag}
-              <button class="yt-annotator-suggest-collapse-btn" title="Cancel edit">&times;</button>
-            </div>
-          </div>`;
-      }
-    }
+    const fields = getFieldsForCitation(citationType);
+    const fieldsHTML = buildFieldEditorHTML(fields, citation, originalText);
 
     const isEditing = !!existingSuggestion;
     const modalTitle = isEditing ? 'View My Suggestion' : 'Suggest a Change';
@@ -1176,28 +1312,7 @@
       </div>
     `;
 
-    // Stop keyboard events on all inputs/textareas
-    function stopKeys(el) {
-      el.addEventListener('keydown', (e) => e.stopPropagation());
-      el.addEventListener('keyup', (e) => e.stopPropagation());
-      el.addEventListener('keypress', (e) => e.stopPropagation());
-    }
-    modal.querySelectorAll('textarea, input').forEach(stopKeys);
-
-    // Wire up pen/collapse toggle for each field
-    modal.querySelectorAll('.yt-annotator-suggest-field').forEach(fieldEl => {
-      const editBtn = fieldEl.querySelector('.yt-annotator-suggest-edit-btn');
-      const inputWrap = fieldEl.querySelector('.yt-annotator-suggest-input-wrap');
-      const collapseBtn = fieldEl.querySelector('.yt-annotator-suggest-collapse-btn');
-
-      const toggle = () => {
-        const visible = inputWrap.style.display !== 'none';
-        inputWrap.style.display = visible ? 'none' : 'flex';
-        editBtn.classList.toggle('active', !visible);
-      };
-      editBtn.addEventListener('click', toggle);
-      collapseBtn.addEventListener('click', toggle);
-    });
+    wireFieldEditorToggle(modal);
 
     // Pre-fill and pre-expand fields from existing suggestion
     if (isEditing && Object.keys(existingChanges).length > 0) {
@@ -1249,46 +1364,7 @@
     modal.querySelector('[data-action="submit"]').addEventListener('click', async () => {
       const reason = modal.querySelector('.yt-annotator-suggest-reason').value.trim();
 
-      // Collect changes from opened/edited fields
-      const changes = {};
-      const citationChanges = {};
-
-      for (const field of fields) {
-        const fieldEl = modal.querySelector(`.yt-annotator-suggest-field[data-field="${field.key}"]`);
-        const inputWrap = fieldEl.querySelector('.yt-annotator-suggest-input-wrap');
-        if (inputWrap.style.display === 'none') continue; // Not opened
-
-        if (field.isDate) {
-          const m = fieldEl.querySelector('[data-date-part="month"]').value.trim();
-          const d = fieldEl.querySelector('[data-date-part="day"]').value.trim();
-          const y = fieldEl.querySelector('[data-date-part="year"]').value.trim();
-          const origM = citation.month || '';
-          const origD = citation.day || '';
-          const origY = citation.year || '';
-          if (m !== origM || d !== origD || y !== origY) {
-            citationChanges.month = m;
-            citationChanges.day = d;
-            citationChanges.year = y;
-          }
-        } else if (field.source === 'citation') {
-          const val = fieldEl.querySelector(`[data-field-key="${field.key}"]`).value.trim();
-          const orig = citation[field.key] || '';
-          if (val !== orig) {
-            citationChanges[field.key] = val;
-          }
-        } else {
-          // text field
-          const val = fieldEl.querySelector(`[data-field-key="${field.key}"]`).value.trim();
-          if (val !== originalText) {
-            changes.text = val;
-          }
-        }
-      }
-
-      if (Object.keys(citationChanges).length > 0) {
-        changes.citation = citationChanges;
-      }
-
+      const changes = collectFieldChanges(modal, fields, citation, originalText);
       if (Object.keys(changes).length === 0) return; // Nothing changed
 
       const suggestedText = JSON.stringify(changes);
