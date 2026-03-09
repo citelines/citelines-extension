@@ -730,6 +730,7 @@ router.get('/users/:userId', authenticateAdmin, asyncHandler(async (req, res) =>
           title: share.title,
           annotation_id: annotation.id,
           text: annotation.text,
+          citation: annotation.citation || null,
           timestamp: annotation.timestamp,
           created_at: annotation.createdAt || share.created_at,
           deleted_at: annotation.deleted_at,
@@ -805,6 +806,7 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
           video_id: share.video_id,
           title: share.title,
           annotation_text: annotation.text,  // Individual annotation text
+          annotation_citation: annotation.citation || null,  // Structured citation object
           annotation_timestamp: annotation.timestamp,
           annotation_count: share.annotations.length,  // Total in this share
           created_at: share.created_at,
@@ -948,15 +950,19 @@ router.get('/reports', authenticateAdmin, asyncHandler(async (req, res) => {
     params
   );
 
-  // Extract annotation text from JSONB for each report
+  // Extract annotation text + citation from JSONB for each report
   const reports = result.rows.map(row => {
     let annotation_text = null;
+    let annotation_citation = null;
     if (row.annotations && Array.isArray(row.annotations) && row.annotation_id) {
       const ann = row.annotations.find(a => String(a.id) === String(row.annotation_id));
-      if (ann) annotation_text = ann.text || null;
+      if (ann) {
+        annotation_text = ann.text || null;
+        annotation_citation = ann.citation || null;
+      }
     }
     const { annotations, ...rest } = row;
-    return { ...rest, annotation_text };
+    return { ...rest, annotation_text, annotation_citation };
   });
 
   res.json({

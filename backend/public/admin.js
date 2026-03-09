@@ -836,7 +836,7 @@ function renderCitations(citations) {
       <tbody>
         ${citations.map(citation => {
           // Backend now returns individual annotations (one row per annotation)
-          const content = citation.annotation_text || '-';
+          const content = formatCitationContent(citation.annotation_text, citation.annotation_citation);
           const displayContent = content.length > 80 ? content.substring(0, 80) + '...' : content;
           const timestamp = citation.annotation_timestamp ? formatTimestamp(citation.annotation_timestamp) : '-';
 
@@ -2134,7 +2134,7 @@ function renderReports(reports) {
       <tbody>
         ${reports.map(report => {
           const isPending = report.status === 'pending';
-          const annotationText = report.annotation_text || '-';
+          const annotationText = formatCitationContent(report.annotation_text, report.annotation_citation);
           const displayText = annotationText.length > 60 ? annotationText.substring(0, 60) + '...' : annotationText;
 
           return `
@@ -2302,6 +2302,29 @@ function escapeHtml(text) {
   return div.innerHTML;
 }
 
+// Format annotation content for admin display — combines structured citation + free text note
+function formatCitationContent(annotationText, annotationCitation) {
+  const parts = [];
+
+  if (annotationCitation && annotationCitation.type && annotationCitation.type !== 'note') {
+    const c = annotationCitation;
+    const icon = c.type === 'youtube' ? '🎥' : c.type === 'movie' ? '🎬' : '📄';
+    let summary = icon;
+    if (c.title) summary += ` ${c.title}`;
+    if (c.director) summary += ` (dir. ${c.director})`;
+    if (c.year) summary += ` (${c.year})`;
+    if (c.author) summary += ` by ${c.author}`;
+    if (c.url) summary += ` — ${c.url}`;
+    parts.push(summary.trim());
+  }
+
+  if (annotationText) {
+    parts.push(annotationText);
+  }
+
+  return parts.join(' | ') || '-';
+}
+
 // Close filter dropdown when clicking outside
 document.addEventListener('click', function(event) {
   if (activeFilterDropdown && !event.target.closest('.filter-dropdown') && !event.target.closest('th')) {
@@ -2445,10 +2468,12 @@ function renderUserDetails(data) {
                 ${citations.map(c => {
                   const isDeleted = c.deleted_at;
                   const titleForModal = escapeHtml(c.title || c.video_id);
+                  const citContent = formatCitationContent(c.text, c.citation);
+                  const citDisplay = citContent.length > 50 ? citContent.substring(0, 50) + '...' : citContent;
                   return `
                   <tr>
                     <td><code>${c.video_id}</code></td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(c.text)}">${escapeHtml(c.text.substring(0, 50))}${c.text.length > 50 ? '...' : ''}</td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(citContent)}">${escapeHtml(citDisplay)}</td>
                     <td>${c.timestamp ? formatTimestamp(c.timestamp) : '-'}</td>
                     <td>${isDeleted ? '<span class="badge badge-deleted">Deleted</span>' : '<span class="badge badge-active">Active</span>'}</td>
                     <td>
