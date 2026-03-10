@@ -603,6 +603,49 @@
     .sort-option:hover {
       background: #f5f5f5;
     }
+
+    /* Citation Popover */
+    .citation-cell {
+      cursor: pointer;
+      max-width: 300px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .citation-cell:hover {
+      color: #0497a6;
+    }
+
+    .citation-popover {
+      display: none;
+      position: fixed;
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+      padding: 16px;
+      z-index: 10001;
+      max-width: 450px;
+      min-width: 280px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #333;
+      word-wrap: break-word;
+      white-space: normal;
+    }
+
+    .citation-popover.active {
+      display: block;
+    }
+
+    .citation-popover-title {
+      font-weight: 600;
+      font-size: 13px;
+      color: #666;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
   </style>
 </head>
 <body>
@@ -738,6 +781,12 @@
         <button class="btn" onclick="closeUserDetailsModal()">Close</button>
       </div>
     </div>
+  </div>
+
+  <!-- Citation Popover -->
+  <div class="citation-popover" id="citationPopover">
+    <div class="citation-popover-title">Citation Content</div>
+    <div id="citationPopoverBody"></div>
   </div>
 
   <script src="admin.js"></script>

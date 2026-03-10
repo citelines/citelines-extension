@@ -865,7 +865,7 @@ function renderCitations(citations) {
               <td>${citation.user_id ?
                 `<a href="javascript:void(0)" onclick="openUserDetailsModal('${citation.user_id}')" style="color: #0497a6; text-decoration: none; cursor: pointer;">${citation.creator_display_name}</a>` :
                 (citation.creator_display_name || '-')}</td>
-              <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(content)}">${escapeHtml(displayContent)}</td>
+              <td class="citation-cell" data-full="${escapeHtml(content)}" onclick="showCitationPopover(event)">${escapeHtml(displayContent)}</td>
               <td>${timestamp}</td>
               <td>
                 ${isDeleted ?
@@ -2144,9 +2144,9 @@ function renderReports(reports) {
               <td>${report.report_type || '-'}</td>
               <td><code>${report.share_token || '-'}</code></td>
               <td>${report.video_id || '-'}</td>
-              <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(annotationText)}">${escapeHtml(displayText)}</td>
+              <td class="citation-cell" data-full="${escapeHtml(annotationText)}" onclick="showCitationPopover(event)">${escapeHtml(displayText)}</td>
               <td>${escapeHtml(report.reason || '-')}</td>
-              <td style="max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(report.details || '')}">${escapeHtml(report.details || '-')}</td>
+              <td class="citation-cell" style="max-width: 150px;" data-full="${escapeHtml(report.details || '')}" onclick="showCitationPopover(event)">${escapeHtml(report.details || '-')}</td>
               <td>
                 ${report.status === 'pending' ? '<span class="badge badge-reported">Pending</span>' :
                   report.status === 'dismissed' ? '<span class="badge badge-deleted">Dismissed</span>' :
@@ -2325,8 +2325,48 @@ function formatCitationContent(annotationText, annotationCitation) {
   return parts.join(' | ') || '-';
 }
 
-// Close filter dropdown when clicking outside
+// ============================================================================
+// Citation Popover
+// ============================================================================
+
+function showCitationPopover(event) {
+  const popover = document.getElementById('citationPopover');
+  const body = document.getElementById('citationPopoverBody');
+  const content = event.currentTarget.getAttribute('data-full');
+  if (!content || content === '-') return;
+  body.textContent = content;
+  popover.classList.add('active');
+
+  // Position near the clicked cell
+  const rect = event.target.getBoundingClientRect();
+  let top = rect.bottom + 8;
+  let left = rect.left;
+
+  // Keep within viewport
+  if (top + 200 > window.innerHeight) {
+    top = rect.top - 8;
+    popover.style.top = 'auto';
+    popover.style.bottom = (window.innerHeight - top) + 'px';
+  } else {
+    popover.style.top = top + 'px';
+    popover.style.bottom = 'auto';
+  }
+
+  if (left + 450 > window.innerWidth) {
+    left = window.innerWidth - 460;
+  }
+  popover.style.left = Math.max(10, left) + 'px';
+}
+
+function hideCitationPopover() {
+  document.getElementById('citationPopover').classList.remove('active');
+}
+
+// Close popover on click outside
 document.addEventListener('click', function(event) {
+  if (!event.target.closest('.citation-popover') && !event.target.closest('.citation-cell')) {
+    hideCitationPopover();
+  }
   if (activeFilterDropdown && !event.target.closest('.filter-dropdown') && !event.target.closest('th')) {
     closeFilterDropdown();
   }
@@ -2473,7 +2513,7 @@ function renderUserDetails(data) {
                   return `
                   <tr>
                     <td><code>${c.video_id}</code></td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(citContent)}">${escapeHtml(citDisplay)}</td>
+                    <td class="citation-cell" data-full="${escapeHtml(citContent)}" onclick="showCitationPopover(event)">${escapeHtml(citDisplay)}</td>
                     <td>${c.timestamp ? formatTimestamp(c.timestamp) : '-'}</td>
                     <td>${isDeleted ? '<span class="badge badge-deleted">Deleted</span>' : '<span class="badge badge-active">Active</span>'}</td>
                     <td>
