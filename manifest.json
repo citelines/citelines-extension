@@ -22,7 +22,7 @@
   "content_scripts": [
     {
       "matches": ["https://www.youtube.com/*"],
-      "js": ["api.js", "auth.js", "youtubeAuth.js", "loginUI.js", "userProfileUI.js", "shareUI.js", "analytics.js", "content.js"],
+      "js": ["api.js", "auth.js", "youtubeAuth.js", "loginUI.js", "userProfileUI.js", "shareUI.js", "analytics.js", "content.bundle.js"],
       "css": ["content.css"],
       "run_at": "document_idle"
     }

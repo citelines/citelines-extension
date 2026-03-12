@@ -1,0 +1,52 @@
+// Shared mutable state for the content script
+
+export let currentVideoId = null;
+export let annotations = {}; // Local annotations (your own)
+export let sharedAnnotations = []; // All annotations from all users
+export let markersContainer = null;
+export let creatorMarkersContainer = null;
+export let addButton = null;
+export let sidebarButton = null;
+export let sidebar = null;
+export let sidebarOpen = false;
+export let sidebarFilter = 'all'; // 'all', 'mine', 'creator', 'others'
+export let activePopup = null;
+export let userShareId = null; // Your share ID for current video
+export let loginButton = null; // Login/user badge button
+export let loginUI = null; // Login UI instance
+export let expiryWarning = null; // Expiry warning banner
+export let accountSidebar = null;
+export let accountSidebarOpen = false;
+export let currentVideoChannelId = null; // Channel ID of the video being watched
+export let viewOnlyAnnotations = []; // Temporary shared annotations for view-only mode
+export let shareButton = null;
+export let browseButton = null;
+export let adObserver = null;
+export let playerObserver = null;
+export let initialized = false;
+
+// Setters for state that needs to be updated from other modules
+export function setCurrentVideoId(id) { currentVideoId = id; }
+export function setAnnotations(val) { annotations = val; }
+export function setSharedAnnotations(val) { sharedAnnotations = val; }
+export function setMarkersContainer(val) { markersContainer = val; }
+export function setCreatorMarkersContainer(val) { creatorMarkersContainer = val; }
+export function setAddButton(val) { addButton = val; }
+export function setSidebarButton(val) { sidebarButton = val; }
+export function setSidebar(val) { sidebar = val; }
+export function setSidebarOpen(val) { sidebarOpen = val; }
+export function setSidebarFilter(val) { sidebarFilter = val; }
+export function setActivePopup(val) { activePopup = val; }
+export function setUserShareId(val) { userShareId = val; }
+export function setLoginButton(val) { loginButton = val; }
+export function setLoginUI(val) { loginUI = val; }
+export function setExpiryWarning(val) { expiryWarning = val; }
+export function setAccountSidebar(val) { accountSidebar = val; }
+export function setAccountSidebarOpen(val) { accountSidebarOpen = val; }
+export function setCurrentVideoChannelId(val) { currentVideoChannelId = val; }
+export function setViewOnlyAnnotations(val) { viewOnlyAnnotations = val; }
+export function setShareButton(val) { shareButton = val; }
+export function setBrowseButton(val) { browseButton = val; }
+export function setAdObserver(val) { adObserver = val; }
+export function setPlayerObserver(val) { playerObserver = val; }
+export function setInitialized(val) { initialized = val; }
