@@ -78,3 +78,4 @@ class AnalyticsTracker {
 }
 
 const analytics = new AnalyticsTracker();
+window.analytics = analytics;

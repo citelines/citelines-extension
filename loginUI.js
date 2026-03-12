@@ -352,3 +352,4 @@ class LoginUI {
     `;
   }
 }
+window.LoginUI = LoginUI;

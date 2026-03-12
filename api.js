@@ -562,3 +562,4 @@ class AnnotatorAPI {
 
 // Create singleton instance
 const api = new AnnotatorAPI();
+window.api = api;

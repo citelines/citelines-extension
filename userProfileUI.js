@@ -228,3 +228,4 @@ class UserProfileUI {
     return div.innerHTML;
   }
 }
+window.UserProfileUI = UserProfileUI;

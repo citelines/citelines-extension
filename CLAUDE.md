@@ -38,10 +38,27 @@ A Chrome extension that creates a collaborative annotation layer on YouTube vide
 youtube-annotator/
 ├── Frontend (Chrome Extension)
 │   ├── manifest.json          # Extension manifest
-│   ├── content.js             # Main logic + sync
+│   ├── content.bundle.js      # Bundled content script (built from src/content/)
+│   ├── src/content/           # Content script source modules (esbuild → content.bundle.js)
+│   │   ├── main.js            # Orchestrator: init, player detection, SPA navigation
+│   │   ├── state.js           # Shared mutable state object
+│   │   ├── globals.js         # Thin wrapper exposing window globals (api, authManager, etc.)
+│   │   ├── utils.js           # Pure helpers: formatTime, escapeHtml, getVideoId, etc.
+│   │   ├── storage.js         # chrome.storage + backend sync
+│   │   ├── markers.js         # Timeline marker rendering (triangles, elbow connectors)
+│   │   ├── popup.js           # Annotation view popup (click marker)
+│   │   ├── createPopup.js     # Annotation create popup (+ button)
+│   │   ├── annotationsSidebar.js  # Bibliography sidebar (≡ button)
+│   │   ├── accountSidebar.js  # Account/auth sidebar (user icon)
+│   │   ├── creatorMode.js     # Creator detection, orange UX mode
+│   │   ├── fetchAnnotations.js # Fetch all annotations from backend
+│   │   ├── citationFields.js  # Citation type field definitions
+│   │   ├── modals.js          # Report, suggest-edit, edit modals
+│   │   └── sharing.js         # Share/import functionality
 │   ├── content.css            # UI styling
 │   ├── api.js                 # Backend API client
 │   ├── auth.js                # AuthManager class
+│   ├── youtubeAuth.js         # YouTube OAuth helpers
 │   ├── loginUI.js             # Login/register modal
 │   ├── userProfileUI.js       # User profile modal
 │   ├── analytics.js           # Extension usage analytics (batched, fire-and-forget)
@@ -272,27 +289,29 @@ The backend supports TWO authentication methods:
 
 ### Content Script Lifecycle
 
-```javascript
-// 1. Page Load
-- waitForPlayer() → Wait for <video> element
-- Initialize API (get/create anonymous ID)
-- Fetch all annotations for video
-- Render triangle markers on progress bar
+Source in `src/content/`, bundled to `content.bundle.js` via esbuild.
 
-// 2. User Creates Annotation
+```javascript
+// 1. Page Load (main.js)
+- waitForPlayer() → Wait for <video> element
+- initialize() → Create UI elements, init auth + API in parallel
+- fetchAllAnnotations() (fetchAnnotations.js) → Get all citations for video
+- renderMarkers() (markers.js) → Create triangle markers on progress bar
+
+// 2. User Creates Annotation (createPopup.js → storage.js)
 - Show input popup at current timestamp
 - Save locally (chrome.storage.local)
 - Sync to backend (POST /api/shares or PUT /api/shares/:token)
 - Re-fetch all annotations (to get isOwner flags)
 - Re-render markers
 
-// 3. Navigation to New Video
-- Detect URL change (yt-navigate-finish event)
+// 3. Navigation to New Video (main.js handleNavigation)
+- Detect URL change via MutationObserver
 - Clean up DOM (remove markers, buttons, sidebar)
 - Disconnect observers
 - Repeat lifecycle for new video
 
-// 4. Click Marker
+// 4. Click Marker (popup.js)
 - Show popup with annotation text, timestamp, ownership
 - Badge: "YOU - ~2026-XXXXXX" (teal) or "~2026-XXXXXX" (grey)
 - Click badge → Open user profile modal
@@ -300,12 +319,14 @@ The backend supports TWO authentication methods:
 
 ### Key Functions
 
-**content.js**:
-- `waitForPlayer()` - Wait for video element, handle ads
-- `fetchAllAnnotations()` - Get all citations for video, flatten into array
-- `renderMarkers()` - Create triangle markers on progress bar
-- `showAnnotationPopup()` - Display citation text and metadata
-- `syncAnnotationsToBackend()` - Create/update share on backend
+**src/content/ (bundled to content.bundle.js)**:
+- `main.js`: `initialize()`, `waitForPlayer()`, `handleNavigation()` — orchestrator
+- `fetchAnnotations.js`: `fetchAllAnnotations()` — get all citations for video, flatten into array
+- `markers.js`: `renderMarkers()`, `createMarkersContainer()` — triangle markers on progress bar
+- `popup.js`: `showAnnotationPopup()` — display citation text and metadata
+- `storage.js`: `syncAnnotationsToBackend()` — create/update share on backend
+- `state.js`: shared mutable state object imported by all modules
+- Build: `npm run build` (esbuild, IIFE format)
 
 **api.js**:
 - `initialize()` - Get/create anonymous ID

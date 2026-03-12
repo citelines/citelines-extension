@@ -545,3 +545,8 @@ function formatTime(seconds) {
   const secs = Math.floor(seconds % 60);
   return `${mins}:${secs.toString().padStart(2, '0')}`;
 }
+window.createShareButton = createShareButton;
+window.createBrowseButton = createBrowseButton;
+window.showShareModal = showShareModal;
+window.showImportModal = showImportModal;
+window.showBrowseModal = showBrowseModal;

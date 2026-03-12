@@ -5,7 +5,7 @@
 **Deployment**: ✅ Live on Railway
 **Backend URL**: `https://youtube-annotator-production.up.railway.app`
 **Database**: PostgreSQL on Railway
-**Current Phase**: Phase 3D complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, Privacy Policy in progress
+**Current Phase**: Phase 3D complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, content.js refactor complete, Privacy Policy in progress
 
 ---
 
@@ -123,6 +123,16 @@
 - **DB**: `analytics_events` table (migration 012)
 - Files: `analytics.js`, `backend/src/routes/analytics.js`, `backend/migrations/012_create_analytics_events.sql`
 
+### Content Script Refactor (content.js → src/content/) ✅
+- Monolithic `content.js` (1,609 lines) split into 15 focused modules under `src/content/`
+- Bundled with esbuild (`npm run build` → `content.bundle.js`, IIFE format)
+- Shared state via `state.js` module (plain mutable object, imported by all modules)
+- `main.js` orchestrator (~200 lines): player detection, initialization, SPA navigation
+- Debug logs cleaned up as part of the refactor
+- Modules: state, globals, utils, storage, markers, popup, createPopup, annotationsSidebar, accountSidebar, creatorMode, fetchAnnotations, citationFields, modals, sharing, main
+- Design doc: `dev-docs/content-js-refactor.md`
+- **Outstanding**: Exhaustive post-refactor testing (see "Needs Live Testing" section below)
+
 ---
 
 ## Next Improvements
@@ -168,6 +178,7 @@
 
 Features that are fully implemented but have not been tested end-to-end against the deployed backend.
 
+- **Post-refactor exhaustive testing** — content.js was split into 15 modules and bundled with esbuild; all features need end-to-end verification (markers, popups, sidebars, auth flows, creator mode, SPA navigation, etc.)
 - **Display name picker on first YouTube login** — when a new user's channel name is unavailable (taken, too short, or profane), backend returns `needsDisplayName: true` and the extension should prompt the user to choose a different name
 - **Connect YouTube channel to existing email account** — `POST /api/auth/youtube/connect` flow from extension account sidebar
 - **Account Deletion** — self-delete via citelines.org `/account-settings`, extension auto-logout on 401
@@ -194,7 +205,7 @@ Features that are fully implemented but have not been tested end-to-end against 
 ---
 
 ### Operations
-- [ ] Pay for Railway server hosting (trial expiration)
+- [x] Pay for Railway server hosting
 
 ### Legal & Publishing Prerequisites 🔧 IN PROGRESS
 - **Privacy Policy**: 🔧 IN PROGRESS — covering data collected (annotations, YouTube channel ID, email), usage, retention, user rights. Required by YouTube API Services ToS, Chrome Web Store, Google OAuth consent screen, and GDPR/CCPA
@@ -205,15 +216,15 @@ Features that are fully implemented but have not been tested end-to-end against 
 
 ---
 
-### Admin Dashboard Enhancements
-- **UI Tweak**: The values in the Title column of the Citations tab all have "... - Annotation" as part of their name; don't do that.
-- **UI Tweak**: Various places in the Admin dashboard say "Annotation" - change these to say "Citation"
+### Dashboard Enhancements (Admin + My Dashboard)
+- ~~**UI Tweak**: The values in the Title column of the Citations tab all have "... - Annotation" as part of their name; don't do that.~~ ✅
+- ~~**UI Tweak**: Various places in the Admin dashboard say "Annotation" - change these to say "Citation"~~ ✅
 - **UI Tweak**: Enable esc key and "click away" ability to close the modals for Delete, Restore (Citations Tab) and Suspend, Suspend Permanently (Users Tab) to behave the same as the View popup.
 - **Citation Type Column**: Display citation type (Basic Note, YouTube Video, Movie, Article, etc.) in Citations tab to provide context for "Citation Content" - matches front-end UI types
 - **Citation Status Column**: Add "Citation Status" column showing lifecycle state (Proposed, Rejected, Approved, User-Deleted) - prepares for moderation workflow
-- **Date Range Filters**: Implement date range filtering for Joined and Created columns (currently placeholders)
-- **Export Functionality**: Export user/citation data to CSV
-- **Action Reasons**: rather than free-form for "Delete" and "Restore" reasons, make it a dropdown menu for data validation.
+- **Date Range Filters**: Implement date range filtering for Joined and Created columns (currently placeholders) — applies to both Admin and My Dashboard
+- **Export Functionality**: Export user/citation data to CSV — applies to both Admin and My Dashboard
+- **Action Reasons**: rather than free-form for "Delete" and "Restore" reasons, make it a dropdown menu for data validation (Admin only)
 ---
 
 ## Phase 3D Testing Plan
@@ -316,7 +327,16 @@ Make browsing, searching, and exporting citations a core product capability — 
 - Full-text search on citation content
 - Search by video title, video ID, or video creator/channel
 - Pagination or infinite scroll for users with many citations
-- "My citations" vs "saved citations" — save/bookmark other users' citations for later reference
+- "My citations" vs "Saved citations" toggle/filter on dashboard
+
+**Save/Bookmark Citations**:
+- Extension UX: bookmark icon (🔖) in the ⋮ three-dot menu on other users' citations (popup + sidebar) — "Save Citation"
+- Visual indicator on saved citations (filled bookmark icon or subtle highlight)
+- Undo: "Unsave" option in ⋮ menu for already-saved citations
+- Backend: `saved_citations` table (`user_id`, `share_token`, `annotation_id`, `saved_at`)
+- Backend: `POST /api/citations/save`, `DELETE /api/citations/save`, `GET /api/citations/saved`
+- Dashboard (citelines.org/my-dashboard): toggle between "My Citations" and "Saved Citations"
+- Saved citations show original author, video, timestamp — links back to source
 
 **Export as CSV**:
 - Dashboard *(citelines.org)*: "Download as CSV" — all user citations across all videos
@@ -327,13 +347,27 @@ Make browsing, searching, and exporting citations a core product capability — 
 **Editing**:
 - Editability of "mine" citations pre-submission — allow users to revise citation text before finalizing
 
+**CSL (Citation Style Language) Migration**:
+- Migrate citation data model from custom types (`note`/`movie`/`article`/`youtube`) to [CSL-JSON](https://github.com/citation-style-language/schema) — the open standard used by Zotero, Mendeley, etc.
+- Use CSL item types as the citation type taxonomy (~35 types: `book`, `chapter`, `article-journal`, `motion_picture`, `webpage`, `broadcast`, `song`, `speech`, `thesis`, `dataset`, `software`, etc.)
+- Refactor `CITATION_FIELD_DEFS` in content.js to derive fields from CSL-JSON schema
+- Integrate [citeproc-js](https://citeproc-js.readthedocs.io/en/latest/csl-json/markup.html) to render formatted citations from structured data
+- Support multiple citation styles — MLA (default), APA, Chicago, etc. — using [CSL style definitions](https://github.com/citation-style-language/styles) (10,000+ styles available)
+- User preference: choose citation style in account settings or per-session toggle
+- Data stored once in CSL-JSON; rendering style is swappable without changing underlying data
+- Migration path: map existing `movie` → `motion_picture`, `article` → `article-journal`/`webpage`, `youtube` → `webpage` (with `medium: "video"`), `note` → free text field alongside any CSL type
+- Extension UX: create/edit/suggest flows all driven by CSL type → fields derived from schema, replacing hardcoded `CITATION_FIELD_DEFS`
+- Popups and sidebar display formatted citations via citeproc-js (renders in user's chosen style)
+- Suggest-edit modal: field-by-field editing reflects CSL fields for the selected type
+- Admin dashboard: structured citation display uses CSL-JSON rendering
+- Zotero import/export comes nearly free (Zotero uses CSL-JSON natively)
+
 **Citation Format & Validation**:
 - Validate citations to a timeblock (minimum granularity — prevent citations at arbitrary milliseconds)
 - Validate citations against existing citations / 3rd party databases
-- Citation type metadata (Basic Note, YouTube Video, Movie, Article, etc.) — already in front-end UI, surface in dashboard and admin views
 
 **External Integrations** *(exploratory)*:
-- Zotero integration — import/export citations in Zotero-compatible format
+- Zotero integration — import/export citations in Zotero-compatible format (enabled by CSL-JSON migration)
 - Wikipedia citation format — explore feasibility of structured citation output
 
 ### Account Deletion ✅
@@ -598,6 +632,6 @@ node clear-data.js
 
 ---
 
-**Last Updated**: 2026-03-09
-**Status**: Phase 3D complete, Account Merge complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, Privacy Policy in progress
-**Next**: Live-test items in "Needs Live Testing" section, finish Privacy Policy + TOS, then Creator Tools (Phase 4A) or Chrome Web Store publishing
+**Last Updated**: 2026-03-12
+**Status**: Phase 3D complete, Account Merge complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, content.js refactor complete, Privacy Policy in progress
+**Next**: Exhaustive post-refactor testing, live-test items in "Needs Live Testing" section, finish Privacy Policy + TOS, then Creator Tools (Phase 4A) or Chrome Web Store publishing

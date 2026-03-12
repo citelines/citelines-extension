@@ -1,312 +1,147 @@
-# YouTube Annotator
+# Citelines — YouTube Annotator
 
-A Chrome extension that lets users add timestamped annotations to YouTube videos and share them with others. Similar to SoundCloud's comment markers on the playback bar.
+A Chrome extension that creates a collaborative citation layer on YouTube videos. Add timestamped citations to any video — all users with the extension see citations from everyone.
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red)
 
-## Features
+**Website**: [citelines.org](https://www.citelines.org)
 
-### Local Annotations
-- ✅ Add timestamped annotations to any YouTube video
-- ✅ Visual markers on the progress bar (red dots)
-- ✅ Click markers to view annotation content
-- ✅ Jump to specific timestamps
-- ✅ Delete annotations
-- ✅ Persistent storage (saved locally)
-- ✅ Works with YouTube's SPA navigation
+## What It Does
 
-### Sharing Features (NEW!)
-- ✅ Share your annotations via shareable links
-- ✅ Import shared annotations from others
-- ✅ Browse popular annotations for any video
-- ✅ Three import modes:
-  - **View Only**: See shared annotations without saving (blue markers)
-  - **Merge**: Combine shared annotations with your local ones
-  - **Replace**: Overwrite your annotations with shared ones
-- ✅ Anonymous authentication (no sign-up required)
-- ✅ Backend API with PostgreSQL
-
-## Screenshots
-
-**Adding an annotation:**
-```
-[YouTube Video Player]
-          ⬆
-     [+ button]
-```
-
-**Annotation markers on progress bar:**
-```
-[Progress bar with red dots at different positions]
- •     •        •           •
-```
-
-**Share modal:**
-```
-┌─────────────────────────────┐
-│ Share Annotations           │
-│                             │
-│ Video: Example Video        │
-│ Annotations: 5              │
-│                             │
-│ Title: [Optional]           │
-│                             │
-│ [Cancel]  [Create Share]    │
-└─────────────────────────────┘
-```
+- **Timestamped citations** — click + to add a citation at the current video time
+- **Collaborative by default** — every citation is visible to all Citelines users on that video
+- **Triangle markers on the progress bar** — color-coded by ownership:
+  - **Teal** = yours
+  - **Grey** = other users'
+  - **Orange** = the video's YouTube creator (verified via OAuth)
+- **Citation types** — basic notes, YouTube videos, movies, articles with structured fields
+- **Bibliography sidebar** — browse, filter (All / Mine / Others / Creator), and search citations
+- **Three-dot menu** — edit your own citations, report or suggest edits on others'
+- **Creator mode** — verified YouTube creators get an orange UI accent when viewing their own videos
+- **Accounts** — anonymous by default (90-day expiry), or register with email/password or YouTube OAuth
 
 ## Installation
 
-### Option 1: From Chrome Web Store (Coming Soon)
-*Extension pending review*
+### Chrome Web Store
 
-### Option 2: Load Unpacked (Development)
+*Coming soon.*
 
-1. Clone this repository:
+### Load Unpacked (Development)
+
+1. Clone and install:
    ```bash
-   git clone https://github.com/yourusername/youtube-annotator.git
+   git clone https://github.com/abekatz11/youtube-annotator.git
    cd youtube-annotator
+   npm install
+   npm run build
    ```
 
-2. Set up the backend (required for sharing features):
-   - See [SETUP.md](SETUP.md) for detailed instructions
-   - Quick start:
-     ```bash
-     cd backend
-     npm install
-     createdb youtube_annotator
-     cp .env.example .env
-     # Edit .env with your database credentials
-     npm run migrate
-     npm start
-     ```
-
-3. Load the extension in Chrome:
+2. Load in Chrome:
    - Open `chrome://extensions/`
-   - Enable "Developer mode"
-   - Click "Load unpacked"
+   - Enable **Developer mode**
+   - Click **Load unpacked**
    - Select the `youtube-annotator` folder
 
-4. Navigate to any YouTube video and start annotating!
+3. Go to any YouTube video — the + button, bibliography icon, and account icon appear on the player.
 
-## Usage
+### Backend (for local development)
 
-### Creating Annotations
-
-1. Play a YouTube video
-2. Pause at the moment you want to annotate
-3. Click the red "**+**" button (bottom right of video player)
-4. Type your annotation
-5. Click "Save"
-
-A red dot marker will appear on the progress bar at that timestamp.
-
-### Viewing Annotations
-
-- Click any red dot marker on the progress bar
-- A popup will show:
-  - Timestamp
-  - Annotation text
-  - "Go to" button (jumps to that timestamp)
-  - "Delete" button (removes the annotation)
-
-### Sharing Annotations
-
-1. Click the blue "**Share**" button
-2. Enter an optional title
-3. Click "Create Share"
-4. Copy the generated link and send it to others
-
-The shareable link format:
-```
-https://youtube.com/watch?v=VIDEO_ID&share=TOKEN
+```bash
+cd backend
+npm install
+cp .env.example .env   # edit with your PostgreSQL credentials
+npm run migrate
+npm run dev
 ```
 
-### Importing Shared Annotations
+The production backend is hosted on Railway.
 
-**Method 1: Direct Link**
-- Open a share link (e.g., from a friend)
-- An import modal will appear automatically
-- Choose how to import:
-  - **View Only**: Preview annotations without saving
-  - **Merge with Mine**: Add to your existing annotations
-  - **Replace Mine**: Replace your annotations entirely
+## Tech Stack
 
-**Method 2: Browse**
-- Click the green "**Browse**" button
-- See all shared annotations for the current video
-- Click on a share to preview and import
+**Extension** (Chrome Manifest V3):
+- Content scripts: modular ES modules bundled with esbuild (`src/content/` → `content.bundle.js`)
+- Standalone scripts: `api.js`, `auth.js`, `youtubeAuth.js`, `loginUI.js`, `userProfileUI.js`, `analytics.js`
+- Service worker: `background.js` (OAuth, channel ID detection, install tracking)
 
-## Architecture
+**Backend** (Node.js + Express):
+- PostgreSQL with JSONB for flexible citation storage
+- JWT + anonymous ID dual authentication
+- Multi-layer rate limiting
+- Admin moderation system with web dashboard
+- Hosted on Railway
 
-### Frontend (Chrome Extension)
-- **content.js** - Main logic, UI rendering
-- **api.js** - Backend API communication
-- **shareUI.js** - Share/import modals
-- **content.css** - Styling
+## Project Structure
 
-### Backend (Node.js + Express)
-- **PostgreSQL** database for storing users and shares
-- **RESTful API** for creating/fetching shares
-- **Anonymous authentication** (no emails required)
-- **Rate limiting** to prevent abuse
-
-### Data Flow
 ```
-User clicks Share
-  ↓
-Extension sends annotations to backend
-  ↓
-Backend generates share token
-  ↓
-User gets shareable YouTube URL with token
-  ↓
-Recipient opens URL
-  ↓
-Extension detects token, fetches annotations
-  ↓
-Import modal appears
+youtube-annotator/
+├── src/content/              # Content script modules (esbuild entry: main.js)
+│   ├── main.js               # Orchestrator: init, player detection, SPA navigation
+│   ├── state.js              # Shared state
+│   ├── markers.js            # Triangle markers on progress bar
+│   ├── popup.js              # Citation view popup
+│   ├── annotationsSidebar.js # Bibliography sidebar
+│   ├── accountSidebar.js     # Account/auth sidebar
+│   ├── creatorMode.js        # YouTube creator detection + orange UX
+│   ├── fetchAnnotations.js   # Fetch citations from backend
+│   └── ...                   # utils, storage, modals, citationFields, etc.
+├── content.bundle.js         # Built bundle (do not edit directly)
+├── api.js                    # Backend API client
+├── auth.js                   # AuthManager (JWT + anonymous)
+├── youtubeAuth.js            # YouTube OAuth helpers
+├── manifest.json             # Extension manifest
+├── content.css               # UI styling
+├── background.js             # Service worker
+├── backend/                  # Node.js backend
+│   ├── src/
+│   │   ├── server.js
+│   │   ├── routes/           # auth, shares, users, admin, analytics
+│   │   ├── models/           # User, Share
+│   │   └── middleware/       # auth, rateLimiter, adminAuth
+│   ├── migrations/           # SQL schema files
+│   └── public/               # Admin dashboard (admin.html, admin.js)
+├── CLAUDE.md                 # Detailed technical documentation
+├── ROADMAP.md                # Project status, phases, and next steps
+└── dev-docs/                 # Design docs (refactor, testing, moderation, etc.)
 ```
-
-## API Endpoints
-
-See [backend/README.md](backend/README.md) for complete API documentation.
-
-**Core endpoints:**
-- `POST /api/auth/register` - Create anonymous user
-- `POST /api/shares` - Create share
-- `GET /api/shares/:token` - Get shared annotations
-- `GET /api/shares/video/:videoId` - Browse shares for video
-- `GET /api/shares/me` - List user's shares
-- `PUT /api/shares/:token` - Update share
-- `DELETE /api/shares/:token` - Delete share
 
 ## Development
 
-### Project Structure
-```
-youtube-annotator/
-├── manifest.json          # Chrome extension manifest
-├── content.js             # Main extension logic
-├── api.js                 # API client
-├── shareUI.js             # Share UI components
-├── content.css            # Styles
-├── backend/               # Node.js backend
-│   ├── src/
-│   │   ├── server.js      # Express server
-│   │   ├── routes/        # API routes
-│   │   ├── models/        # Database models
-│   │   ├── middleware/    # Auth, error handling
-│   │   └── utils/         # Token generation, validation
-│   ├── migrations/        # SQL migrations
-│   └── package.json
-├── SETUP.md              # Setup instructions
-└── README.md             # This file
-```
-
-### Running Locally
-
-1. **Install git hooks** (prevents committing credentials):
-   ```bash
-   ./scripts/install-hooks.sh
-   ```
-
-2. Start backend:
-   ```bash
-   cd backend
-   npm run dev
-   ```
-
-3. Load extension in Chrome (see Installation)
-
-4. Test on YouTube videos
-
-### Testing
-
-Run the backend test script:
 ```bash
-cd backend
-./test-api.sh
+# Build content script bundle
+npm run build
+
+# Watch mode (rebuilds on file change)
+npm run watch
+
+# Start backend locally
+cd backend && npm run dev
 ```
 
-Manual testing checklist:
-- [ ] Create annotations
-- [ ] Annotations persist after page refresh
-- [ ] Share button creates shareable link
-- [ ] Share link opens import modal
-- [ ] View-only mode shows blue markers
-- [ ] Merge combines annotations correctly
-- [ ] Replace overwrites existing annotations
-- [ ] Browse shows available shares
-- [ ] Navigation between videos works
-
-## Roadmap
-
-### v1.0 (Current - MVP)
-- [x] Local annotations with visual markers
-- [x] Anonymous sharing via backend
-- [x] Import/merge/replace functionality
-- [x] Browse shares by video
-
-### v2.0 (Planned)
-- [ ] YouTube OAuth integration
-- [ ] Voting/rating system for annotations
-- [ ] User profiles and display names
-- [ ] Comments on annotation sets
-
-### v3.0 (Future)
-- [ ] Video owner moderation
-- [ ] Following system
-- [ ] Trending annotations
-- [ ] Full-text search
-- [ ] Collections/playlists
-
-See [PLAN.md](PLAN.md) for detailed future feature specifications.
+After changing files in `src/content/`, rebuild and reload the extension in `chrome://extensions/`.
 
 ## Security
 
-- **Anonymous authentication**: No emails or passwords stored
-- **Input validation**: All user input sanitized
-- **Rate limiting**: Prevents spam and abuse
-- **SQL injection protection**: Parameterized queries
-- **CORS**: Restricted to extension origins
-- **XSS prevention**: HTML escaping on all user content
-- **Git hooks**: Pre-commit credential scanning prevents accidental leaks
+- HTTPS only (Railway SSL)
+- CORS restricted to YouTube.com
+- bcrypt password hashing (12 rounds)
+- JWT tokens with 30-day expiry
+- Multi-layer rate limiting (5 layers)
+- Parameterized SQL queries (no injection)
+- HTML escaping on all user content (no XSS)
+- Admin audit logging
+- Pre-commit hook for credential scanning
 
-### For Developers
+## Documentation
 
-**Important**: Install git hooks after cloning:
-```bash
-./scripts/install-hooks.sh
-```
-
-This installs a pre-commit hook that scans for exposed credentials (database URLs, API keys, passwords) before allowing commits. Prevents GitGuardian alerts and security incidents.
-
-## Privacy
-
-- **Local storage**: Your annotations are stored locally in your browser
-- **Optional sharing**: You choose what to share
-- **Anonymous by default**: No personal information required
-- **No tracking**: We don't collect analytics or usage data
+- **[CLAUDE.md](CLAUDE.md)** — full technical documentation (architecture, API endpoints, database schema, auth system, deployment)
+- **[ROADMAP.md](ROADMAP.md)** — project status, completed phases, future plans
+- **[dev-docs/](dev-docs/)** — design docs for specific features
 
 ## License
 
-All Rights Reserved - see [LICENSE](LICENSE) file for details
-
-## Support
-
-- **Issues**: [GitHub Issues](https://github.com/yourusername/youtube-annotator/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/yourusername/youtube-annotator/discussions)
-
-## Acknowledgments
-
-- Inspired by SoundCloud's comment system
-- Built with Chrome Extension Manifest V3
-- Backend powered by Node.js, Express, and PostgreSQL
+All Rights Reserved — see [LICENSE](LICENSE) for details.
 
 ---
 
-**Made with ❤️ by the YouTube Annotator team**
-
-*Star ⭐ this repo if you find it useful!*
+Built by [Citelines](https://www.citelines.org). Powered by Chrome Extension Manifest V3, Node.js, Express, and PostgreSQL.
