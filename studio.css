@@ -1,0 +1,502 @@
+/* Citelines Studio Sidebar Styles */
+/* All classes prefixed citelines-studio- to avoid conflicts */
+
+/* Sidebar panel */
+.citelines-studio-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 100vh;
+  background: #1a1a1a;
+  border-left: 2px solid #f5a623;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  font-family: 'Roboto', 'YouTube Sans', Arial, sans-serif;
+  font-size: 13px;
+  color: #e0e0e0;
+  box-shadow: -2px 0 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Header */
+.citelines-studio-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #222;
+  border-bottom: 1px solid #333;
+  flex-shrink: 0;
+}
+
+.citelines-studio-header-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.citelines-studio-logo {
+  color: #f5a623;
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.5px;
+}
+
+.citelines-studio-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.citelines-studio-close {
+  background: none;
+  border: none;
+  color: #aaa;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  line-height: 1;
+}
+
+.citelines-studio-close:hover {
+  background: #333;
+  color: #fff;
+}
+
+/* Scrollable content area */
+.citelines-studio-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+/* Form styles */
+.citelines-studio-form {
+  margin-bottom: 0;
+}
+
+.citelines-studio-form-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f5a623;
+  margin: 0 0 12px 0;
+}
+
+.citelines-studio-field {
+  margin-bottom: 10px;
+}
+
+.citelines-studio-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 500;
+  color: #999;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+
+.citelines-studio-input,
+.citelines-studio-textarea,
+.citelines-studio-select {
+  width: 100%;
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-radius: 4px;
+  color: #e0e0e0;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  box-sizing: border-box;
+}
+
+.citelines-studio-input:focus,
+.citelines-studio-textarea:focus,
+.citelines-studio-select:focus {
+  border-color: #f5a623;
+  box-shadow: 0 0 0 1px rgba(245, 166, 35, 0.3);
+}
+
+.citelines-studio-textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+.citelines-studio-select {
+  cursor: pointer;
+  appearance: auto;
+}
+
+.citelines-studio-timestamp-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.citelines-studio-timestamp-input {
+  flex: 1;
+}
+
+.citelines-studio-btn-current {
+  background: #333;
+  border: 1px solid #555;
+  color: #f5a623;
+  padding: 7px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.citelines-studio-btn-current:hover {
+  background: #444;
+}
+
+.citelines-studio-date-row {
+  display: flex;
+  gap: 6px;
+}
+
+.citelines-studio-date-row .citelines-studio-input {
+  flex: 1;
+}
+
+/* Buttons */
+.citelines-studio-btn {
+  padding: 8px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: background 0.15s;
+}
+
+.citelines-studio-btn-save {
+  background: #f5a623;
+  color: #1a1a1a;
+  width: 100%;
+  font-weight: 600;
+}
+
+.citelines-studio-btn-save:hover {
+  background: #e09510;
+}
+
+.citelines-studio-btn-save:disabled {
+  background: #666;
+  color: #999;
+  cursor: not-allowed;
+}
+
+.citelines-studio-btn-cancel {
+  background: #333;
+  color: #ccc;
+  border: 1px solid #555;
+}
+
+.citelines-studio-btn-cancel:hover {
+  background: #444;
+}
+
+.citelines-studio-form-actions {
+  margin-top: 12px;
+}
+
+.citelines-studio-form-message {
+  margin-top: 8px;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.citelines-studio-success {
+  background: rgba(76, 175, 80, 0.15);
+  color: #81c784;
+}
+
+.citelines-studio-error {
+  background: rgba(244, 67, 54, 0.15);
+  color: #e57373;
+}
+
+/* Divider */
+.citelines-studio-divider {
+  height: 1px;
+  background: #333;
+  margin: 16px 0;
+}
+
+/* Citation list */
+.citelines-studio-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.citelines-studio-list-header h3 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f5a623;
+  margin: 0;
+}
+
+.citelines-studio-count {
+  background: #333;
+  color: #f5a623;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+
+.citelines-studio-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.citelines-studio-empty {
+  text-align: center;
+  color: #666;
+  padding: 20px 0;
+  font-style: italic;
+}
+
+/* Citation item */
+.citelines-studio-citation-item {
+  background: #222;
+  border: 1px solid #333;
+  border-radius: 6px;
+  padding: 10px 12px;
+  transition: border-color 0.15s;
+}
+
+.citelines-studio-citation-item:hover {
+  border-color: #555;
+}
+
+.citelines-studio-citation-item.citelines-studio-highlight {
+  border-color: #f5a623;
+  box-shadow: 0 0 8px rgba(245, 166, 35, 0.3);
+}
+
+.citelines-studio-citation-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.citelines-studio-citation-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.1);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.citelines-studio-citation-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+
+.citelines-studio-citation-item:hover .citelines-studio-citation-actions {
+  opacity: 1;
+}
+
+.citelines-studio-btn-icon {
+  background: none;
+  border: none;
+  color: #888;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+.citelines-studio-btn-icon:hover {
+  background: #333;
+  color: #fff;
+}
+
+.citelines-studio-citation-text {
+  color: #ccc;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 4px 0;
+  word-break: break-word;
+}
+
+.citelines-studio-citation-meta {
+  font-size: 11px;
+  color: #666;
+  margin-top: 4px;
+}
+
+/* Citation display (from content/utils.js formatCitation) */
+.citelines-studio-citation-item .yt-annotator-citation {
+  margin: 4px 0;
+}
+
+.citelines-studio-citation-item .yt-annotator-citation-icon {
+  font-size: 14px;
+}
+
+.citelines-studio-citation-item .yt-annotator-citation-content {
+  font-size: 12px;
+}
+
+.citelines-studio-citation-item .yt-annotator-citation-title {
+  color: #e0e0e0;
+}
+
+.citelines-studio-citation-item .yt-annotator-citation-title:hover {
+  color: #f5a623;
+}
+
+.citelines-studio-citation-item .yt-annotator-citation-meta {
+  color: #888;
+}
+
+/* Edit form inline */
+.citelines-studio-edit-form {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #333;
+}
+
+.citelines-studio-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+  justify-content: flex-end;
+}
+
+/* Collapse button (circular) */
+.citelines-studio-collapse-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f5a623;
+  color: #1a1a1a;
+  border: none;
+  font-size: 16px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 99999;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.citelines-studio-collapse-btn:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.4);
+}
+
+/* Sign-in prompt */
+.citelines-studio-signin {
+  text-align: center;
+  padding: 40px 16px;
+}
+
+.citelines-studio-signin-icon {
+  font-size: 40px;
+  margin-bottom: 12px;
+}
+
+.citelines-studio-signin h3 {
+  font-size: 16px;
+  color: #fff;
+  margin: 0 0 8px 0;
+}
+
+.citelines-studio-signin p {
+  color: #999;
+  font-size: 13px;
+  line-height: 1.4;
+  margin: 0 0 20px 0;
+}
+
+.citelines-studio-btn-youtube {
+  background: #f5a623;
+  color: #1a1a1a;
+  font-weight: 600;
+  padding: 10px 24px;
+  border-radius: 4px;
+  border: none;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.citelines-studio-btn-youtube:hover {
+  background: #e09510;
+}
+
+/* Markers on Studio video preview */
+.citelines-studio-markers {
+  position: absolute;
+  bottom: 100%;
+  left: 0;
+  right: 0;
+  height: 12px;
+  pointer-events: auto;
+  z-index: 100;
+}
+
+.citelines-studio-marker {
+  position: absolute;
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-top: 8px solid #f5a623;
+  transform: translateX(-5px);
+  cursor: pointer;
+  transition: border-top-color 0.15s;
+}
+
+.citelines-studio-marker:hover {
+  border-top-color: #ffb94d;
+}
+
+/* Scrollbar styling */
+.citelines-studio-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.citelines-studio-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.citelines-studio-content::-webkit-scrollbar-thumb {
+  background: #444;
+  border-radius: 3px;
+}
+
+.citelines-studio-content::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* Dynamic fields container */
+.citelines-studio-dynamic-fields {
+  margin-bottom: 0;
+}
+
+.citelines-studio-dynamic-fields:empty {
+  margin-bottom: 0;
+}

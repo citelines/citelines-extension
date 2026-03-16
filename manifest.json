@@ -17,6 +17,7 @@
   },
   "host_permissions": [
     "https://www.youtube.com/*",
+    "https://studio.youtube.com/*",
     "http://localhost:3000/*"
   ],
   "content_scripts": [
@@ -24,6 +25,12 @@
       "matches": ["https://www.youtube.com/*"],
       "js": ["api.js", "auth.js", "youtubeAuth.js", "loginUI.js", "userProfileUI.js", "shareUI.js", "analytics.js", "content.bundle.js"],
       "css": ["content.css"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": ["https://studio.youtube.com/*"],
+      "js": ["api.js", "auth.js", "youtubeAuth.js", "loginUI.js", "analytics.js", "studio.bundle.js"],
+      "css": ["studio.css"],
       "run_at": "document_idle"
     }
   ],

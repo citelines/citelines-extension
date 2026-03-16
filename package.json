@@ -2,8 +2,10 @@
   "name": "youtube-annotator-extension",
   "private": true,
   "scripts": {
-    "build": "esbuild src/content/main.js --bundle --outfile=content.bundle.js --format=iife",
-    "watch": "esbuild src/content/main.js --bundle --outfile=content.bundle.js --format=iife --watch"
+    "build": "esbuild src/content/main.js --bundle --outfile=content.bundle.js --format=iife && esbuild src/studio/main.js --bundle --outfile=studio.bundle.js --format=iife",
+    "build:studio": "esbuild src/studio/main.js --bundle --outfile=studio.bundle.js --format=iife",
+    "watch": "esbuild src/content/main.js --bundle --outfile=content.bundle.js --format=iife --watch",
+    "watch:studio": "esbuild src/studio/main.js --bundle --outfile=studio.bundle.js --format=iife --watch"
   },
   "devDependencies": {
     "esbuild": "^0.25.0"
