@@ -315,6 +315,12 @@ When a verified creator is viewing their own video (orange UX), they should have
 - Could tie into karma/trust system (Phase 4 Quality Control)
 - Incentivizes high-quality contributions from viewers
 
+**Citelines.org My Dashboard — Creator View**:
+- Bring creator tools (review, remove/edit/flag, props) to the My Dashboard page on citelines.org as well
+- Creators can manage citations on their videos from both YouTube Studio (extension sidebar) and citelines.org
+- Dashboard should list the creator's videos with citation counts, and allow drill-down into per-video citation management
+- Same actions available: remove, edit, flag for review, give props — with the same backend endpoints
+
 ### Citations Library
 
 Make browsing, searching, and exporting citations a core product capability — across both the website dashboard and the extension.
