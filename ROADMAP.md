@@ -5,7 +5,7 @@
 **Deployment**: ✅ Live on Railway
 **Backend URL**: `https://youtube-annotator-production.up.railway.app`
 **Database**: PostgreSQL on Railway
-**Current Phase**: Phase 3D complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, content.js refactor complete, Privacy Policy in progress
+**Current Phase**: Phase 3D complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, content.js refactor complete, YouTube Studio sidebar complete, Privacy Policy in progress
 
 ---
 
@@ -294,12 +294,27 @@ Features that are fully implemented but have not been tested end-to-end against 
 
 When a verified creator is viewing their own video (orange UX), they should have additional tools beyond the standard citation flow.
 
+**YouTube Studio Sidebar — Add Citations** ✅:
+- Citelines sidebar (360px, fixed right) injected on `studio.youtube.com/video/VIDEO_ID/edit` pages
+- Quick Add form: timestamp + "Now" button, source type dropdown, dynamic fields (reuses `CITATION_FIELD_DEFS`), note textarea, citation style placeholder (CSL — coming soon)
+- Citation list below form with inline edit/delete
+- Collapse/expand: X closes sidebar, circular "C|" button toggles open/close, ESC key closes, Cmd+Enter submits
+- Studio layout push: entity-page constrained via CSS, editor wrapper div shrinks via JS (Polymer scoped styles block external CSS)
+- Orange triangle markers on Studio video preview timeline (`#timeline-container`)
+- Marker click shows citation popup over video preview + highlights citation in sidebar
+- Auth gate: sign-in prompt if not logged in
+- SPA navigation handling (MutationObserver on URL changes)
+- Files: `src/studio/` (main, globals, state, sidebar, citationForm, storage, markers), `studio.css`
+- Bundle: `npm run build:studio` → `studio.bundle.js`
+- **TODO**: Fix positioning of marker popups over video preview (currently centered, should align to marker). Add elbow connectors between markers and popups (matching watch-page pattern).
+
 **Quick-Add Mode**:
-- Keyboard-driven citation entry for creators who know their own video's source timestamps
-- Plug-in on YouTube Studio -> editor page, for adding citations during video upload flow?
-- Input fields for timestamp + note/full citation, submit with Enter or Cmd+Enter
-- No mouse navigation to the progress bar required — optimized for bulk citation entry
-- Could live in the sidebar or as a dedicated panel
+- ~~Keyboard-driven citation entry for creators who know their own video's source timestamps~~
+- ~~Plug-in on YouTube Studio -> editor page, for adding citations during video upload flow?~~
+- ~~Input fields for timestamp + note/full citation, submit with Enter or Cmd+Enter~~
+- ~~No mouse navigation to the progress bar required — optimized for bulk citation entry~~
+- ~~Could live in the sidebar or as a dedicated panel~~
+- Implemented as part of YouTube Studio Sidebar (see above)
 
 **Review Others' Citations**:
 - Creator can see all viewer-contributed citations on their video
@@ -638,6 +653,6 @@ node clear-data.js
 
 ---
 
-**Last Updated**: 2026-03-12
-**Status**: Phase 3D complete, Account Merge complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, content.js refactor complete, Privacy Policy in progress
-**Next**: Exhaustive post-refactor testing, live-test items in "Needs Live Testing" section, finish Privacy Policy + TOS, then Creator Tools (Phase 4A) or Chrome Web Store publishing
+**Last Updated**: 2026-03-16
+**Status**: Phase 3D complete, Account Merge complete, Account Deletion complete, Display Name Profanity Filter complete, Admin Reports Tab complete, Citelines.org website redesign complete, content.js refactor complete, YouTube Studio sidebar complete, Privacy Policy in progress
+**Next**: Exhaustive post-refactor testing, live-test items in "Needs Live Testing" section, finish Privacy Policy + TOS, Studio marker popup positioning + elbow connectors, then remaining Creator Tools (Phase 4A) or Chrome Web Store publishing

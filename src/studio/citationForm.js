@@ -35,6 +35,16 @@ export function createCitationForm(videoId) {
       <label class="citelines-studio-label">Note</label>
       <textarea class="citelines-studio-textarea" placeholder="Your note or comment..." rows="3"></textarea>
     </div>
+    <div class="citelines-studio-field">
+      <label class="citelines-studio-label">Citation Style</label>
+      <select class="citelines-studio-select citelines-studio-style-select" disabled>
+        <option value="">Coming soon (CSL)</option>
+        <option value="apa">APA</option>
+        <option value="mla">MLA</option>
+        <option value="chicago">Chicago</option>
+        <option value="ieee">IEEE</option>
+      </select>
+    </div>
     <div class="citelines-studio-form-actions">
       <button class="citelines-studio-btn citelines-studio-btn-save">Add Citation</button>
     </div>
@@ -49,9 +59,15 @@ export function createCitationForm(videoId) {
   const saveBtn = form.querySelector('.citelines-studio-btn-save');
   const messageEl = form.querySelector('.citelines-studio-form-message');
 
-  // Stop all keyboard events from propagating to Studio
+  // Stop all keyboard events from propagating to Studio; Cmd/Ctrl+Enter submits
   form.querySelectorAll('input, textarea, select').forEach(el => {
-    el.addEventListener('keydown', e => e.stopPropagation());
+    el.addEventListener('keydown', e => {
+      e.stopPropagation();
+      if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+        e.preventDefault();
+        saveBtn.click();
+      }
+    });
     el.addEventListener('keyup', e => e.stopPropagation());
     el.addEventListener('keypress', e => e.stopPropagation());
   });
@@ -98,9 +114,15 @@ export function createCitationForm(videoId) {
 
     dynamicFields.innerHTML = html;
 
-    // Stop keyboard events on new inputs
+    // Stop keyboard events on new inputs; Cmd/Ctrl+Enter submits
     dynamicFields.querySelectorAll('input').forEach(el => {
-      el.addEventListener('keydown', e => e.stopPropagation());
+      el.addEventListener('keydown', e => {
+        e.stopPropagation();
+        if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          saveBtn.click();
+        }
+      });
       el.addEventListener('keyup', e => e.stopPropagation());
       el.addEventListener('keypress', e => e.stopPropagation());
     });

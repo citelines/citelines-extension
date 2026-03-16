@@ -8,6 +8,8 @@ import { createCitationForm } from './citationForm.js';
 import { updateAnnotation, deleteAnnotation } from './storage.js';
 import { renderStudioMarkers } from './markers.js';
 
+let escHandler = null;
+
 // Create the sidebar DOM and attach to body
 export function createSidebar(videoId) {
   removeSidebar();
@@ -36,6 +38,18 @@ export function createSidebar(videoId) {
   document.body.appendChild(sidebar);
   state.setSidebar(sidebar);
   state.setSidebarOpen(true);
+  setStudioLayout(true);
+  showCollapseButton();
+
+  // Escape key closes sidebar
+  if (!escHandler) {
+    escHandler = (e) => {
+      if (e.key === 'Escape' && state.sidebarOpen) {
+        collapseSidebar();
+      }
+    };
+    document.addEventListener('keydown', escHandler);
+  }
 
   // Check auth and render appropriate content
   if (authManager.isLoggedIn()) {
@@ -278,11 +292,12 @@ function parseTimestamp(str) {
   return null;
 }
 
-// Collapse sidebar → show circular button
+// Collapse sidebar → show circular button in bottom-right
 export function collapseSidebar() {
   if (state.sidebar) {
     state.sidebar.style.display = 'none';
   }
+  setStudioLayout(false);
   state.setSidebarOpen(false);
   showCollapseButton();
 }
@@ -292,23 +307,102 @@ export function expandSidebar() {
   if (state.sidebar) {
     state.sidebar.style.display = '';
   }
+  setStudioLayout(true);
   state.setSidebarOpen(true);
-  hideCollapseButton();
+  showCollapseButton(); // keep button visible, repositioned left of sidebar
+}
+
+function toggleSidebar() {
+  if (state.sidebarOpen) {
+    collapseSidebar();
+  } else {
+    expandSidebar();
+  }
+}
+
+const SIDEBAR_WIDTH = 360;
+let layoutStyleTag = null;
+
+function setStudioLayout(open) {
+  if (open) {
+    document.body.classList.add('citelines-studio-open');
+    if (!layoutStyleTag) {
+      layoutStyleTag = document.createElement('style');
+      layoutStyleTag.textContent = `
+        body.citelines-studio-open ytcp-entity-page#entity-page {
+          right: ${SIDEBAR_WIDTH}px !important;
+          width: auto !important;
+          left: 0 !important;
+        }
+        body.citelines-studio-open .nav-and-main-content,
+        body.citelines-studio-open main#main {
+          overflow-x: hidden !important;
+        }
+      `;
+      document.head.appendChild(layoutStyleTag);
+    }
+    // Fire resize so Studio recalculates internal layout
+    window.dispatchEvent(new Event('resize'));
+    // Apply styles directly via JS (CSS doesn't penetrate Polymer scoped styles)
+    applyEditorLayout();
+    setTimeout(applyEditorLayout, 500);
+  } else {
+    document.body.classList.remove('citelines-studio-open');
+    clearEditorLayout();
+    window.dispatchEvent(new Event('resize'));
+  }
+}
+
+function applyEditorLayout() {
+  const editor = document.querySelector('ytcp-video-metadata-editor');
+  if (!editor) return;
+  editor.style.setProperty('overflow', 'hidden', 'important');
+  const wrapperDiv = editor.querySelector(':scope > div');
+  if (wrapperDiv) {
+    wrapperDiv.style.setProperty('flex-shrink', '1', 'important');
+    wrapperDiv.style.setProperty('min-width', '0', 'important');
+  }
+  const sp = editor.querySelector('ytcp-video-metadata-editor-sidepanel');
+  if (sp) {
+    sp.style.setProperty('flex-shrink', '0', 'important');
+  }
+}
+
+function clearEditorLayout() {
+  const editor = document.querySelector('ytcp-video-metadata-editor');
+  if (!editor) return;
+  editor.style.removeProperty('overflow');
+  const wrapperDiv = editor.querySelector(':scope > div');
+  if (wrapperDiv) {
+    wrapperDiv.style.removeProperty('flex-shrink');
+    wrapperDiv.style.removeProperty('min-width');
+  }
+  const sp = editor.querySelector('ytcp-video-metadata-editor-sidepanel');
+  if (sp) {
+    sp.style.removeProperty('flex-shrink');
+  }
 }
 
 function showCollapseButton() {
-  if (state.collapseButton) return;
-
-  const btn = document.createElement('button');
-  btn.className = 'citelines-studio-collapse-btn';
-  btn.innerHTML = 'C|';
-  btn.title = 'Open Citelines sidebar';
-  btn.addEventListener('click', expandSidebar);
-  document.body.appendChild(btn);
-  state.setCollapseButton(btn);
+  if (!state.collapseButton) {
+    const btn = document.createElement('button');
+    btn.className = 'citelines-studio-collapse-btn';
+    btn.innerHTML = 'C|';
+    btn.addEventListener('click', toggleSidebar);
+    document.body.appendChild(btn);
+    state.setCollapseButton(btn);
+  }
+  // Position: when sidebar is open, sit left of it; when closed, bottom-right corner
+  if (state.sidebarOpen) {
+    state.collapseButton.style.right = `${SIDEBAR_WIDTH + 12}px`;
+    state.collapseButton.title = 'Close Citelines sidebar';
+  } else {
+    state.collapseButton.style.right = '24px';
+    state.collapseButton.title = 'Open Citelines sidebar';
+  }
 }
 
-function hideCollapseButton() {
+function removeCollapseButton() {
   if (state.collapseButton) {
     state.collapseButton.remove();
     state.setCollapseButton(null);
@@ -321,6 +415,7 @@ export function removeSidebar() {
     state.sidebar.remove();
     state.setSidebar(null);
   }
-  hideCollapseButton();
+  setStudioLayout(false);
+  removeCollapseButton();
   state.setSidebarOpen(true);
 }

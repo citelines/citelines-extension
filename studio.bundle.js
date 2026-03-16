@@ -274,22 +274,33 @@
 
   // src/studio/markers.js
   init_state();
+  var retryCount = 0;
+  var MAX_RETRIES = 10;
   function renderStudioMarkers() {
     if (markersContainer) {
       markersContainer.remove();
       setMarkersContainer(null);
     }
     if (!annotations || annotations.length === 0) return;
-    const duration = getVideoDuration();
-    if (!duration || duration <= 0) return;
-    const progressBar = findProgressBar();
-    if (!progressBar) {
-      setTimeout(() => renderStudioMarkers(), 1e3);
+    const video = document.querySelector("video");
+    if (!video) {
+      retryLater();
       return;
     }
-    const parent = progressBar.parentElement;
-    if (parent && getComputedStyle(parent).position === "static") {
-      parent.style.position = "relative";
+    const duration = video.duration;
+    if (!duration || !isFinite(duration) || duration <= 0) {
+      video.addEventListener("loadedmetadata", () => renderStudioMarkers(), { once: true });
+      retryLater();
+      return;
+    }
+    const timeline = document.querySelector("#timeline-container");
+    if (!timeline) {
+      retryLater();
+      return;
+    }
+    retryCount = 0;
+    if (getComputedStyle(timeline).position === "static") {
+      timeline.style.position = "relative";
     }
     const container = document.createElement("div");
     container.className = "citelines-studio-markers";
@@ -299,16 +310,65 @@
       const marker = document.createElement("div");
       marker.className = "citelines-studio-marker";
       marker.style.left = `${pct}%`;
-      marker.title = ann.text || ann.citation?.title || "";
+      marker.title = `${formatTime(ann.timestamp)} \u2014 ${ann.text || ann.citation?.title || ""}`;
       marker.dataset.annotationId = ann.id;
       marker.addEventListener("click", (e) => {
         e.stopPropagation();
+        showMarkerPopup(ann, marker);
         scrollToAnnotation(ann.id);
       });
       container.appendChild(marker);
     }
-    progressBar.parentElement.insertBefore(container, progressBar);
+    timeline.appendChild(container);
     setMarkersContainer(container);
+  }
+  function retryLater() {
+    if (retryCount < MAX_RETRIES) {
+      retryCount++;
+      setTimeout(() => renderStudioMarkers(), 1e3);
+    }
+  }
+  var activePopup = null;
+  function closeMarkerPopup() {
+    if (activePopup) {
+      activePopup.remove();
+      activePopup = null;
+    }
+  }
+  function showMarkerPopup(ann, marker) {
+    closeMarkerPopup();
+    const videoContainer = document.querySelector("ytcp-video-info .container");
+    if (!videoContainer) return;
+    if (getComputedStyle(videoContainer).position === "static") {
+      videoContainer.style.position = "relative";
+    }
+    const popup = document.createElement("div");
+    popup.className = "citelines-studio-popup";
+    let citationHtml = "";
+    if (ann.citation && ann.citation.type) {
+      citationHtml = formatCitation(ann.citation, true);
+    }
+    popup.innerHTML = `
+    <div class="citelines-studio-popup-header">
+      <span class="citelines-studio-popup-time">${escapeHtml(formatTime(ann.timestamp))}</span>
+      <button class="citelines-studio-popup-close">&times;</button>
+    </div>
+    ${citationHtml}
+    ${ann.text ? `<div class="citelines-studio-popup-text">${escapeHtml(ann.text)}</div>` : ""}
+  `;
+    popup.querySelector(".citelines-studio-popup-close").addEventListener("click", (e) => {
+      e.stopPropagation();
+      closeMarkerPopup();
+    });
+    videoContainer.appendChild(popup);
+    activePopup = popup;
+    const outsideHandler = (e) => {
+      if (!popup.contains(e.target) && !marker.contains(e.target)) {
+        closeMarkerPopup();
+        document.removeEventListener("click", outsideHandler);
+      }
+    };
+    setTimeout(() => document.addEventListener("click", outsideHandler), 0);
   }
   function scrollToAnnotation(annotationId) {
     if (!sidebar) return;
@@ -318,57 +378,6 @@
       el.classList.add("citelines-studio-highlight");
       setTimeout(() => el.classList.remove("citelines-studio-highlight"), 1500);
     }
-  }
-  function findProgressBar() {
-    const selectors = [
-      "#progress-bar",
-      ".progress-bar",
-      "ytcp-video-preview #progress-bar",
-      "ytcp-video-preview .progress-bar",
-      ".video-preview-container #progress-bar",
-      "#movie_player .ytp-progress-bar",
-      ".ytp-progress-bar",
-      "ytcp-video-player .ytp-progress-bar"
-    ];
-    for (const sel of selectors) {
-      const el = document.querySelector(sel);
-      if (el) return el;
-    }
-    const video = document.querySelector("video");
-    if (video) {
-      const playerContainer = video.closest('[class*="player"], [id*="player"], ytcp-video-preview, #movie_player');
-      if (playerContainer) {
-        const bar = playerContainer.querySelector('[class*="progress"], [role="progressbar"], [role="slider"]');
-        if (bar) return bar;
-      }
-    }
-    return null;
-  }
-  function getVideoDuration() {
-    const video = document.querySelector("video");
-    if (video && video.duration && isFinite(video.duration)) {
-      return video.duration;
-    }
-    const timeDisplaySelectors = [
-      ".time-display",
-      ".ytp-time-display",
-      '[class*="time"]',
-      'ytcp-video-preview [class*="duration"]'
-    ];
-    for (const sel of timeDisplaySelectors) {
-      const els = document.querySelectorAll(sel);
-      for (const el of els) {
-        const text = el.textContent;
-        const match = text.match(/(\d+):(\d{2})(?::(\d{2}))?\s*$/);
-        if (match) {
-          if (match[3]) {
-            return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]);
-          }
-          return parseInt(match[1]) * 60 + parseInt(match[2]);
-        }
-      }
-    }
-    return null;
   }
 
   // src/studio/citationForm.js
@@ -398,6 +407,16 @@
       <label class="citelines-studio-label">Note</label>
       <textarea class="citelines-studio-textarea" placeholder="Your note or comment..." rows="3"></textarea>
     </div>
+    <div class="citelines-studio-field">
+      <label class="citelines-studio-label">Citation Style</label>
+      <select class="citelines-studio-select citelines-studio-style-select" disabled>
+        <option value="">Coming soon (CSL)</option>
+        <option value="apa">APA</option>
+        <option value="mla">MLA</option>
+        <option value="chicago">Chicago</option>
+        <option value="ieee">IEEE</option>
+      </select>
+    </div>
     <div class="citelines-studio-form-actions">
       <button class="citelines-studio-btn citelines-studio-btn-save">Add Citation</button>
     </div>
@@ -411,7 +430,13 @@
     const saveBtn = form.querySelector(".citelines-studio-btn-save");
     const messageEl = form.querySelector(".citelines-studio-form-message");
     form.querySelectorAll("input, textarea, select").forEach((el) => {
-      el.addEventListener("keydown", (e) => e.stopPropagation());
+      el.addEventListener("keydown", (e) => {
+        e.stopPropagation();
+        if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+          e.preventDefault();
+          saveBtn.click();
+        }
+      });
       el.addEventListener("keyup", (e) => e.stopPropagation());
       el.addEventListener("keypress", (e) => e.stopPropagation());
     });
@@ -452,7 +477,13 @@
       }
       dynamicFields.innerHTML = html;
       dynamicFields.querySelectorAll("input").forEach((el) => {
-        el.addEventListener("keydown", (e) => e.stopPropagation());
+        el.addEventListener("keydown", (e) => {
+          e.stopPropagation();
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            saveBtn.click();
+          }
+        });
         el.addEventListener("keyup", (e) => e.stopPropagation());
         el.addEventListener("keypress", (e) => e.stopPropagation());
       });
@@ -543,6 +574,7 @@
 
   // src/studio/sidebar.js
   init_storage();
+  var escHandler = null;
   function createSidebar(videoId2) {
     removeSidebar();
     const sidebar2 = document.createElement("div");
@@ -565,6 +597,16 @@
     document.body.appendChild(sidebar2);
     setSidebar(sidebar2);
     setSidebarOpen(true);
+    setStudioLayout(true);
+    showCollapseButton();
+    if (!escHandler) {
+      escHandler = (e) => {
+        if (e.key === "Escape" && sidebarOpen) {
+          collapseSidebar();
+        }
+      };
+      document.addEventListener("keydown", escHandler);
+    }
     if (authManager.isLoggedIn()) {
       renderAuthenticatedContent(content, videoId2);
     } else {
@@ -768,6 +810,7 @@
     if (sidebar) {
       sidebar.style.display = "none";
     }
+    setStudioLayout(false);
     setSidebarOpen(false);
     showCollapseButton();
   }
@@ -775,20 +818,92 @@
     if (sidebar) {
       sidebar.style.display = "";
     }
+    setStudioLayout(true);
     setSidebarOpen(true);
-    hideCollapseButton();
+    showCollapseButton();
+  }
+  function toggleSidebar() {
+    if (sidebarOpen) {
+      collapseSidebar();
+    } else {
+      expandSidebar();
+    }
+  }
+  var SIDEBAR_WIDTH = 360;
+  var layoutStyleTag = null;
+  function setStudioLayout(open) {
+    if (open) {
+      document.body.classList.add("citelines-studio-open");
+      if (!layoutStyleTag) {
+        layoutStyleTag = document.createElement("style");
+        layoutStyleTag.textContent = `
+        body.citelines-studio-open ytcp-entity-page#entity-page {
+          right: ${SIDEBAR_WIDTH}px !important;
+          width: auto !important;
+          left: 0 !important;
+        }
+        body.citelines-studio-open .nav-and-main-content,
+        body.citelines-studio-open main#main {
+          overflow-x: hidden !important;
+        }
+      `;
+        document.head.appendChild(layoutStyleTag);
+      }
+      window.dispatchEvent(new Event("resize"));
+      applyEditorLayout();
+      setTimeout(applyEditorLayout, 500);
+    } else {
+      document.body.classList.remove("citelines-studio-open");
+      clearEditorLayout();
+      window.dispatchEvent(new Event("resize"));
+    }
+  }
+  function applyEditorLayout() {
+    const editor = document.querySelector("ytcp-video-metadata-editor");
+    if (!editor) return;
+    editor.style.setProperty("overflow", "hidden", "important");
+    const wrapperDiv = editor.querySelector(":scope > div");
+    if (wrapperDiv) {
+      wrapperDiv.style.setProperty("flex-shrink", "1", "important");
+      wrapperDiv.style.setProperty("min-width", "0", "important");
+    }
+    const sp = editor.querySelector("ytcp-video-metadata-editor-sidepanel");
+    if (sp) {
+      sp.style.setProperty("flex-shrink", "0", "important");
+    }
+  }
+  function clearEditorLayout() {
+    const editor = document.querySelector("ytcp-video-metadata-editor");
+    if (!editor) return;
+    editor.style.removeProperty("overflow");
+    const wrapperDiv = editor.querySelector(":scope > div");
+    if (wrapperDiv) {
+      wrapperDiv.style.removeProperty("flex-shrink");
+      wrapperDiv.style.removeProperty("min-width");
+    }
+    const sp = editor.querySelector("ytcp-video-metadata-editor-sidepanel");
+    if (sp) {
+      sp.style.removeProperty("flex-shrink");
+    }
   }
   function showCollapseButton() {
-    if (collapseButton) return;
-    const btn = document.createElement("button");
-    btn.className = "citelines-studio-collapse-btn";
-    btn.innerHTML = "C|";
-    btn.title = "Open Citelines sidebar";
-    btn.addEventListener("click", expandSidebar);
-    document.body.appendChild(btn);
-    setCollapseButton(btn);
+    if (!collapseButton) {
+      const btn = document.createElement("button");
+      btn.className = "citelines-studio-collapse-btn";
+      btn.innerHTML = "C|";
+      btn.addEventListener("click", toggleSidebar);
+      document.body.appendChild(btn);
+      setCollapseButton(btn);
+    }
+    if (sidebarOpen) {
+      collapseButton.style.right = `${SIDEBAR_WIDTH + 12}px`;
+      collapseButton.title = "Close Citelines sidebar";
+    } else {
+      collapseButton.style.right = "24px";
+      collapseButton.title = "Open Citelines sidebar";
+    }
   }
-  function hideCollapseButton() {
+  function removeCollapseButton() {
     if (collapseButton) {
       collapseButton.remove();
       setCollapseButton(null);
@@ -799,7 +914,8 @@
       sidebar.remove();
       setSidebar(null);
     }
-    hideCollapseButton();
+    setStudioLayout(false);
+    removeCollapseButton();
     setSidebarOpen(true);
   }
 

@@ -1,8 +1,12 @@
-// Orange triangle markers on Studio's video preview player
+// Orange triangle markers on Studio's video preview player timeline
 
 import * as state from './state.js';
+import { formatTime, escapeHtml, formatCitation } from '../content/utils.js';
 
-// Render markers above the Studio player's progress bar
+let retryCount = 0;
+const MAX_RETRIES = 10;
+
+// Render markers above the Studio timeline
 export function renderStudioMarkers() {
   // Remove existing markers
   if (state.markersContainer) {
@@ -12,20 +16,31 @@ export function renderStudioMarkers() {
 
   if (!state.annotations || state.annotations.length === 0) return;
 
-  const duration = getVideoDuration();
-  if (!duration || duration <= 0) return;
-
-  const progressBar = findProgressBar();
-  if (!progressBar) {
-    // Progress bar not yet in DOM — retry once after a short delay
-    setTimeout(() => renderStudioMarkers(), 1000);
+  const video = document.querySelector('video');
+  if (!video) {
+    retryLater();
     return;
   }
 
-  // Ensure the progress bar parent is positioned
-  const parent = progressBar.parentElement;
-  if (parent && getComputedStyle(parent).position === 'static') {
-    parent.style.position = 'relative';
+  const duration = video.duration;
+  if (!duration || !isFinite(duration) || duration <= 0) {
+    video.addEventListener('loadedmetadata', () => renderStudioMarkers(), { once: true });
+    retryLater();
+    return;
+  }
+
+  // Find the Studio timeline container: #timeline-container inside <ytcp-video-player-timeline>
+  const timeline = document.querySelector('#timeline-container');
+  if (!timeline) {
+    retryLater();
+    return;
+  }
+
+  retryCount = 0;
+
+  // Ensure timeline is positioned for absolute children
+  if (getComputedStyle(timeline).position === 'static') {
+    timeline.style.position = 'relative';
   }
 
   const container = document.createElement('div');
@@ -38,20 +53,82 @@ export function renderStudioMarkers() {
     const marker = document.createElement('div');
     marker.className = 'citelines-studio-marker';
     marker.style.left = `${pct}%`;
-    marker.title = ann.text || (ann.citation?.title) || '';
+    marker.title = `${formatTime(ann.timestamp)} — ${ann.text || ann.citation?.title || ''}`;
     marker.dataset.annotationId = ann.id;
 
     marker.addEventListener('click', (e) => {
       e.stopPropagation();
+      showMarkerPopup(ann, marker);
       scrollToAnnotation(ann.id);
     });
 
     container.appendChild(marker);
   }
 
-  // Position markers container above the progress bar
-  progressBar.parentElement.insertBefore(container, progressBar);
+  timeline.appendChild(container);
   state.setMarkersContainer(container);
+}
+
+function retryLater() {
+  if (retryCount < MAX_RETRIES) {
+    retryCount++;
+    setTimeout(() => renderStudioMarkers(), 1000);
+  }
+}
+
+let activePopup = null;
+
+function closeMarkerPopup() {
+  if (activePopup) {
+    activePopup.remove();
+    activePopup = null;
+  }
+}
+
+function showMarkerPopup(ann, marker) {
+  closeMarkerPopup();
+
+  const videoContainer = document.querySelector('ytcp-video-info .container');
+  if (!videoContainer) return;
+
+  // Ensure container is positioned for absolute popup
+  if (getComputedStyle(videoContainer).position === 'static') {
+    videoContainer.style.position = 'relative';
+  }
+
+  const popup = document.createElement('div');
+  popup.className = 'citelines-studio-popup';
+
+  let citationHtml = '';
+  if (ann.citation && ann.citation.type) {
+    citationHtml = formatCitation(ann.citation, true);
+  }
+
+  popup.innerHTML = `
+    <div class="citelines-studio-popup-header">
+      <span class="citelines-studio-popup-time">${escapeHtml(formatTime(ann.timestamp))}</span>
+      <button class="citelines-studio-popup-close">&times;</button>
+    </div>
+    ${citationHtml}
+    ${ann.text ? `<div class="citelines-studio-popup-text">${escapeHtml(ann.text)}</div>` : ''}
+  `;
+
+  popup.querySelector('.citelines-studio-popup-close').addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeMarkerPopup();
+  });
+
+  videoContainer.appendChild(popup);
+  activePopup = popup;
+
+  // Close on click outside
+  const outsideHandler = (e) => {
+    if (!popup.contains(e.target) && !marker.contains(e.target)) {
+      closeMarkerPopup();
+      document.removeEventListener('click', outsideHandler);
+    }
+  };
+  setTimeout(() => document.addEventListener('click', outsideHandler), 0);
 }
 
 // Scroll the sidebar to a specific annotation
@@ -63,70 +140,4 @@ function scrollToAnnotation(annotationId) {
     el.classList.add('citelines-studio-highlight');
     setTimeout(() => el.classList.remove('citelines-studio-highlight'), 1500);
   }
-}
-
-// Find the Studio preview player's progress bar
-function findProgressBar() {
-  // Studio uses a custom video player — try common selectors
-  // The progress bar is typically inside the video preview container
-  const selectors = [
-    '#progress-bar',
-    '.progress-bar',
-    'ytcp-video-preview #progress-bar',
-    'ytcp-video-preview .progress-bar',
-    '.video-preview-container #progress-bar',
-    '#movie_player .ytp-progress-bar',
-    '.ytp-progress-bar',
-    'ytcp-video-player .ytp-progress-bar',
-  ];
-
-  for (const sel of selectors) {
-    const el = document.querySelector(sel);
-    if (el) return el;
-  }
-
-  // Fallback: look for the video element and find a nearby progress-like element
-  const video = document.querySelector('video');
-  if (video) {
-    const playerContainer = video.closest('[class*="player"], [id*="player"], ytcp-video-preview, #movie_player');
-    if (playerContainer) {
-      const bar = playerContainer.querySelector('[class*="progress"], [role="progressbar"], [role="slider"]');
-      if (bar) return bar;
-    }
-  }
-
-  return null;
-}
-
-// Get video duration from the Studio player
-function getVideoDuration() {
-  // Try the video element directly
-  const video = document.querySelector('video');
-  if (video && video.duration && isFinite(video.duration)) {
-    return video.duration;
-  }
-
-  // Try parsing from a time display (e.g., "0:00 / 3:26")
-  const timeDisplaySelectors = [
-    '.time-display',
-    '.ytp-time-display',
-    '[class*="time"]',
-    'ytcp-video-preview [class*="duration"]',
-  ];
-
-  for (const sel of timeDisplaySelectors) {
-    const els = document.querySelectorAll(sel);
-    for (const el of els) {
-      const text = el.textContent;
-      const match = text.match(/(\d+):(\d{2})(?::(\d{2}))?\s*$/);
-      if (match) {
-        if (match[3]) {
-          return parseInt(match[1]) * 3600 + parseInt(match[2]) * 60 + parseInt(match[3]);
-        }
-        return parseInt(match[1]) * 60 + parseInt(match[2]);
-      }
-    }
-  }
-
-  return null;
 }

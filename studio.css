@@ -447,13 +447,13 @@
   background: #e09510;
 }
 
-/* Markers on Studio video preview */
+/* Markers above the Studio timeline */
 .citelines-studio-markers {
   position: absolute;
-  bottom: 100%;
+  top: -10px;
   left: 0;
   right: 0;
-  height: 12px;
+  height: 10px;
   pointer-events: auto;
   z-index: 100;
 }
@@ -499,4 +499,70 @@
 
 .citelines-studio-dynamic-fields:empty {
   margin-bottom: 0;
+}
+
+/* Marker popup over video preview */
+.citelines-studio-popup {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  border: 1px solid #f5a623;
+  border-radius: 8px;
+  padding: 10px 14px;
+  min-width: 180px;
+  max-width: 300px;
+  z-index: 100001;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+  font-size: 13px;
+  color: #e0e0e0;
+}
+
+.citelines-studio-popup-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.citelines-studio-popup-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.1);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+
+.citelines-studio-popup-close {
+  background: none;
+  border: none;
+  color: #888;
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.citelines-studio-popup-close:hover {
+  color: #fff;
+}
+
+.citelines-studio-popup-text {
+  color: #ccc;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.citelines-studio-popup .yt-annotator-citation {
+  margin: 4px 0;
+}
+
+.citelines-studio-popup .yt-annotator-citation-title {
+  color: #e0e0e0;
+}
+
+.citelines-studio-popup .yt-annotator-citation-meta {
+  color: #888;
 }
