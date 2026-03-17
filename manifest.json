@@ -1,6 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Citelines",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAs9/p2DwCXtq0mGkEoO/Ka53H4c6t2pUKoaugv7vkA8B+plol0qq8aOR2RZs4X0iQVOr0IZAz+N9Cz5Jb1z9E4iX3FNDAnaquMUcC5ov6OPW67cSVxZdM4Icgac/HYdRqOggEhrc4H4nUO5RkpyMo7qLnzL9JISQvHltJAHMA3iQv0q24OET9+R6iRb5/04T+uA+w1r3ntk7JZDTqQgkUgaG+z67TxKEu6McoXAztLxaJK5+vQN9MBsamzaRC1b19w2ejyr1C3T4S+pwyRP//xrOn4IQNJvddA1P5nj0Vy5/wlvxI1zQcQyrQqrQJY4lKH+YvXL8VPJGmP0OF5YGdSwIDAQAB",
   "version": "0.1.0",
   "description": "Add timestamped citations to videos",
   "permissions": [
