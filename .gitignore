@@ -29,7 +29,6 @@ ROADMAP.md
 # Chrome extension build artifacts
 *.crx
 *.pem
-content.bundle.js
 node_modules/
 
 # IDE files
