@@ -1,8 +1,8 @@
 # Citelines — Video Annotator
 
 A browser extension that creates a collaborative citation layer on videos. Add timestamped citations to a video — all users with the extension see citations from everyone.
-Pilot browser: Chrome
-Pilot player: YouTube.com
+
+Pilot browser: Chrome; Pilot player: YouTube.com
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red)
@@ -11,17 +11,17 @@ Pilot player: YouTube.com
 
 ## What It Does
 
-- **Timestamped citations** — click + to add a citation at the current video time
-- **Collaborative by default** — every citation is visible to all Citelines users on that video
-- **Triangle markers on the progress bar** — color-coded by ownership:
+- **Timestamped citations** — Viewers can click + to add a citation at the current video time
+- **Collaborative** — every citation is visible to all Citelines users on that video. Other viewers can suggest edits to existing citations.
+- **Creator Tools** — Video creators can add citations as part of the publishing flow, at time of upload. Other viewers will see those citations on the video as added by the video's creator.
+- **In-context citations** — Video Player Progress Bar has markers color-coded by ownership:
   - **Teal** = yours
   - **Grey** = other users'
-  - **Orange** = the video's YouTube creator (verified via OAuth)
+  - **Orange** = the video's creator
+- **Bibliography sidebar** — browse and filter (All / Mine / Others / Creator) citations
 - **Citation types** — basic notes, YouTube videos, movies, articles with structured fields
-- **Bibliography sidebar** — browse, filter (All / Mine / Others / Creator), and search citations
-- **Three-dot menu** — edit your own citations, report or suggest edits on others'
-- **Creator mode** — verified YouTube creators get an orange UI accent when viewing their own videos
-- **Accounts** — anonymous by default (90-day expiry), or register with email/password or YouTube OAuth
+- **Modify citations** — edit your own citations, report or suggest edits on others'
+- **Accounts** — anonymous by default (90-day expiry), or register with email/password
 
 ## Installation
 
@@ -68,10 +68,8 @@ The production backend is hosted on Railway.
 - Service worker: `background.js` (OAuth, channel ID detection, install tracking)
 
 **Backend** (Node.js + Express):
-- PostgreSQL with JSONB for flexible citation storage
-- JWT + anonymous ID dual authentication
-- Multi-layer rate limiting
-- Admin moderation system with web dashboard
+- PostgreSQL with JSONB
+- JWT + anonymous ID authentication
 - Hosted on Railway
 
 ## Project Structure
@@ -130,13 +128,9 @@ cd backend && npm run dev
 
 After changing files in `src/content/` or `src/studio/`, rebuild and reload the extension in `chrome://extensions/`.
 
-## Security
-
-HTTPS-only, CORS-restricted, bcrypt password hashing, parameterized SQL queries, HTML escaping, multi-layer rate limiting, JWT with expiry, and admin audit logging.
-
 ## Documentation
 
-- **[citelines.org/documentation](https://www.citelines.org/documentation)** — developer documentation
+- **[citelines.org/documentation](https://www.citelines.org/documentation)** — additional documentation
 - **[dev-docs/](dev-docs/)** — design docs for specific features
 
 ## License
