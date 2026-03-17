@@ -1,6 +1,6 @@
 # Citelines — Video Annotator
 
-A browser extension that creates a collaborative citation layer on videos. Add timestamped citations to a video — all users with the extension see citations from everyone.
+A browser extension that creates a collaborative citation tool on videos. Add timestamped citations to a video — all users with the extension see citations from everyone.
 
 Pilot browser: Chrome; Pilot player: YouTube.com
 
