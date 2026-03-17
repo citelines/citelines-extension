@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Install git hooks for youtube-annotator
+# Install git hooks for citelines-extension
 # Run this after cloning the repository
 #
 

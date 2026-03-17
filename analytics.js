@@ -8,7 +8,7 @@ class AnalyticsTracker {
     this.queue = [];
     this.flushInterval = 10000; // 10 seconds
     this.maxBatchSize = 20;
-    this.baseUrl = 'https://youtube-annotator-production.up.railway.app/api';
+    this.baseUrl = 'https://citelines-extension-production.up.railway.app/api';
     this._startFlushing();
     this._checkPendingInstall();
   }

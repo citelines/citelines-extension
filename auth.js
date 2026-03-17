@@ -1,5 +1,5 @@
 /**
- * YouTube Annotator Authentication Manager
+ * Citelines Authentication Manager
  * Handles JWT token storage and user authentication
  */
 
@@ -7,7 +7,7 @@ class AuthManager {
   constructor() {
     this.token = null;
     this.user = null;
-    this.baseUrl = 'https://youtube-annotator-production.up.railway.app/api';
+    this.baseUrl = 'https://citelines-extension-production.up.railway.app/api';
   }
 
   /**

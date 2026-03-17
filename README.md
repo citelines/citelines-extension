@@ -33,8 +33,8 @@ Pilot browser: Chrome; Pilot player: YouTube.com
 
 1. Clone and install:
    ```bash
-   git clone https://github.com/abekatz11/youtube-annotator.git
-   cd youtube-annotator
+   git clone https://github.com/abekatz11/citelines-extension.git
+   cd citelines-extension
    npm install
    npm run build
    ```
@@ -43,7 +43,7 @@ Pilot browser: Chrome; Pilot player: YouTube.com
    - Open `chrome://extensions/`
    - Enable **Developer mode**
    - Click **Load unpacked**
-   - Select the `youtube-annotator` folder
+   - Select the `citelines-extension` folder
 
 3. Go to any YouTube video — the + button, bibliography icon, and account icon appear on the player.
 
@@ -75,7 +75,7 @@ The production backend is hosted on Railway.
 ## Project Structure
 
 ```
-youtube-annotator/
+citelines-extension/
 ├── src/content/              # Content script modules (esbuild entry: main.js)
 │   ├── main.js               # Orchestrator: init, player detection, SPA navigation
 │   ├── state.js              # Shared state

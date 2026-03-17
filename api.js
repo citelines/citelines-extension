@@ -1,12 +1,12 @@
 /**
- * YouTube Annotator API Client
+ * Citelines API Client
  * Handles communication with the backend API
  */
 
 class AnnotatorAPI {
   constructor() {
     // Production Railway backend
-    this.baseUrl = 'https://youtube-annotator-production.up.railway.app/api';
+    this.baseUrl = 'https://citelines-extension-production.up.railway.app/api';
     this.anonymousId = null;
     this.authManager = null; // Will be set after authManager is initialized
   }

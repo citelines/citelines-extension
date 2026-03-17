@@ -1,5 +1,5 @@
 /**
- * YouTube Annotator User Profile UI
+ * Citelines User Profile UI
  * Modal displaying user statistics and activity
  */
 
@@ -90,7 +90,7 @@ class UserProfileUI {
    */
   async loadProfileData(userId) {
     try {
-      const response = await fetch(`https://youtube-annotator-production.up.railway.app/api/users/${userId}/profile`);
+      const response = await fetch(`https://citelines-extension-production.up.railway.app/api/users/${userId}/profile`);
 
       if (!response.ok) {
         throw new Error('Failed to load profile');

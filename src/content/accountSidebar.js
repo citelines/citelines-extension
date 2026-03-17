@@ -187,7 +187,7 @@ export function updateAccountSidebarContent() {
     // Fetch and populate usage stats
     const userId = user.id;
     if (userId) {
-      fetch(`https://youtube-annotator-production.up.railway.app/api/users/${userId}/profile`)
+      fetch(`https://citelines-extension-production.up.railway.app/api/users/${userId}/profile`)
         .then(r => r.ok ? r.json() : Promise.reject())
         .then(profile => {
           const joinedEl = state.accountSidebar?.querySelector('.yt-annotator-account-stats-joined');

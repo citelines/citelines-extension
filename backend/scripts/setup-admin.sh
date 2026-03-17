@@ -1,6 +1,6 @@
 #!/bin/bash
 #
-# Setup Admin Account for YouTube Annotator
+# Setup Admin Account for Citelines
 # This script helps create an admin account with email/password auth
 #
 
@@ -12,11 +12,11 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m'
 
-API_URL="https://youtube-annotator-production.up.railway.app"
+API_URL="https://citelines-extension-production.up.railway.app"
 
 echo ""
 echo "========================================="
-echo "YouTube Annotator - Admin Setup"
+echo "Citelines - Admin Setup"
 echo "========================================="
 echo ""
 

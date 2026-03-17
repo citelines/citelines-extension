@@ -2,7 +2,7 @@
 # Test script for admin moderation endpoints
 # Usage: ./test-admin.sh <admin-user-id> <target-user-id> <citation-token>
 
-BASE_URL="https://youtube-annotator-production.up.railway.app"
+BASE_URL="https://citelines-extension-production.up.railway.app"
 
 # You need to get a JWT token or anonymous ID for an admin user
 # For testing, use your anonymous ID

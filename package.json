@@ -1,5 +1,5 @@
 {
-  "name": "youtube-annotator-extension",
+  "name": "citelines-extension",
   "private": true,
   "scripts": {
     "build": "esbuild src/content/main.js --bundle --outfile=content.bundle.js --format=iife && esbuild src/studio/main.js --bundle --outfile=studio.bundle.js --format=iife",
