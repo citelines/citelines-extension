@@ -23,6 +23,9 @@ CLAUDE.md
 .claude.json
 *.claude.json
 
+# Internal project docs (sensitive operational details)
+ROADMAP.md
+
 # Chrome extension build artifacts
 *.crx
 *.pem

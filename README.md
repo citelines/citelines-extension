@@ -1,6 +1,8 @@
-# Citelines — YouTube Annotator
+# Citelines — Video Annotator
 
-A Chrome extension that creates a collaborative citation layer on YouTube videos. Add timestamped citations to any video — all users with the extension see citations from everyone.
+A browser extension that creates a collaborative citation layer on videos. Add timestamped citations to a video — all users with the extension see citations from everyone.
+Pilot browser: Chrome
+Pilot player: YouTube.com
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue)
 ![License](https://img.shields.io/badge/license-All%20Rights%20Reserved-red)
@@ -60,7 +62,8 @@ The production backend is hosted on Railway.
 ## Tech Stack
 
 **Extension** (Chrome Manifest V3):
-- Content scripts: modular ES modules bundled with esbuild (`src/content/` → `content.bundle.js`)
+- Watch page: modular ES modules bundled with esbuild (`src/content/` → `content.bundle.js`)
+- Studio sidebar: creator citation tools on `studio.youtube.com` (`src/studio/` → `studio.bundle.js`)
 - Standalone scripts: `api.js`, `auth.js`, `youtubeAuth.js`, `loginUI.js`, `userProfileUI.js`, `analytics.js`
 - Service worker: `background.js` (OAuth, channel ID detection, install tracking)
 
@@ -85,12 +88,20 @@ youtube-annotator/
 │   ├── creatorMode.js        # YouTube creator detection + orange UX
 │   ├── fetchAnnotations.js   # Fetch citations from backend
 │   └── ...                   # utils, storage, modals, citationFields, etc.
-├── content.bundle.js         # Built bundle (do not edit directly)
+├── src/studio/               # Studio sidebar modules (esbuild entry: main.js)
+│   ├── main.js               # Orchestrator: detect video edit page, SPA nav
+│   ├── sidebar.js            # Sidebar DOM, citation list, layout push
+│   ├── citationForm.js       # Quick Add form with dynamic fields
+│   ├── markers.js            # Orange markers on Studio video preview
+│   └── ...                   # storage, state, globals
+├── content.bundle.js         # Built watch page bundle (do not edit directly)
+├── studio.bundle.js          # Built studio bundle (do not edit directly)
 ├── api.js                    # Backend API client
 ├── auth.js                   # AuthManager (JWT + anonymous)
 ├── youtubeAuth.js            # YouTube OAuth helpers
 ├── manifest.json             # Extension manifest
-├── content.css               # UI styling
+├── content.css               # Watch page styling
+├── studio.css                # Studio sidebar styling
 ├── background.js             # Service worker
 ├── backend/                  # Node.js backend
 │   ├── src/
@@ -100,42 +111,32 @@ youtube-annotator/
 │   │   └── middleware/       # auth, rateLimiter, adminAuth
 │   ├── migrations/           # SQL schema files
 │   └── public/               # Admin dashboard (admin.html, admin.js)
-├── CLAUDE.md                 # Detailed technical documentation
-├── ROADMAP.md                # Project status, phases, and next steps
 └── dev-docs/                 # Design docs (refactor, testing, moderation, etc.)
 ```
 
 ## Development
 
 ```bash
-# Build content script bundle
+# Build both bundles (content + studio)
 npm run build
 
 # Watch mode (rebuilds on file change)
-npm run watch
+npm run watch          # content bundle
+npm run watch:studio   # studio bundle
 
-# Start backend locally
+# Start backend locally (only needed for backend development)
 cd backend && npm run dev
 ```
 
-After changing files in `src/content/`, rebuild and reload the extension in `chrome://extensions/`.
+After changing files in `src/content/` or `src/studio/`, rebuild and reload the extension in `chrome://extensions/`.
 
 ## Security
 
-- HTTPS only (Railway SSL)
-- CORS restricted to YouTube.com
-- bcrypt password hashing (12 rounds)
-- JWT tokens with 30-day expiry
-- Multi-layer rate limiting (5 layers)
-- Parameterized SQL queries (no injection)
-- HTML escaping on all user content (no XSS)
-- Admin audit logging
-- Pre-commit hook for credential scanning
+HTTPS-only, CORS-restricted, bcrypt password hashing, parameterized SQL queries, HTML escaping, multi-layer rate limiting, JWT with expiry, and admin audit logging.
 
 ## Documentation
 
-- **[CLAUDE.md](CLAUDE.md)** — full technical documentation (architecture, API endpoints, database schema, auth system, deployment)
-- **[ROADMAP.md](ROADMAP.md)** — project status, completed phases, future plans
+- **[citelines.org/documentation](https://www.citelines.org/documentation)** — developer documentation
 - **[dev-docs/](dev-docs/)** — design docs for specific features
 
 ## License
