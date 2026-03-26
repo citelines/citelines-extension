@@ -144,6 +144,11 @@ function handleNavigation() {
         state.creatorMarkersContainer.remove();
         state.setCreatorMarkersContainer(null);
       }
+      if (state.citationTimeline) {
+        state.citationTimeline.remove();
+        state.setCitationTimeline(null);
+        state.setTimelineCollapsed(false);
+      }
       if (state.adObserver) {
         state.adObserver.disconnect();
         state.setAdObserver(null);

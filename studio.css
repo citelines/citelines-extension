@@ -37,10 +37,14 @@
 }
 
 .citelines-studio-logo {
-  color: #f5a623;
+  color: #0497a6;
   font-weight: 700;
   font-size: 18px;
   letter-spacing: -0.5px;
+}
+
+.citelines-studio-logo-pipe {
+  color: #ffaa3e;
 }
 
 .citelines-studio-title {
@@ -389,8 +393,9 @@
   width: 48px;
   height: 48px;
   border-radius: 50%;
-  background: #f5a623;
-  color: #1a1a1a;
+  background: #1a1a1a;
+  color: #0497a6;
+  border: 2px solid #333;
   border: none;
   font-size: 16px;
   font-weight: 700;
@@ -405,7 +410,7 @@
 
 .citelines-studio-collapse-btn:hover {
   transform: scale(1.08);
-  box-shadow: 0 4px 16px rgba(245, 166, 35, 0.4);
+  box-shadow: 0 4px 16px rgba(4, 151, 166, 0.4);
 }
 
 /* Sign-in prompt */
@@ -447,31 +452,159 @@
   background: #e09510;
 }
 
-/* Markers above the Studio timeline */
-.citelines-studio-markers {
+/* ── Multi-Track Citation Timeline (Studio) ── */
+
+.citelines-studio-timeline {
+  width: 100%;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  position: relative;
+  z-index: 10;
+  font-family: 'Roboto', 'YouTube Sans', Arial, sans-serif;
+  margin-top: 0;
+  margin-bottom: 16px;
+}
+
+.citelines-studio-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #333;
+  cursor: pointer;
+  user-select: none;
+  transition: border-bottom-color 0.2s;
+}
+
+.citelines-studio-timeline-header.collapsed {
+  border-bottom-color: transparent;
+}
+
+.citelines-studio-timeline-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.citelines-studio-timeline-logo {
+  color: #0497a6;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.citelines-studio-timeline-pipe {
+  color: #ffaa3e;
+}
+
+.citelines-studio-timeline-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.citelines-studio-timeline-count {
+  font-size: 11px;
+  color: #666;
+}
+
+.citelines-studio-timeline-chevron {
+  font-size: 10px;
+  color: #666;
+  transition: transform 0.25s;
+  display: inline-block;
+}
+
+.citelines-studio-timeline-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.citelines-studio-timeline-body {
+  overflow: hidden;
+  max-height: 500px;
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+  opacity: 1;
+}
+
+.citelines-studio-timeline-body.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+.citelines-studio-timeline-tracks {
+  position: relative;
+  padding: 0;
+}
+
+.citelines-studio-timeline-track {
+  position: relative;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.citelines-studio-timeline-track:last-child {
+  border-bottom: none;
+}
+
+.citelines-studio-timeline-track:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.citelines-studio-timeline-track-label {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #444;
+  padding: 0 8px 4px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.citelines-studio-timeline-track-icon {
+  font-size: 9px;
+}
+
+.citelines-studio-timeline-track-lane {
+  position: relative;
+  width: 100%;
+  height: 24px;
+}
+
+.citelines-studio-timeline-track-lane-bg {
   position: absolute;
-  top: -10px;
+  top: 50%;
   left: 0;
   right: 0;
-  height: 10px;
-  pointer-events: auto;
-  z-index: 100;
+  height: 1px;
+  background: #222;
 }
 
-.citelines-studio-marker {
+.citelines-studio-timeline-marker {
   position: absolute;
-  width: 0;
-  height: 0;
-  border-left: 5px solid transparent;
-  border-right: 5px solid transparent;
-  border-top: 8px solid #f5a623;
-  transform: translateX(-5px);
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
   cursor: pointer;
-  transition: border-top-color 0.15s;
+  transition: width 0.15s, opacity 0.15s;
+  z-index: 1;
+  background: #f5a623;
 }
 
-.citelines-studio-marker:hover {
-  border-top-color: #ffb94d;
+.citelines-studio-timeline-marker:hover {
+  width: 4px;
+  transform: translateX(-1px);
+  z-index: 30;
+  background: #ffb94d;
+  box-shadow: 0 0 8px rgba(245, 166, 35, 0.4);
 }
 
 /* Scrollbar styling */
@@ -553,6 +686,27 @@
   color: #ccc;
   line-height: 1.4;
   word-break: break-word;
+}
+
+.citelines-studio-popup-actions {
+  margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.citelines-studio-popup-goto {
+  background: #333;
+  border: 1px solid #555;
+  color: #ccc;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.citelines-studio-popup-goto:hover {
+  background: #444;
+  color: #fff;
 }
 
 .citelines-studio-popup .yt-annotator-citation {

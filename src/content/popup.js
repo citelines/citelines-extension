@@ -23,128 +23,49 @@ export function closePopup() {
   }
 }
 
-// Position popup near the marker on the progress bar
-function positionPopupNearMarker(popup, annotation, video) {
-  try {
-    if (!video || !video.duration) return;
+// Position popup near a marker in the citation timeline
+function positionPopupNearMarker(popup, markerEl) {
+  if (!markerEl) return;
 
-    const percentage = (annotation.timestamp / video.duration) * 100;
-    const progressBar = document.querySelector('.ytp-progress-bar-container');
-    const playerContainer = document.querySelector('#movie_player');
+  const markerRect = markerEl.getBoundingClientRect();
+  const timelineEl = document.querySelector('.citelines-timeline');
+  if (!timelineEl) return;
 
-    if (!progressBar || !playerContainer) return;
+  const timelineRect = timelineEl.getBoundingClientRect();
 
-    const progressBarRect = progressBar.getBoundingClientRect();
-    const playerRect = playerContainer.getBoundingClientRect();
+  // Position popup above the marker, centered horizontally on it
+  const popupWidth = popup.offsetWidth;
+  const popupHeight = popup.offsetHeight;
 
-    const markerAbsoluteX = progressBarRect.left + (percentage / 100) * progressBarRect.width;
-    const popupWidth = popup.offsetWidth;
+  // Marker center X relative to timeline
+  const markerCenterX = markerRect.left + markerRect.width / 2 - timelineRect.left;
+  let popupLeft = markerCenterX - popupWidth / 2;
 
-    // Constrain popup to middle 40% of video window (30% to 70%)
-    const playerWidth = playerRect.width;
-    const minConstraint = playerWidth * 0.30;
-    const maxConstraint = playerWidth * 0.70;
+  // Clamp within timeline bounds with some padding
+  const padding = 8;
+  popupLeft = Math.max(padding, Math.min(popupLeft, timelineRect.width - popupWidth - padding));
 
-    const markerRelativeToPlayer = markerAbsoluteX - playerRect.left;
-    let popupLeft = markerRelativeToPlayer - (popupWidth / 2);
+  // Position above the marker's track
+  const popupBottom = timelineRect.bottom - markerRect.top + 8;
 
-    const popupMinLeft = minConstraint - (popupWidth / 2);
-    const popupMaxLeft = maxConstraint - (popupWidth / 2);
-    popupLeft = Math.max(popupMinLeft, Math.min(popupLeft, popupMaxLeft));
-
-    popup.style.left = `${popupLeft}px`;
-    popup.style.transform = 'none';
-
-    // Wait for next frame to get accurate popup position
-    requestAnimationFrame(() => {
-      try {
-        const popupRect = popup.getBoundingClientRect();
-        const playerRect = playerContainer.getBoundingClientRect();
-
-        const connector = document.createElement('div');
-        connector.className = 'yt-annotator-popup-connector';
-
-        const popupBottom = popupRect.bottom;
-        const markerTop = progressBarRect.top - 4;
-        const totalHeight = Math.abs(markerTop - popupBottom);
-
-        if (totalHeight >= 10) {
-          const popupBorderWidth = popup.offsetWidth;
-          const popupCenterX = popupBorderWidth / 2;
-
-          const markerXRelativeToPopup = markerAbsoluteX - popupRect.left;
-          const horizontalOffset = markerXRelativeToPopup - popupCenterX;
-
-          const elbowHeight = totalHeight * 0.3;
-          const remainingHeight = totalHeight - elbowHeight;
-
-          const horizontalWidth = Math.abs(horizontalOffset) + 2;
-          const horizontalLeft = Math.min(markerXRelativeToPopup, popupCenterX) - 1;
-
-          const connectorColor = annotation.isCreatorCitation ? '#ffaa3e'
-            : annotation.isOwn ? '#0497a6'
-            : '#888888';
-
-          const verticalTop = document.createElement('div');
-          verticalTop.className = 'yt-annotator-connector-vertical-top';
-          verticalTop.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: ${popupCenterX}px;
-            transform: translateX(-50%);
-            width: 2px;
-            height: ${elbowHeight + 1}px;
-            background: ${connectorColor};
-          `;
-
-          const horizontal = document.createElement('div');
-          horizontal.className = 'yt-annotator-connector-horizontal';
-          horizontal.style.cssText = `
-            position: absolute;
-            top: ${elbowHeight}px;
-            left: ${horizontalLeft}px;
-            width: ${horizontalWidth}px;
-            height: 2px;
-            background: ${connectorColor};
-          `;
-
-          const verticalBottom = document.createElement('div');
-          verticalBottom.className = 'yt-annotator-connector-vertical-bottom';
-          verticalBottom.style.cssText = `
-            position: absolute;
-            top: ${elbowHeight}px;
-            left: ${markerXRelativeToPopup}px;
-            transform: translateX(-50%);
-            width: 2px;
-            height: ${remainingHeight}px;
-            background: ${connectorColor};
-          `;
-
-          connector.appendChild(verticalTop);
-          connector.appendChild(horizontal);
-          connector.appendChild(verticalBottom);
-
-          connector.style.height = `${totalHeight}px`;
-          popup.appendChild(connector);
-        }
-      } catch (err) {
-        console.error('[Connector] Error:', err);
-      }
-    });
-  } catch (error) {
-    console.error('[Positioning] Error:', error);
-  }
+  popup.style.position = 'absolute';
+  popup.style.left = `${popupLeft}px`;
+  popup.style.bottom = `${popupBottom}px`;
+  popup.style.top = 'auto';
+  popup.style.transform = 'none';
 }
 
 // Show popup for viewing/editing annotation
-export function showAnnotationPopup(annotation, video, isShared = false) {
+export function showAnnotationPopup(annotation, video, isShared = false, markerEl = null) {
   closePopup();
 
   // Admin-deleted annotations: show removal notice instead of full popup
   if (annotation.adminDeleted) return;
 
-  const playerContainer = document.querySelector('#movie_player');
-  if (!playerContainer) return;
+  // Append popup to the citation timeline if available, otherwise player
+  const timelineEl = document.querySelector('.citelines-timeline');
+  const popupContainer = timelineEl || document.querySelector('#movie_player');
+  if (!popupContainer) return;
 
   const popup = document.createElement('div');
   popup.className = 'yt-annotator-popup';
@@ -377,10 +298,10 @@ export function showAnnotationPopup(annotation, video, isShared = false) {
     closePopup();
   });
 
-  playerContainer.appendChild(popup);
+  popupContainer.appendChild(popup);
   state.setActivePopup(popup);
 
-  positionPopupNearMarker(popup, annotation, video);
+  positionPopupNearMarker(popup, markerEl);
 }
 
 // Delete annotation handler

@@ -22,7 +22,7 @@ export function createSidebar(videoId) {
   header.className = 'citelines-studio-header';
   header.innerHTML = `
     <div class="citelines-studio-header-left">
-      <span class="citelines-studio-logo">C|</span>
+      <span class="citelines-studio-logo">C<span class="citelines-studio-logo-pipe">|</span></span>
       <span class="citelines-studio-title">Citelines</span>
     </div>
     <button class="citelines-studio-close" title="Collapse sidebar">&times;</button>
@@ -387,7 +387,7 @@ function showCollapseButton() {
   if (!state.collapseButton) {
     const btn = document.createElement('button');
     btn.className = 'citelines-studio-collapse-btn';
-    btn.innerHTML = 'C|';
+    btn.innerHTML = 'C<span style="color:#ffaa3e">|</span>';
     btn.addEventListener('click', toggleSidebar);
     document.body.appendChild(btn);
     state.setCollapseButton(btn);

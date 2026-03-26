@@ -276,6 +276,17 @@
   init_state();
   var retryCount = 0;
   var MAX_RETRIES = 10;
+  var LANES = [
+    { id: "article", label: "Article", icon: "\u{1F4C4}" },
+    { id: "youtube", label: "YouTube", icon: "\u25B6" },
+    { id: "movie", label: "Movie", icon: "\u{1F39E}" },
+    { id: "book", label: "Book", icon: "\u{1F4D6}" },
+    { id: "podcast", label: "Podcast", icon: "\u{1F399}" },
+    { id: "note", label: "Note", icon: "\u{1F4DD}" }
+  ];
+  function getLaneId(ann) {
+    return ann.citation?.type || "note";
+  }
   function renderStudioMarkers() {
     if (markersContainer) {
       markersContainer.remove();
@@ -299,27 +310,84 @@
       return;
     }
     retryCount = 0;
-    if (getComputedStyle(timeline).position === "static") {
-      timeline.style.position = "relative";
-    }
-    const container = document.createElement("div");
-    container.className = "citelines-studio-markers";
+    const laneAnnotations = {};
     for (const ann of annotations) {
-      const pct = ann.timestamp / duration * 100;
-      if (pct < 0 || pct > 100) continue;
-      const marker = document.createElement("div");
-      marker.className = "citelines-studio-marker";
-      marker.style.left = `${pct}%`;
-      marker.title = `${formatTime(ann.timestamp)} \u2014 ${ann.text || ann.citation?.title || ""}`;
-      marker.dataset.annotationId = ann.id;
-      marker.addEventListener("click", (e) => {
-        e.stopPropagation();
-        showMarkerPopup(ann, marker);
-        scrollToAnnotation(ann.id);
-      });
-      container.appendChild(marker);
+      const laneId = getLaneId(ann);
+      if (!laneAnnotations[laneId]) laneAnnotations[laneId] = [];
+      laneAnnotations[laneId].push(ann);
     }
-    timeline.appendChild(container);
+    const populatedLanes = LANES.filter((l) => laneAnnotations[l.id]?.length > 0);
+    const knownIds = new Set(LANES.map((l) => l.id));
+    for (const laneId of Object.keys(laneAnnotations)) {
+      if (!knownIds.has(laneId)) {
+        populatedLanes.push({ id: laneId, label: laneId.charAt(0).toUpperCase() + laneId.slice(1), icon: "\u{1F4C4}" });
+      }
+    }
+    if (populatedLanes.length === 0) return;
+    const container = document.createElement("div");
+    container.className = "citelines-studio-timeline";
+    const header = document.createElement("div");
+    header.className = "citelines-studio-timeline-header";
+    header.innerHTML = `
+    <span class="citelines-studio-timeline-title">
+      <span class="citelines-studio-timeline-logo">Cite<span class="citelines-studio-timeline-pipe">|</span>ines</span>
+      Timeline
+    </span>
+    <span class="citelines-studio-timeline-right">
+      <span class="citelines-studio-timeline-count">${annotations.length} citation${annotations.length !== 1 ? "s" : ""} \xB7 ${populatedLanes.length} type${populatedLanes.length !== 1 ? "s" : ""}</span>
+      <span class="citelines-studio-timeline-chevron">&#9660;</span>
+    </span>
+  `;
+    const body = document.createElement("div");
+    body.className = "citelines-studio-timeline-body";
+    const tracks = document.createElement("div");
+    tracks.className = "citelines-studio-timeline-tracks";
+    for (const lane of populatedLanes) {
+      const trackEl = document.createElement("div");
+      trackEl.className = "citelines-studio-timeline-track";
+      const laneEl = document.createElement("div");
+      laneEl.className = "citelines-studio-timeline-track-lane";
+      const laneBg = document.createElement("div");
+      laneBg.className = "citelines-studio-timeline-track-lane-bg";
+      laneEl.appendChild(laneBg);
+      const laneAnns = laneAnnotations[lane.id] || [];
+      for (const ann of laneAnns) {
+        const pct = ann.timestamp / duration * 100;
+        if (pct < 0 || pct > 100) continue;
+        const marker = document.createElement("div");
+        marker.className = "citelines-studio-timeline-marker";
+        marker.style.left = pct + "%";
+        marker.dataset.annotationId = ann.id;
+        marker.title = `${formatTime(ann.timestamp)} \u2014 ${ann.text || ann.citation?.title || ""}`;
+        marker.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showMarkerPopup(ann, marker);
+          scrollToAnnotation(ann.id);
+        });
+        laneEl.appendChild(marker);
+      }
+      const labelEl = document.createElement("div");
+      labelEl.className = "citelines-studio-timeline-track-label";
+      labelEl.innerHTML = `<span class="citelines-studio-timeline-track-icon">${lane.icon}</span>${lane.label}`;
+      trackEl.appendChild(laneEl);
+      trackEl.appendChild(labelEl);
+      tracks.appendChild(trackEl);
+    }
+    body.appendChild(tracks);
+    container.appendChild(header);
+    container.appendChild(body);
+    const chevron = header.querySelector(".citelines-studio-timeline-chevron");
+    header.addEventListener("click", () => {
+      body.classList.toggle("collapsed");
+      header.classList.toggle("collapsed");
+      chevron.classList.toggle("collapsed");
+    });
+    const html5Player = document.querySelector("ytcp-video-info ytcp-html5-video-player");
+    if (html5Player && html5Player.parentNode) {
+      html5Player.parentNode.insertBefore(container, html5Player.nextSibling);
+    } else {
+      timeline.parentNode.insertBefore(container, timeline.nextSibling);
+    }
     setMarkersContainer(container);
   }
   function retryLater() {
@@ -337,10 +405,10 @@
   }
   function showMarkerPopup(ann, marker) {
     closeMarkerPopup();
-    const videoContainer = document.querySelector("ytcp-video-info .container");
-    if (!videoContainer) return;
-    if (getComputedStyle(videoContainer).position === "static") {
-      videoContainer.style.position = "relative";
+    const timelineEl = markersContainer;
+    if (!timelineEl) return;
+    if (getComputedStyle(timelineEl).position === "static") {
+      timelineEl.style.position = "relative";
     }
     const popup = document.createElement("div");
     popup.className = "citelines-studio-popup";
@@ -355,13 +423,35 @@
     </div>
     ${citationHtml}
     ${ann.text ? `<div class="citelines-studio-popup-text">${escapeHtml(ann.text)}</div>` : ""}
+    <div class="citelines-studio-popup-actions">
+      <button class="citelines-studio-popup-goto">Go to</button>
+    </div>
   `;
     popup.querySelector(".citelines-studio-popup-close").addEventListener("click", (e) => {
       e.stopPropagation();
       closeMarkerPopup();
     });
-    videoContainer.appendChild(popup);
+    popup.querySelector(".citelines-studio-popup-goto").addEventListener("click", (e) => {
+      e.stopPropagation();
+      const video = document.querySelector("video");
+      if (video) video.currentTime = ann.timestamp;
+      closeMarkerPopup();
+    });
+    timelineEl.appendChild(popup);
     activePopup = popup;
+    const markerRect = marker.getBoundingClientRect();
+    const timelineRect = timelineEl.getBoundingClientRect();
+    const popupWidth = popup.offsetWidth;
+    const markerCenterX = markerRect.left + markerRect.width / 2 - timelineRect.left;
+    let popupLeft = markerCenterX - popupWidth / 2;
+    const padding = 8;
+    popupLeft = Math.max(padding, Math.min(popupLeft, timelineRect.width - popupWidth - padding));
+    const popupBottom = timelineRect.bottom - markerRect.top + 8;
+    popup.style.position = "absolute";
+    popup.style.left = `${popupLeft}px`;
+    popup.style.bottom = `${popupBottom}px`;
+    popup.style.top = "auto";
+    popup.style.transform = "none";
     const outsideHandler = (e) => {
       if (!popup.contains(e.target) && !marker.contains(e.target)) {
         closeMarkerPopup();
@@ -584,7 +674,7 @@
     header.className = "citelines-studio-header";
     header.innerHTML = `
     <div class="citelines-studio-header-left">
-      <span class="citelines-studio-logo">C|</span>
+      <span class="citelines-studio-logo">C<span class="citelines-studio-logo-pipe">|</span></span>
       <span class="citelines-studio-title">Citelines</span>
     </div>
     <button class="citelines-studio-close" title="Collapse sidebar">&times;</button>
@@ -890,7 +980,7 @@
     if (!collapseButton) {
       const btn = document.createElement("button");
       btn.className = "citelines-studio-collapse-btn";
-      btn.innerHTML = "C|";
+      btn.innerHTML = 'C<span style="color:#ffaa3e">|</span>';
       btn.addEventListener("click", toggleSidebar);
       document.body.appendChild(btn);
       setCollapseButton(btn);

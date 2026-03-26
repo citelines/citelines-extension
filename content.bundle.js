@@ -5,6 +5,8 @@
   var sharedAnnotations = [];
   var markersContainer = null;
   var creatorMarkersContainer = null;
+  var citationTimeline = null;
+  var timelineCollapsed = false;
   var addButton = null;
   var sidebarButton = null;
   var sidebar = null;
@@ -32,6 +34,12 @@
   }
   function setCreatorMarkersContainer(val) {
     creatorMarkersContainer = val;
+  }
+  function setCitationTimeline(val) {
+    citationTimeline = val;
+  }
+  function setTimelineCollapsed(val) {
+    timelineCollapsed = val;
   }
   function setAddButton(val) {
     addButton = val;
@@ -552,97 +560,31 @@
       connector.remove();
     }
   }
-  function positionPopupNearMarker(popup, annotation, video) {
-    try {
-      if (!video || !video.duration) return;
-      const percentage = annotation.timestamp / video.duration * 100;
-      const progressBar = document.querySelector(".ytp-progress-bar-container");
-      const playerContainer = document.querySelector("#movie_player");
-      if (!progressBar || !playerContainer) return;
-      const progressBarRect = progressBar.getBoundingClientRect();
-      const playerRect = playerContainer.getBoundingClientRect();
-      const markerAbsoluteX = progressBarRect.left + percentage / 100 * progressBarRect.width;
-      const popupWidth = popup.offsetWidth;
-      const playerWidth = playerRect.width;
-      const minConstraint = playerWidth * 0.3;
-      const maxConstraint = playerWidth * 0.7;
-      const markerRelativeToPlayer = markerAbsoluteX - playerRect.left;
-      let popupLeft = markerRelativeToPlayer - popupWidth / 2;
-      const popupMinLeft = minConstraint - popupWidth / 2;
-      const popupMaxLeft = maxConstraint - popupWidth / 2;
-      popupLeft = Math.max(popupMinLeft, Math.min(popupLeft, popupMaxLeft));
-      popup.style.left = `${popupLeft}px`;
-      popup.style.transform = "none";
-      requestAnimationFrame(() => {
-        try {
-          const popupRect = popup.getBoundingClientRect();
-          const playerRect2 = playerContainer.getBoundingClientRect();
-          const connector = document.createElement("div");
-          connector.className = "yt-annotator-popup-connector";
-          const popupBottom = popupRect.bottom;
-          const markerTop = progressBarRect.top - 4;
-          const totalHeight = Math.abs(markerTop - popupBottom);
-          if (totalHeight >= 10) {
-            const popupBorderWidth = popup.offsetWidth;
-            const popupCenterX = popupBorderWidth / 2;
-            const markerXRelativeToPopup = markerAbsoluteX - popupRect.left;
-            const horizontalOffset = markerXRelativeToPopup - popupCenterX;
-            const elbowHeight = totalHeight * 0.3;
-            const remainingHeight = totalHeight - elbowHeight;
-            const horizontalWidth = Math.abs(horizontalOffset) + 2;
-            const horizontalLeft = Math.min(markerXRelativeToPopup, popupCenterX) - 1;
-            const connectorColor = annotation.isCreatorCitation ? "#ffaa3e" : annotation.isOwn ? "#0497a6" : "#888888";
-            const verticalTop = document.createElement("div");
-            verticalTop.className = "yt-annotator-connector-vertical-top";
-            verticalTop.style.cssText = `
-            position: absolute;
-            top: 0;
-            left: ${popupCenterX}px;
-            transform: translateX(-50%);
-            width: 2px;
-            height: ${elbowHeight + 1}px;
-            background: ${connectorColor};
-          `;
-            const horizontal = document.createElement("div");
-            horizontal.className = "yt-annotator-connector-horizontal";
-            horizontal.style.cssText = `
-            position: absolute;
-            top: ${elbowHeight}px;
-            left: ${horizontalLeft}px;
-            width: ${horizontalWidth}px;
-            height: 2px;
-            background: ${connectorColor};
-          `;
-            const verticalBottom = document.createElement("div");
-            verticalBottom.className = "yt-annotator-connector-vertical-bottom";
-            verticalBottom.style.cssText = `
-            position: absolute;
-            top: ${elbowHeight}px;
-            left: ${markerXRelativeToPopup}px;
-            transform: translateX(-50%);
-            width: 2px;
-            height: ${remainingHeight}px;
-            background: ${connectorColor};
-          `;
-            connector.appendChild(verticalTop);
-            connector.appendChild(horizontal);
-            connector.appendChild(verticalBottom);
-            connector.style.height = `${totalHeight}px`;
-            popup.appendChild(connector);
-          }
-        } catch (err) {
-          console.error("[Connector] Error:", err);
-        }
-      });
-    } catch (error) {
-      console.error("[Positioning] Error:", error);
-    }
+  function positionPopupNearMarker(popup, markerEl) {
+    if (!markerEl) return;
+    const markerRect = markerEl.getBoundingClientRect();
+    const timelineEl = document.querySelector(".citelines-timeline");
+    if (!timelineEl) return;
+    const timelineRect = timelineEl.getBoundingClientRect();
+    const popupWidth = popup.offsetWidth;
+    const popupHeight = popup.offsetHeight;
+    const markerCenterX = markerRect.left + markerRect.width / 2 - timelineRect.left;
+    let popupLeft = markerCenterX - popupWidth / 2;
+    const padding = 8;
+    popupLeft = Math.max(padding, Math.min(popupLeft, timelineRect.width - popupWidth - padding));
+    const popupBottom = timelineRect.bottom - markerRect.top + 8;
+    popup.style.position = "absolute";
+    popup.style.left = `${popupLeft}px`;
+    popup.style.bottom = `${popupBottom}px`;
+    popup.style.top = "auto";
+    popup.style.transform = "none";
   }
-  function showAnnotationPopup(annotation, video, isShared = false) {
+  function showAnnotationPopup(annotation, video, isShared = false, markerEl = null) {
     closePopup();
     if (annotation.adminDeleted) return;
-    const playerContainer = document.querySelector("#movie_player");
-    if (!playerContainer) return;
+    const timelineEl = document.querySelector(".citelines-timeline");
+    const popupContainer = timelineEl || document.querySelector("#movie_player");
+    if (!popupContainer) return;
     const popup = document.createElement("div");
     popup.className = "yt-annotator-popup";
     const creatorName = annotation.creatorDisplayName || "Anonymous";
@@ -847,9 +789,9 @@
       video.currentTime = annotation.timestamp;
       closePopup();
     });
-    playerContainer.appendChild(popup);
+    popupContainer.appendChild(popup);
     setActivePopup(popup);
-    positionPopupNearMarker(popup, annotation, video);
+    positionPopupNearMarker(popup, markerEl);
   }
   async function handleDeleteAnnotation(annotation) {
     const videoId = getVideoId();
@@ -1189,24 +1131,21 @@
   }
 
   // src/content/markers.js
-  function createMarker(annotation, video, markerType = "other") {
-    const marker = document.createElement("div");
-    if (markerType === "creator") {
-      marker.className = "yt-annotator-marker yt-annotator-marker-creator";
-    } else if (markerType === "other") {
-      marker.className = "yt-annotator-marker yt-annotator-marker-shared";
-    } else {
-      marker.className = "yt-annotator-marker";
-    }
-    marker.dataset.annotationId = annotation.id;
-    const percentage = annotation.timestamp / video.duration * 100;
-    marker.style.left = `${percentage}%`;
-    marker.addEventListener("click", (e) => {
-      e.stopPropagation();
-      if (typeof analytics !== "undefined") analytics.track("citation_clicked", { videoId: currentVideoId, source: "marker" });
-      showAnnotationPopup(annotation, video, !annotation.isOwn);
-    });
-    return marker;
+  var LANES = [
+    { id: "article", label: "Article", icon: "\u{1F4C4}" },
+    { id: "youtube", label: "YouTube", icon: "\u25B6" },
+    { id: "movie", label: "Movie", icon: "\u{1F39E}" },
+    { id: "book", label: "Book", icon: "\u{1F4D6}" },
+    { id: "podcast", label: "Podcast", icon: "\u{1F399}" },
+    { id: "note", label: "Note", icon: "\u{1F4DD}" }
+  ];
+  function getLaneId(annotation) {
+    return annotation.citation?.type || "note";
+  }
+  function getMarkerClass(annotation) {
+    if (annotation.isCreatorCitation) return "creator";
+    if (annotation.isOwn) return "mine";
+    return "other";
   }
   function refreshMarkerColors() {
     const currentUserId = authManager.getCurrentUser()?.id || null;
@@ -1217,7 +1156,7 @@
     renderMarkers();
   }
   function renderMarkers() {
-    if (!markersContainer) return;
+    if (!citationTimeline) return;
     const video = document.querySelector("video");
     if (!video) return;
     if (!video.duration || video.duration === 0) {
@@ -1236,28 +1175,84 @@
       startAdObserver();
       return;
     }
-    markersContainer.innerHTML = "";
-    if (creatorMarkersContainer) creatorMarkersContainer.innerHTML = "";
-    sharedAnnotations.forEach((annotation) => {
-      if (annotation.adminDeleted) return;
-      if (annotation.isCreatorCitation) {
-        if (creatorMarkersContainer) {
-          const marker = createMarker(annotation, video, "creator");
-          creatorMarkersContainer.appendChild(marker);
-        }
-      } else {
-        const markerType = annotation.isOwn ? "own" : "other";
-        const marker = createMarker(annotation, video, markerType);
-        markersContainer.appendChild(marker);
+    const annotations2 = sharedAnnotations.filter((a) => !a.adminDeleted);
+    const laneAnnotations = {};
+    for (const ann of annotations2) {
+      const laneId = getLaneId(ann);
+      if (!laneAnnotations[laneId]) laneAnnotations[laneId] = [];
+      laneAnnotations[laneId].push(ann);
+    }
+    const populatedLanes = LANES.filter((l) => laneAnnotations[l.id]?.length > 0);
+    const knownIds = new Set(LANES.map((l) => l.id));
+    for (const laneId of Object.keys(laneAnnotations)) {
+      if (!knownIds.has(laneId)) {
+        populatedLanes.push({ id: laneId, label: laneId.charAt(0).toUpperCase() + laneId.slice(1), icon: "\u{1F4C4}" });
       }
-    });
-    const ownCount = sharedAnnotations.filter((a) => a.isOwn).length;
-    const sharedCount = sharedAnnotations.filter((a) => !a.isOwn && !a.isCreatorCitation).length;
-    const creatorCount = sharedAnnotations.filter((a) => a.isCreatorCitation).length;
+    }
+    const tracksContainer = citationTimeline.querySelector(".citelines-tracks");
+    const countEl = citationTimeline.querySelector(".citelines-count");
+    console.log("[Citelines] renderMarkers: tracksContainer found?", !!tracksContainer, "annotations:", annotations2.length, "lanes:", populatedLanes.map((l) => l.id));
+    if (!tracksContainer) return;
+    tracksContainer.innerHTML = "";
+    if (annotations2.length === 0) {
+      citationTimeline.style.display = "none";
+      return;
+    }
+    citationTimeline.style.display = "";
+    const playhead = document.createElement("div");
+    playhead.className = "citelines-playhead";
+    const currentPct = video.duration > 0 ? video.currentTime / video.duration * 100 : 0;
+    playhead.style.left = `${currentPct}%`;
+    tracksContainer.appendChild(playhead);
+    for (const lane of populatedLanes) {
+      const trackEl = document.createElement("div");
+      trackEl.className = "citelines-track";
+      const laneEl = document.createElement("div");
+      laneEl.className = "citelines-track-lane";
+      const laneBg = document.createElement("div");
+      laneBg.className = "citelines-track-lane-bg";
+      laneEl.appendChild(laneBg);
+      const laneAnns = laneAnnotations[lane.id] || [];
+      for (const ann of laneAnns) {
+        const pct = ann.timestamp / video.duration * 100;
+        const marker = document.createElement("div");
+        marker.className = "citelines-marker " + getMarkerClass(ann);
+        marker.style.left = pct + "%";
+        marker.dataset.annotationId = ann.id;
+        marker.addEventListener("click", (e) => {
+          e.stopPropagation();
+          if (typeof analytics !== "undefined") analytics.track("citation_clicked", { videoId: currentVideoId, source: "marker" });
+          showAnnotationPopup(ann, video, !ann.isOwn, marker);
+        });
+        laneEl.appendChild(marker);
+      }
+      const labelEl = document.createElement("div");
+      labelEl.className = "citelines-track-label";
+      labelEl.innerHTML = `<span class="citelines-track-icon">${lane.icon}</span>${lane.label}`;
+      trackEl.appendChild(laneEl);
+      trackEl.appendChild(labelEl);
+      tracksContainer.appendChild(trackEl);
+    }
+    if (countEl) {
+      const typeCount = populatedLanes.length;
+      countEl.textContent = `${annotations2.length} citation${annotations2.length !== 1 ? "s" : ""} \xB7 ${typeCount} type${typeCount !== 1 ? "s" : ""}`;
+    }
+    const ownCount = annotations2.filter((a) => a.isOwn).length;
+    const sharedCount = annotations2.filter((a) => !a.isOwn && !a.isCreatorCitation).length;
+    const creatorCount = annotations2.filter((a) => a.isCreatorCitation).length;
     console.log(`Rendered ${ownCount} own + ${sharedCount} shared + ${creatorCount} creator annotations`);
     if (sidebarOpen && sidebar) {
       updateSidebarContent();
     }
+  }
+  function updatePlayhead() {
+    if (!citationTimeline) return;
+    const video = document.querySelector("video");
+    if (!video || !video.duration) return;
+    const playhead = citationTimeline.querySelector(".citelines-playhead");
+    if (!playhead) return;
+    const pct = video.currentTime / video.duration;
+    playhead.style.left = `${pct * 100}%`;
   }
   function startAdObserver() {
     if (adObserver) return;
@@ -1274,17 +1269,76 @@
     setAdObserver(observer);
   }
   function createMarkersContainer() {
-    if (markersContainer) return;
+    if (citationTimeline) return;
+    const playerContainer = document.querySelector("#movie_player");
+    if (!playerContainer) return;
     const progressBar = document.querySelector(".ytp-progress-bar-container");
-    if (!progressBar) return;
-    const mc = document.createElement("div");
-    mc.className = "yt-annotator-markers-container";
-    progressBar.appendChild(mc);
-    setMarkersContainer(mc);
-    const cmc = document.createElement("div");
-    cmc.className = "yt-annotator-markers-container yt-annotator-creator-markers-container";
-    progressBar.appendChild(cmc);
-    setCreatorMarkersContainer(cmc);
+    if (progressBar) {
+      const mc = document.createElement("div");
+      mc.className = "yt-annotator-markers-container";
+      progressBar.appendChild(mc);
+      setMarkersContainer(mc);
+      const cmc = document.createElement("div");
+      cmc.className = "yt-annotator-markers-container yt-annotator-creator-markers-container";
+      progressBar.appendChild(cmc);
+      setCreatorMarkersContainer(cmc);
+    }
+    const timeline = document.createElement("div");
+    timeline.className = "citelines-timeline";
+    timeline.style.display = "none";
+    timeline.innerHTML = `
+    <div class="citelines-timeline-header">
+      <span class="citelines-title">
+        <span class="citelines-logo">Cite<span class="citelines-logo-pipe">|</span>ines</span>
+        Citations
+      </span>
+      <span class="citelines-right">
+        <span class="citelines-count"></span>
+        <span class="citelines-chevron">&#9660;</span>
+      </span>
+    </div>
+    <div class="citelines-timeline-body">
+      <div class="citelines-tracks"></div>
+      <div class="citelines-legend">
+        <div class="citelines-legend-item"><div class="citelines-legend-swatch creator"></div> Creator</div>
+        <div class="citelines-legend-item"><div class="citelines-legend-swatch mine"></div> Yours</div>
+        <div class="citelines-legend-item"><div class="citelines-legend-swatch other"></div> Others</div>
+      </div>
+    </div>
+  `;
+    function insertTimeline() {
+      const below = document.querySelector("#below");
+      if (below && below.parentNode) {
+        below.parentNode.insertBefore(timeline, below);
+        setCitationTimeline(timeline);
+        return true;
+      }
+      return false;
+    }
+    if (!insertTimeline()) {
+      const observer = new MutationObserver(() => {
+        if (insertTimeline()) {
+          observer.disconnect();
+          renderMarkers();
+        }
+      });
+      observer.observe(document.body, { childList: true, subtree: true });
+      setCitationTimeline(timeline);
+    }
+    const header = timeline.querySelector(".citelines-timeline-header");
+    const body = timeline.querySelector(".citelines-timeline-body");
+    const chevron = timeline.querySelector(".citelines-chevron");
+    header.addEventListener("click", () => {
+      const collapsed = !timelineCollapsed;
+      setTimelineCollapsed(collapsed);
+      body.classList.toggle("collapsed", collapsed);
+      header.classList.toggle("collapsed", collapsed);
+      chevron.classList.toggle("collapsed", collapsed);
+    });
+    const video = document.querySelector("video");
+    if (video) {
+      video.addEventListener("timeupdate", updatePlayhead);
+    }
   }
 
   // src/content/fetchAnnotations.js
@@ -1924,6 +1978,11 @@
         if (creatorMarkersContainer) {
           creatorMarkersContainer.remove();
           setCreatorMarkersContainer(null);
+        }
+        if (citationTimeline) {
+          citationTimeline.remove();
+          setCitationTimeline(null);
+          setTimelineCollapsed(false);
         }
         if (adObserver) {
           adObserver.disconnect();

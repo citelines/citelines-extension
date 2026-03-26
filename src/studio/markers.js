@@ -1,4 +1,4 @@
-// Orange triangle markers on Studio's video preview player timeline
+// Multi-track citation timeline for Studio video preview
 
 import * as state from './state.js';
 import { formatTime, escapeHtml, formatCitation } from '../content/utils.js';
@@ -6,7 +6,21 @@ import { formatTime, escapeHtml, formatCitation } from '../content/utils.js';
 let retryCount = 0;
 const MAX_RETRIES = 10;
 
-// Render markers above the Studio timeline
+// Lane definitions — same as watch page
+const LANES = [
+  { id: 'article',  label: 'Article',  icon: '\uD83D\uDCC4' },
+  { id: 'youtube',  label: 'YouTube',  icon: '\u25B6' },
+  { id: 'movie',    label: 'Movie',    icon: '\uD83C\uDF9E' },
+  { id: 'book',     label: 'Book',     icon: '\uD83D\uDCD6' },
+  { id: 'podcast',  label: 'Podcast',  icon: '\uD83C\uDF99' },
+  { id: 'note',     label: 'Note',     icon: '\uD83D\uDCDD' },
+];
+
+function getLaneId(ann) {
+  return ann.citation?.type || 'note';
+}
+
+// Render multi-track markers below the Studio timeline
 export function renderStudioMarkers() {
   // Remove existing markers
   if (state.markersContainer) {
@@ -29,7 +43,7 @@ export function renderStudioMarkers() {
     return;
   }
 
-  // Find the Studio timeline container: #timeline-container inside <ytcp-video-player-timeline>
+  // Find the Studio timeline container
   const timeline = document.querySelector('#timeline-container');
   if (!timeline) {
     retryLater();
@@ -38,34 +52,110 @@ export function renderStudioMarkers() {
 
   retryCount = 0;
 
-  // Ensure timeline is positioned for absolute children
-  if (getComputedStyle(timeline).position === 'static') {
-    timeline.style.position = 'relative';
-  }
-
-  const container = document.createElement('div');
-  container.className = 'citelines-studio-markers';
-
+  // Group annotations by lane
+  const laneAnnotations = {};
   for (const ann of state.annotations) {
-    const pct = (ann.timestamp / duration) * 100;
-    if (pct < 0 || pct > 100) continue;
-
-    const marker = document.createElement('div');
-    marker.className = 'citelines-studio-marker';
-    marker.style.left = `${pct}%`;
-    marker.title = `${formatTime(ann.timestamp)} — ${ann.text || ann.citation?.title || ''}`;
-    marker.dataset.annotationId = ann.id;
-
-    marker.addEventListener('click', (e) => {
-      e.stopPropagation();
-      showMarkerPopup(ann, marker);
-      scrollToAnnotation(ann.id);
-    });
-
-    container.appendChild(marker);
+    const laneId = getLaneId(ann);
+    if (!laneAnnotations[laneId]) laneAnnotations[laneId] = [];
+    laneAnnotations[laneId].push(ann);
   }
 
-  timeline.appendChild(container);
+  // Only show populated lanes
+  const populatedLanes = LANES.filter(l => laneAnnotations[l.id]?.length > 0);
+
+  // Include unknown lane ids
+  const knownIds = new Set(LANES.map(l => l.id));
+  for (const laneId of Object.keys(laneAnnotations)) {
+    if (!knownIds.has(laneId)) {
+      populatedLanes.push({ id: laneId, label: laneId.charAt(0).toUpperCase() + laneId.slice(1), icon: '\uD83D\uDCC4' });
+    }
+  }
+
+  if (populatedLanes.length === 0) return;
+
+  // Build the multi-track container
+  const container = document.createElement('div');
+  container.className = 'citelines-studio-timeline';
+
+  const header = document.createElement('div');
+  header.className = 'citelines-studio-timeline-header';
+  header.innerHTML = `
+    <span class="citelines-studio-timeline-title">
+      <span class="citelines-studio-timeline-logo">Cite<span class="citelines-studio-timeline-pipe">|</span>ines</span>
+      Timeline
+    </span>
+    <span class="citelines-studio-timeline-right">
+      <span class="citelines-studio-timeline-count">${state.annotations.length} citation${state.annotations.length !== 1 ? 's' : ''} \u00b7 ${populatedLanes.length} type${populatedLanes.length !== 1 ? 's' : ''}</span>
+      <span class="citelines-studio-timeline-chevron">&#9660;</span>
+    </span>
+  `;
+
+  const body = document.createElement('div');
+  body.className = 'citelines-studio-timeline-body';
+
+  const tracks = document.createElement('div');
+  tracks.className = 'citelines-studio-timeline-tracks';
+
+  for (const lane of populatedLanes) {
+    const trackEl = document.createElement('div');
+    trackEl.className = 'citelines-studio-timeline-track';
+
+    const laneEl = document.createElement('div');
+    laneEl.className = 'citelines-studio-timeline-track-lane';
+
+    const laneBg = document.createElement('div');
+    laneBg.className = 'citelines-studio-timeline-track-lane-bg';
+    laneEl.appendChild(laneBg);
+
+    const laneAnns = laneAnnotations[lane.id] || [];
+    for (const ann of laneAnns) {
+      const pct = (ann.timestamp / duration) * 100;
+      if (pct < 0 || pct > 100) continue;
+
+      const marker = document.createElement('div');
+      marker.className = 'citelines-studio-timeline-marker';
+      marker.style.left = pct + '%';
+      marker.dataset.annotationId = ann.id;
+      marker.title = `${formatTime(ann.timestamp)} — ${ann.text || ann.citation?.title || ''}`;
+
+      marker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showMarkerPopup(ann, marker);
+        scrollToAnnotation(ann.id);
+      });
+
+      laneEl.appendChild(marker);
+    }
+
+    const labelEl = document.createElement('div');
+    labelEl.className = 'citelines-studio-timeline-track-label';
+    labelEl.innerHTML = `<span class="citelines-studio-timeline-track-icon">${lane.icon}</span>${lane.label}`;
+
+    trackEl.appendChild(laneEl);
+    trackEl.appendChild(labelEl);
+    tracks.appendChild(trackEl);
+  }
+
+  body.appendChild(tracks);
+  container.appendChild(header);
+  container.appendChild(body);
+
+  // Collapse/expand toggle
+  const chevron = header.querySelector('.citelines-studio-timeline-chevron');
+  header.addEventListener('click', () => {
+    body.classList.toggle('collapsed');
+    header.classList.toggle('collapsed');
+    chevron.classList.toggle('collapsed');
+  });
+
+  // Insert after the html5 video player wrapper
+  const html5Player = document.querySelector('ytcp-video-info ytcp-html5-video-player');
+  if (html5Player && html5Player.parentNode) {
+    html5Player.parentNode.insertBefore(container, html5Player.nextSibling);
+  } else {
+    // Fallback: insert after the timeline bar
+    timeline.parentNode.insertBefore(container, timeline.nextSibling);
+  }
   state.setMarkersContainer(container);
 }
 
@@ -88,12 +178,12 @@ function closeMarkerPopup() {
 function showMarkerPopup(ann, marker) {
   closeMarkerPopup();
 
-  const videoContainer = document.querySelector('ytcp-video-info .container');
-  if (!videoContainer) return;
+  // Append popup to the timeline container and position near the marker
+  const timelineEl = state.markersContainer;
+  if (!timelineEl) return;
 
-  // Ensure container is positioned for absolute popup
-  if (getComputedStyle(videoContainer).position === 'static') {
-    videoContainer.style.position = 'relative';
+  if (getComputedStyle(timelineEl).position === 'static') {
+    timelineEl.style.position = 'relative';
   }
 
   const popup = document.createElement('div');
@@ -111,6 +201,9 @@ function showMarkerPopup(ann, marker) {
     </div>
     ${citationHtml}
     ${ann.text ? `<div class="citelines-studio-popup-text">${escapeHtml(ann.text)}</div>` : ''}
+    <div class="citelines-studio-popup-actions">
+      <button class="citelines-studio-popup-goto">Go to</button>
+    </div>
   `;
 
   popup.querySelector('.citelines-studio-popup-close').addEventListener('click', (e) => {
@@ -118,10 +211,34 @@ function showMarkerPopup(ann, marker) {
     closeMarkerPopup();
   });
 
-  videoContainer.appendChild(popup);
+  popup.querySelector('.citelines-studio-popup-goto').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const video = document.querySelector('video');
+    if (video) video.currentTime = ann.timestamp;
+    closeMarkerPopup();
+  });
+
+  timelineEl.appendChild(popup);
   activePopup = popup;
 
-  // Close on click outside
+  // Position above the marker
+  const markerRect = marker.getBoundingClientRect();
+  const timelineRect = timelineEl.getBoundingClientRect();
+  const popupWidth = popup.offsetWidth;
+
+  const markerCenterX = markerRect.left + markerRect.width / 2 - timelineRect.left;
+  let popupLeft = markerCenterX - popupWidth / 2;
+  const padding = 8;
+  popupLeft = Math.max(padding, Math.min(popupLeft, timelineRect.width - popupWidth - padding));
+
+  const popupBottom = timelineRect.bottom - markerRect.top + 8;
+
+  popup.style.position = 'absolute';
+  popup.style.left = `${popupLeft}px`;
+  popup.style.bottom = `${popupBottom}px`;
+  popup.style.top = 'auto';
+  popup.style.transform = 'none';
+
   const outsideHandler = (e) => {
     if (!popup.contains(e.target) && !marker.contains(e.target)) {
       closeMarkerPopup();
@@ -131,7 +248,6 @@ function showMarkerPopup(ann, marker) {
   setTimeout(() => document.addEventListener('click', outsideHandler), 0);
 }
 
-// Scroll the sidebar to a specific annotation
 function scrollToAnnotation(annotationId) {
   if (!state.sidebar) return;
   const el = state.sidebar.querySelector(`[data-annotation-id="${annotationId}"]`);

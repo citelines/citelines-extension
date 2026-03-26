@@ -1897,3 +1897,202 @@ a.yt-annotator-citation-title:hover {
 .yt-annotator-sidebar-item-header {
   position: relative;
 }
+
+/* ── Multi-Track Citation Timeline ── */
+
+.citelines-timeline {
+  width: 100%;
+  background: #181818;
+  border: 1px solid #2a2a2a;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  position: relative;
+  font-family: 'Roboto', 'Arial', sans-serif;
+}
+
+.citelines-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid #2a2a2a;
+  cursor: pointer;
+  user-select: none;
+  transition: border-bottom-color 0.2s;
+}
+
+.citelines-timeline-header.collapsed {
+  border-bottom-color: transparent;
+}
+
+.citelines-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #aaa;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.citelines-logo {
+  color: #0497a6;
+  font-weight: 700;
+  font-size: 12px;
+}
+
+.citelines-logo-pipe {
+  color: #ffaa3e;
+}
+
+.citelines-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.citelines-count {
+  font-size: 11px;
+  color: #666;
+}
+
+.citelines-chevron {
+  font-size: 10px;
+  color: #666;
+  transition: transform 0.25s;
+  display: inline-block;
+}
+
+.citelines-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+/* Collapsible body */
+.citelines-timeline-body {
+  overflow: hidden;
+  max-height: 500px;
+  transition: max-height 0.3s ease, opacity 0.25s ease;
+  opacity: 1;
+}
+
+.citelines-timeline-body.collapsed {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* Tracks container */
+.citelines-tracks {
+  position: relative;
+  padding: 0;
+}
+
+/* Playhead spans all tracks */
+.citelines-playhead {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: #fff;
+  opacity: 0.4;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* Individual track (lane + label below) */
+.citelines-track {
+  position: relative;
+  border-bottom: 1px solid #222;
+}
+
+.citelines-track:last-child {
+  border-bottom: none;
+}
+
+.citelines-track:hover {
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.citelines-track-label {
+  font-size: 8px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #444;
+  padding: 0 8px 4px;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.citelines-track-icon {
+  font-size: 9px;
+}
+
+.citelines-track-lane {
+  position: relative;
+  width: 100%;
+  height: 24px;
+}
+
+.citelines-track-lane-bg {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: #1f1f1f;
+}
+
+/* Markers — vertical bars */
+.citelines-marker {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 2px;
+  border-radius: 1px;
+  cursor: pointer;
+  transition: width 0.15s, opacity 0.15s;
+  z-index: 1;
+}
+
+.citelines-marker:hover {
+  width: 4px;
+  transform: translateX(-1px);
+  z-index: 30;
+}
+
+.citelines-marker.creator { background: #ffaa3e; }
+.citelines-marker.mine    { background: #0497a6; }
+.citelines-marker.other   { background: #555; }
+
+.citelines-marker.creator:hover { background: #ffbb5c; box-shadow: 0 0 8px rgba(255, 170, 62, 0.4); }
+.citelines-marker.mine:hover    { background: #05b3c4; box-shadow: 0 0 8px rgba(4, 151, 166, 0.4); }
+.citelines-marker.other:hover   { background: #999; box-shadow: 0 0 8px rgba(153, 153, 153, 0.3); }
+
+/* Legend */
+.citelines-legend {
+  display: flex;
+  gap: 16px;
+  padding: 6px 12px 10px;
+  border-top: 1px solid #2a2a2a;
+}
+
+.citelines-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #888;
+}
+
+.citelines-legend-swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+}
+
+.citelines-legend-swatch.creator { background: #ffaa3e; }
+.citelines-legend-swatch.mine    { background: #0497a6; }
+.citelines-legend-swatch.other   { background: #555; }
