@@ -90,13 +90,13 @@ export function renderMarkers() {
   if (!tracksContainer) return;
 
   tracksContainer.innerHTML = '';
+  state.citationTimeline.style.display = '';
 
-  // If no annotations, hide the timeline entirely
+  // If no annotations, show timeline header with empty state
   if (annotations.length === 0) {
-    state.citationTimeline.style.display = 'none';
+    if (countEl) countEl.textContent = '0 citations';
     return;
   }
-  state.citationTimeline.style.display = '';
 
   // Playhead
   const playhead = document.createElement('div');

@@ -1194,11 +1194,11 @@
     console.log("[Citelines] renderMarkers: tracksContainer found?", !!tracksContainer, "annotations:", annotations2.length, "lanes:", populatedLanes.map((l) => l.id));
     if (!tracksContainer) return;
     tracksContainer.innerHTML = "";
+    citationTimeline.style.display = "";
     if (annotations2.length === 0) {
-      citationTimeline.style.display = "none";
+      if (countEl) countEl.textContent = "0 citations";
       return;
     }
-    citationTimeline.style.display = "";
     const playhead = document.createElement("div");
     playhead.className = "citelines-playhead";
     const currentPct = video.duration > 0 ? video.currentTime / video.duration * 100 : 0;
