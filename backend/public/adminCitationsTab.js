@@ -95,7 +95,7 @@ function renderCitations(citations) {
               </td>
               <td><code>${citation.share_token}</code></td>
               <td><code>${citation.annotation_id}</code></td>
-              <td>${citation.video_id}</td>
+              <td><a href="https://www.youtube.com/watch?v=${citation.video_id}" target="_blank" rel="noopener">${citation.video_id}</a></td>
               <td>${citation.title || '-'}</td>
               <td>${citation.user_id ?
                 `<a href="javascript:void(0)" onclick="openUserDetailsModal('${citation.user_id}')" style="color: #0497a6; text-decoration: none; cursor: pointer;">${citation.creator_display_name}</a>` :

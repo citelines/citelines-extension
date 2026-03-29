@@ -122,7 +122,7 @@ function renderUserDetails(data) {
                   const citDisplay = citContent.length > 50 ? citContent.substring(0, 50) + '...' : citContent;
                   return `
                   <tr>
-                    <td><code>${c.video_id}</code></td>
+                    <td><a href="https://www.youtube.com/watch?v=${c.video_id}" target="_blank" rel="noopener"><code>${c.video_id}</code></a></td>
                     <td class="citation-cell" data-full="${escapeHtml(citContent)}" onclick="showCitationPopover(event)">${escapeHtml(citDisplay)}</td>
                     <td>${c.timestamp ? formatTimestamp(c.timestamp) : '-'}</td>
                     <td>${isDeleted ? '<span class="badge badge-deleted">Deleted</span>' : '<span class="badge badge-active">Active</span>'}</td>
