@@ -670,6 +670,22 @@
 
         <button type="submit" class="btn" id="loginBtn">Sign In</button>
       </form>
+
+      <div id="forgotPasswordSection" style="text-align: center; margin-top: 15px;">
+        <a href="#" id="forgotPasswordLink" style="color: #0497a6; font-size: 13px; text-decoration: none;">Forgot password?</a>
+      </div>
+
+      <div id="forgotPasswordForm" style="display: none; margin-top: 20px;">
+        <div id="forgotPasswordMessage" style="display: none; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 14px;"></div>
+        <div class="form-group">
+          <label for="forgotEmail">Email</label>
+          <input type="email" id="forgotEmail" required autocomplete="email">
+        </div>
+        <button class="btn" id="forgotPasswordBtn" onclick="handleForgotPassword()">Send Reset Link</button>
+        <div style="text-align: center; margin-top: 10px;">
+          <a href="#" id="backToLoginLink" style="color: #666; font-size: 13px; text-decoration: none;">Back to login</a>
+        </div>
+      </div>
     </div>
   </div>
 
