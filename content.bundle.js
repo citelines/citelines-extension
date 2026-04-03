@@ -1147,6 +1147,13 @@
     if (annotation.isOwn) return "mine";
     return "other";
   }
+  function getTooltipSource(annotation) {
+    const c = annotation.citation;
+    if (c?.title) return c.title;
+    if (c?.url) return c.url;
+    if (annotation.text) return annotation.text;
+    return "Note";
+  }
   function refreshMarkerColors() {
     const currentUserId = authManager.getCurrentUser()?.id || null;
     setSharedAnnotations(sharedAnnotations.map((ann) => ({
@@ -1219,6 +1226,11 @@
         marker.className = "citelines-marker " + getMarkerClass(ann);
         marker.style.left = pct + "%";
         marker.dataset.annotationId = ann.id;
+        const colorClass = getMarkerClass(ann);
+        const tooltip = document.createElement("div");
+        tooltip.className = "citelines-marker-tooltip";
+        tooltip.innerHTML = `<div class="citelines-marker-tooltip-row"><span class="citelines-marker-tooltip-time ${colorClass}">${formatTime(ann.timestamp)}</span><span class="citelines-marker-tooltip-source">${escapeHtml(getTooltipSource(ann))}</span></div><div class="citelines-marker-tooltip-arrow"></div><div class="citelines-marker-tooltip-arrow-inner"></div>`;
+        marker.appendChild(tooltip);
         marker.addEventListener("click", (e) => {
           e.stopPropagation();
           if (typeof analytics !== "undefined") analytics.track("citation_clicked", { videoId: currentVideoId, source: "marker" });
