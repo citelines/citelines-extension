@@ -358,7 +358,11 @@
         marker.className = "citelines-studio-timeline-marker";
         marker.style.left = pct + "%";
         marker.dataset.annotationId = ann.id;
-        marker.title = `${formatTime(ann.timestamp)} \u2014 ${ann.text || ann.citation?.title || ""}`;
+        const tooltipSource = ann.citation?.title || ann.text || "Note";
+        const tooltip = document.createElement("div");
+        tooltip.className = "citelines-studio-marker-tooltip";
+        tooltip.innerHTML = `<div class="citelines-studio-marker-tooltip-row"><span class="citelines-studio-marker-tooltip-time">${formatTime(ann.timestamp)}</span><span class="citelines-studio-marker-tooltip-source">${escapeHtml(tooltipSource)}</span></div><div class="citelines-studio-marker-tooltip-arrow"></div><div class="citelines-studio-marker-tooltip-arrow-inner"></div>`;
+        marker.appendChild(tooltip);
         marker.addEventListener("click", (e) => {
           e.stopPropagation();
           showMarkerPopup(ann, marker);

@@ -1970,13 +1970,14 @@ a.yt-annotator-citation-title:hover {
 
 /* Collapsible body */
 .citelines-timeline-body {
-  overflow: hidden;
-  max-height: 500px;
-  transition: max-height 0.3s ease, opacity 0.25s ease;
+  overflow: visible;
+  max-height: none;
+  transition: opacity 0.25s ease;
   opacity: 1;
 }
 
 .citelines-timeline-body.collapsed {
+  overflow: hidden;
   max-height: 0;
   opacity: 0;
 }
