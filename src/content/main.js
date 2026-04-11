@@ -205,30 +205,27 @@ document.addEventListener('keydown', (e) => {
 });
 
 // Close popup when clicking outside (but not during textarea resize drags)
-let isResizing = false;
+let mouseDownInsidePopup = false;
 document.addEventListener('mousedown', (e) => {
-  if (state.activePopup && state.activePopup.contains(e.target)) {
-    isResizing = true;
+  if (state.activePopup) {
+    mouseDownInsidePopup = state.activePopup.contains(e.target);
   }
-});
-document.addEventListener('mouseup', () => {
-  if (isResizing) {
-    isResizing = false;
-  }
-});
-document.addEventListener('click', (e) => {
-  if (isResizing) return;
-  if (state.activePopup && !state.activePopup.contains(e.target)) {
+}, true);
+document.addEventListener('mouseup', (e) => {
+  if (!state.activePopup) return;
+  // Only close if both mousedown and mouseup were outside the popup
+  if (!mouseDownInsidePopup && !state.activePopup.contains(e.target)) {
     closePopup();
   }
-});
+  mouseDownInsidePopup = false;
+}, true);
 
-// Close popup on Escape key
+// Close popup on Escape key (capture phase so it works even with stopPropagation)
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape' && state.activePopup) {
     closePopup();
   }
-});
+}, true);
 
 // Start
 waitForPlayer();

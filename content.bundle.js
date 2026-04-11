@@ -2235,28 +2235,24 @@
       else if (accountSidebarOpen) toggleAccountSidebar();
     }
   });
-  var isResizing = false;
+  var mouseDownInsidePopup = false;
   document.addEventListener("mousedown", (e) => {
-    if (activePopup && activePopup.contains(e.target)) {
-      isResizing = true;
+    if (activePopup) {
+      mouseDownInsidePopup = activePopup.contains(e.target);
     }
-  });
-  document.addEventListener("mouseup", () => {
-    if (isResizing) {
-      isResizing = false;
-    }
-  });
-  document.addEventListener("click", (e) => {
-    if (isResizing) return;
-    if (activePopup && !activePopup.contains(e.target)) {
+  }, true);
+  document.addEventListener("mouseup", (e) => {
+    if (!activePopup) return;
+    if (!mouseDownInsidePopup && !activePopup.contains(e.target)) {
       closePopup();
     }
-  });
+    mouseDownInsidePopup = false;
+  }, true);
   document.addEventListener("keydown", (e) => {
     if (e.key === "Escape" && activePopup) {
       closePopup();
     }
-  });
+  }, true);
   waitForPlayer();
   handleNavigation();
 })();
