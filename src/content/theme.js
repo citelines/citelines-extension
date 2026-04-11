@@ -5,11 +5,20 @@ const STORAGE_KEY = 'citelines_theme_pref'; // 'auto' | 'light' | 'dark'
 let currentPref = 'auto';
 let ytObserver = null;
 
+// Detect YouTube's current theme
+function isYouTubeDark() {
+  // YouTube uses the `dark` attribute on <html> (not a class)
+  if (document.documentElement.hasAttribute('dark')) return true;
+  // Fallback: also check class (some YT versions may use it)
+  if (document.documentElement.classList.contains('dark')) return true;
+  return false;
+}
+
 // Get the effective theme based on preference and YouTube's theme
 function getEffectiveTheme() {
   if (currentPref === 'light' || currentPref === 'dark') return currentPref;
-  // Auto: detect YouTube's theme via html.dark class
-  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+  // Auto: match YouTube's theme
+  return isYouTubeDark() ? 'dark' : 'light';
 }
 
 // Apply the theme class to all Citelines elements
@@ -43,7 +52,7 @@ function startYouTubeThemeObserver() {
   });
   ytObserver.observe(document.documentElement, {
     attributes: true,
-    attributeFilter: ['class']
+    attributeFilter: ['dark', 'class']
   });
 }
 

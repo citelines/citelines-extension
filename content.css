@@ -2546,6 +2546,10 @@ a.yt-annotator-citation-title:hover {
 }
 
 /* Toggle buttons */
+.yt-annotator-popup.citelines-light .yt-annotator-create-toggle {
+  border-color: #ddd;
+}
+
 .yt-annotator-popup.citelines-light .yt-annotator-toggle-btn {
   background: #f5f5f5;
   color: #888;
@@ -2556,8 +2560,10 @@ a.yt-annotator-citation-title:hover {
   border-right-color: #ddd;
 }
 
-.yt-annotator-popup.citelines-light .yt-annotator-create-toggle {
-  border-color: #ddd;
+.yt-annotator-popup.citelines-light .yt-annotator-toggle-btn.active {
+  background: #0497a6;
+  color: #fff;
+  font-weight: 600;
 }
 
 /* Actions menu */
@@ -2627,16 +2633,23 @@ a.yt-annotator-citation-title:hover {
 }
 
 .yt-annotator-account-sidebar.citelines-light .yt-annotator-account-stats {
-  background: #f5f5f5;
-  border-color: #eee;
+  background: #f8f8f8;
+  border-top-color: #ddd;
+  border-radius: 6px;
+  border: 1px solid #e0e0e0;
+  padding: 0.75rem 1rem;
 }
 
 .yt-annotator-account-sidebar.citelines-light .yt-annotator-account-stats-joined {
-  color: #888;
+  color: #666;
+}
+
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-stat {
+  color: #666;
 }
 
 .yt-annotator-account-sidebar.citelines-light .yt-annotator-account-stat-num {
-  color: #1a1a1a;
+  color: #0497a6;
 }
 
 /* Theme toggle in light mode */

@@ -561,9 +561,14 @@
   var STORAGE_KEY = "citelines_theme_pref";
   var currentPref = "auto";
   var ytObserver = null;
+  function isYouTubeDark() {
+    if (document.documentElement.hasAttribute("dark")) return true;
+    if (document.documentElement.classList.contains("dark")) return true;
+    return false;
+  }
   function getEffectiveTheme() {
     if (currentPref === "light" || currentPref === "dark") return currentPref;
-    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+    return isYouTubeDark() ? "dark" : "light";
   }
   function applyTheme() {
     const theme = getEffectiveTheme();
@@ -590,7 +595,7 @@
     });
     ytObserver.observe(document.documentElement, {
       attributes: true,
-      attributeFilter: ["class"]
+      attributeFilter: ["dark", "class"]
     });
   }
   async function initTheme() {
