@@ -47,9 +47,14 @@ async function loadAnalytics() {
         total: usersData.filter(u => u.is_suspended || u.is_banned).length
       },
       citations: {
-        active: citationsData.filter(c => !c.annotation_deleted_at && !c.share_deleted_at).length,
-        deleted: citationsData.filter(c => c.annotation_deleted_at || c.share_deleted_at).length,
-        total: citationsData.length
+        active: citationsData.filter(c => !c.is_bookmark && !c.annotation_deleted_at && !c.share_deleted_at).length,
+        deleted: citationsData.filter(c => !c.is_bookmark && (c.annotation_deleted_at || c.share_deleted_at)).length,
+        total: citationsData.filter(c => !c.is_bookmark).length
+      },
+      bookmarks: {
+        active: citationsData.filter(c => c.is_bookmark && !c.annotation_deleted_at && !c.share_deleted_at).length,
+        deleted: citationsData.filter(c => c.is_bookmark && (c.annotation_deleted_at || c.share_deleted_at)).length,
+        total: citationsData.filter(c => c.is_bookmark).length
       }
     };
 
@@ -227,6 +232,27 @@ function renderAnalytics(data) {
           <div class="stat-label">Approved</div>
           <div class="stat-value">—</div>
           <div class="stat-subtitle">Future capability</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bookmark Status Section -->
+    <div class="analytics-section">
+      <h2>Bookmark Status</h2>
+      <div class="analytics-grid">
+        <div class="stat-card">
+          <div class="stat-label">Total Lifetime Bookmarks</div>
+          <div class="stat-value">${data.bookmarks.total}</div>
+        </div>
+        <div class="stat-card success">
+          <div class="stat-label">Active</div>
+          <div class="stat-value">${data.bookmarks.active}</div>
+          <div class="stat-subtitle">Visible to owner</div>
+        </div>
+        <div class="stat-card neutral">
+          <div class="stat-label">Deleted</div>
+          <div class="stat-value">${data.bookmarks.deleted}</div>
+          <div class="stat-subtitle">Soft deleted</div>
         </div>
       </div>
     </div>

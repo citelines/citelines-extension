@@ -1246,7 +1246,7 @@
     { id: "podcast", label: "Podcast", icon: "\u{1F399}" },
     { id: "note", label: "Note", icon: "\u{1F4DD}" }
   ];
-  var BOOKMARK_LANE = { id: "bookmark", label: "Bookmarks", icon: "\u{1F512}" };
+  var BOOKMARK_LANE = { id: "bookmark", label: "My Bookmarks", icon: "\u{1F512}" };
   function getLaneId(annotation) {
     if (annotation.isBookmark) return "bookmark";
     return annotation.citation?.type || "note";
@@ -1352,7 +1352,7 @@
       }
       const labelEl = document.createElement("div");
       labelEl.className = "citelines-track-label";
-      labelEl.innerHTML = `<span class="citelines-track-icon">${lane.icon}</span>${lane.label}`;
+      labelEl.textContent = lane.label;
       trackEl.appendChild(laneEl);
       trackEl.appendChild(labelEl);
       tracksContainer.appendChild(trackEl);
@@ -1365,7 +1365,7 @@
       svgDefs.innerHTML = `
       <defs>
         <pattern id="citelines-bookmark-hash" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
-          <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(0,180,180,0.6)" stroke-width="1.5"/>
+          <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(4,151,166,0.6)" stroke-width="1.5"/>
         </pattern>
       </defs>
     `;
@@ -1388,7 +1388,7 @@
         svg.setAttribute("width", "12");
         svg.setAttribute("height", "16");
         svg.setAttribute("viewBox", "0 0 12 16");
-        svg.innerHTML = `<path d="M1 1h10v13l-5-3.5L1 14V1z" fill="url(#citelines-bookmark-hash)" stroke="rgba(0,180,180,0.8)" stroke-width="1"/>`;
+        svg.innerHTML = `<path d="M1 1h10v13l-5-3.5L1 14V1z" fill="url(#citelines-bookmark-hash)" stroke="rgba(4,151,166,0.8)" stroke-width="1"/>`;
         marker.appendChild(svg);
         const colorClass = "bookmark";
         const tooltip = document.createElement("div");
@@ -1403,22 +1403,16 @@
       }
       const bookmarkLabel = document.createElement("div");
       bookmarkLabel.className = "citelines-track-label citelines-track-label-bookmark";
-      bookmarkLabel.innerHTML = `<span class="citelines-track-icon">${BOOKMARK_LANE.icon}</span>${BOOKMARK_LANE.label}`;
+      bookmarkLabel.textContent = BOOKMARK_LANE.label;
       bookmarkTrack.appendChild(bookmarkLane);
       bookmarkTrack.appendChild(bookmarkLabel);
       tracksContainer.appendChild(bookmarkTrack);
     }
     const citationCount = annotations2.filter((a) => !a.isBookmark).length;
     if (countEl) {
-      const typeCount = populatedLanes.length;
       let countText = `${citationCount} citation${citationCount !== 1 ? "s" : ""}`;
-      if (typeCount > 0) countText += ` \xB7 ${typeCount} type${typeCount !== 1 ? "s" : ""}`;
       if (hasBookmarks) countText += ` \xB7 ${laneAnnotations["bookmark"].length} bookmark${laneAnnotations["bookmark"].length !== 1 ? "s" : ""}`;
       countEl.textContent = countText;
-    }
-    const bookmarkLegendItem = citationTimeline.querySelector(".citelines-legend-bookmark");
-    if (bookmarkLegendItem) {
-      bookmarkLegendItem.style.display = hasBookmarks ? "" : "none";
     }
     const ownCount = annotations2.filter((a) => a.isOwn).length;
     const sharedCount = annotations2.filter((a) => !a.isOwn && !a.isCreatorCitation).length;
@@ -1486,7 +1480,7 @@
         <div class="citelines-legend-item"><div class="citelines-legend-swatch creator"></div> Creator</div>
         <div class="citelines-legend-item"><div class="citelines-legend-swatch mine"></div> Yours</div>
         <div class="citelines-legend-item"><div class="citelines-legend-swatch other"></div> Others</div>
-        <div class="citelines-legend-item citelines-legend-bookmark" style="display: none;"><div class="citelines-legend-swatch bookmark"></div> Bookmarks</div>
+
       </div>
     </div>
   `;

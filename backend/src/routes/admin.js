@@ -777,7 +777,7 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
   const result = await db.query(
     `SELECT
       s.id, s.share_token, s.video_id, s.title, s.user_id,
-      s.annotations, s.view_count, s.created_at,
+      s.annotations, s.view_count, s.is_public, s.created_at,
       s.deleted_by_admin, s.deleted_at, s.deletion_reason,
       u.display_name as creator_display_name,
       admin_user.display_name as deleted_by_display_name
@@ -820,6 +820,8 @@ router.get('/citations', authenticateAdmin, asyncHandler(async (req, res) => {
           share_deleted_at: share.deleted_at,
           share_deleted_by_display_name: share.deleted_by_display_name,
           share_deletion_reason: share.deletion_reason,
+          // Bookmark flag (private share)
+          is_bookmark: share.is_public === false,
           // Report flag
           has_pending_report: reportedSet.has(`${share.share_token}:${annotation.id}`)
         });
