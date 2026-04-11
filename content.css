@@ -419,6 +419,53 @@ a.yt-annotator-citation-title:hover {
   color: #fff;
 }
 
+/* Sidebar Tabs (Citations / Bookmarks) */
+.yt-annotator-sidebar-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid #333;
+}
+
+.yt-annotator-sidebar-tab {
+  flex: 1;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: #888;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.yt-annotator-sidebar-tab:hover {
+  color: #ccc;
+}
+
+.yt-annotator-sidebar-tab.active {
+  color: #0497a6;
+  border-bottom-color: #0497a6;
+  font-weight: 600;
+}
+
+.yt-annotator-sidebar-tab.disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Bookmark sidebar item */
+.yt-annotator-sidebar-item.bookmark {
+  border-left: 3px solid #0497a6;
+  border-left-style: dashed;
+}
+
+.yt-annotator-sidebar-badge.bookmark {
+  background: #0497a6;
+  color: #000;
+  font-weight: 600;
+}
+
 /* Sidebar Filters */
 .yt-annotator-sidebar-filters {
   display: flex;
@@ -2681,6 +2728,24 @@ a.yt-annotator-citation-title:hover {
 
 .yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-item:hover {
   background: #f5f5f5;
+}
+
+/* Sidebar tabs light mode */
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-tabs {
+  border-bottom-color: #eee;
+}
+
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-tab {
+  color: #999;
+}
+
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-tab:hover {
+  color: #333;
+}
+
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-tab.active {
+  color: #0497a6;
+  border-bottom-color: #0497a6;
 }
 
 .yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-filters button {

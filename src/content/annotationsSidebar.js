@@ -6,6 +6,9 @@ import { escapeHtml, formatTime } from './utils.js';
 import { isCreatorMode } from './creatorMode.js';
 import { showAnnotationPopup, enterEditMode, handleDeleteAnnotation, closePopup } from './popup.js';
 import { showReportModal, handleSuggestAction } from './modals.js';
+import { authManager } from './globals.js';
+
+let sidebarTab = 'citations'; // 'citations' or 'bookmarks'
 
 // Create the sidebar toggle button
 export function createSidebarButton() {
@@ -62,6 +65,7 @@ export function toggleSidebar() {
 // Create the sidebar panel
 function createSidebar() {
   if (state.sidebar) return;
+  sidebarTab = 'citations';
 
   const playerContainer = document.querySelector('#movie_player');
   if (!playerContainer) return;
@@ -69,10 +73,16 @@ function createSidebar() {
   const sb = document.createElement('div');
   sb.className = 'yt-annotator-sidebar';
 
+  const isLoggedIn = authManager && authManager.isLoggedIn();
+
   sb.innerHTML = `
     <div class="yt-annotator-sidebar-header">
-      <h3>Citations</h3>
+      <h3>Bibliography</h3>
       <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
+    </div>
+    <div class="yt-annotator-sidebar-tabs">
+      <button class="yt-annotator-sidebar-tab active" data-tab="citations">Citations</button>
+      <button class="yt-annotator-sidebar-tab${isLoggedIn ? '' : ' disabled'}" data-tab="bookmarks">Bookmarks</button>
     </div>
     <div class="yt-annotator-sidebar-filters">
       <button class="yt-annotator-filter-btn active" data-filter="all">All</button>
@@ -87,6 +97,19 @@ function createSidebar() {
   sb.querySelector('.yt-annotator-sidebar-close').addEventListener('click', (e) => {
     e.stopPropagation();
     toggleSidebar();
+  });
+
+  sb.querySelectorAll('.yt-annotator-sidebar-tab').forEach(tab => {
+    tab.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (tab.classList.contains('disabled')) return;
+      sidebarTab = tab.dataset.tab;
+      sb.querySelectorAll('.yt-annotator-sidebar-tab').forEach(t => t.classList.toggle('active', t.dataset.tab === sidebarTab));
+      // Show/hide filter buttons (only for citations)
+      const filters = sb.querySelector('.yt-annotator-sidebar-filters');
+      if (filters) filters.style.display = sidebarTab === 'citations' ? '' : 'none';
+      updateSidebarContent();
+    });
   });
 
   sb.querySelectorAll('.yt-annotator-filter-btn').forEach(btn => {
@@ -113,18 +136,27 @@ export function updateSidebarContent() {
   const contentDiv = state.sidebar.querySelector('.yt-annotator-sidebar-content');
   const countDiv = state.sidebar.querySelector('.yt-annotator-sidebar-count');
 
-  let filtered = state.sharedAnnotations;
-  if (state.sidebarFilter === 'mine') {
-    filtered = state.sharedAnnotations.filter(a => a.isOwn);
-  } else if (state.sidebarFilter === 'creator') {
-    filtered = state.sharedAnnotations.filter(a => a.isCreatorCitation);
-  } else if (state.sidebarFilter === 'others') {
-    filtered = state.sharedAnnotations.filter(a => !a.isOwn && !a.isCreatorCitation);
+  let filtered;
+  if (sidebarTab === 'bookmarks') {
+    filtered = state.sharedAnnotations.filter(a => a.isBookmark);
+  } else {
+    // Citations tab — exclude bookmarks
+    const citations = state.sharedAnnotations.filter(a => !a.isBookmark);
+    if (state.sidebarFilter === 'mine') {
+      filtered = citations.filter(a => a.isOwn);
+    } else if (state.sidebarFilter === 'creator') {
+      filtered = citations.filter(a => a.isCreatorCitation);
+    } else if (state.sidebarFilter === 'others') {
+      filtered = citations.filter(a => !a.isOwn && !a.isCreatorCitation);
+    } else {
+      filtered = citations;
+    }
   }
 
   filtered = [...filtered].sort((a, b) => a.timestamp - b.timestamp);
 
-  countDiv.textContent = `${filtered.length} annotation${filtered.length !== 1 ? 's' : ''}`;
+  const label = sidebarTab === 'bookmarks' ? 'bookmark' : 'annotation';
+  countDiv.textContent = `${filtered.length} ${label}${filtered.length !== 1 ? 's' : ''}`;
 
   if (filtered.length === 0) {
     contentDiv.innerHTML = '<div class="yt-annotator-sidebar-empty">No annotations yet</div>';
@@ -141,15 +173,22 @@ export function updateSidebarContent() {
     const textPreview = annotation.text ?
       `<div class="yt-annotator-sidebar-text">${escapeHtml(annotation.text.substring(0, 100))}${annotation.text.length > 100 ? '...' : ''}</div>` : '';
 
-    const ownerClass = annotation.isCreatorCitation ? 'creator-citation' : (annotation.isOwn ? 'own' : 'other');
-    const creatorName = annotation.creatorDisplayName || 'Anonymous';
-    let ownerBadge;
-    if (annotation.isCreatorCitation) {
+    let ownerClass, ownerBadge;
+    if (annotation.isBookmark) {
+      ownerClass = 'bookmark';
+      ownerBadge = `<span class="yt-annotator-sidebar-badge bookmark">Bookmark</span>`;
+    } else if (annotation.isCreatorCitation) {
+      ownerClass = 'creator-citation';
+      const creatorName = annotation.creatorDisplayName || 'Anonymous';
       const ownSuffix = annotation.isOwn ? ' (YOU)' : '';
       ownerBadge = `<span class="yt-annotator-sidebar-badge creator">Creator${ownSuffix} - ${escapeHtml(creatorName)}</span>`;
     } else if (annotation.isOwn) {
+      ownerClass = 'own';
+      const creatorName = annotation.creatorDisplayName || 'Anonymous';
       ownerBadge = `<span class="yt-annotator-sidebar-badge own">YOU - ${escapeHtml(creatorName)}</span>`;
     } else {
+      ownerClass = 'other';
+      const creatorName = annotation.creatorDisplayName || 'Anonymous';
       ownerBadge = `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
     }
 
@@ -208,7 +247,7 @@ export function updateSidebarContent() {
         const menu = document.createElement('div');
         menu.className = 'yt-annotator-actions-menu';
 
-        if (annotation.isOwn) {
+        if (annotation.isBookmark || annotation.isOwn) {
           menu.innerHTML = `
             <button class="yt-annotator-actions-menu-item" data-menu-action="edit">
               <span class="yt-annotator-actions-menu-icon">&#9998;</span> Edit

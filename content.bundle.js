@@ -989,6 +989,7 @@
   }
 
   // src/content/annotationsSidebar.js
+  var sidebarTab = "citations";
   function createSidebarButton() {
     if (sidebarButton) return;
     const playerContainer = document.querySelector("#movie_player");
@@ -1031,14 +1032,20 @@
   }
   function createSidebar() {
     if (sidebar) return;
+    sidebarTab = "citations";
     const playerContainer = document.querySelector("#movie_player");
     if (!playerContainer) return;
     const sb = document.createElement("div");
     sb.className = "yt-annotator-sidebar";
+    const isLoggedIn = authManager && authManager.isLoggedIn();
     sb.innerHTML = `
     <div class="yt-annotator-sidebar-header">
-      <h3>Citations</h3>
+      <h3>Bibliography</h3>
       <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
+    </div>
+    <div class="yt-annotator-sidebar-tabs">
+      <button class="yt-annotator-sidebar-tab active" data-tab="citations">Citations</button>
+      <button class="yt-annotator-sidebar-tab${isLoggedIn ? "" : " disabled"}" data-tab="bookmarks">Bookmarks</button>
     </div>
     <div class="yt-annotator-sidebar-filters">
       <button class="yt-annotator-filter-btn active" data-filter="all">All</button>
@@ -1052,6 +1059,17 @@
     sb.querySelector(".yt-annotator-sidebar-close").addEventListener("click", (e) => {
       e.stopPropagation();
       toggleSidebar();
+    });
+    sb.querySelectorAll(".yt-annotator-sidebar-tab").forEach((tab) => {
+      tab.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (tab.classList.contains("disabled")) return;
+        sidebarTab = tab.dataset.tab;
+        sb.querySelectorAll(".yt-annotator-sidebar-tab").forEach((t) => t.classList.toggle("active", t.dataset.tab === sidebarTab));
+        const filters = sb.querySelector(".yt-annotator-sidebar-filters");
+        if (filters) filters.style.display = sidebarTab === "citations" ? "" : "none";
+        updateSidebarContent();
+      });
     });
     sb.querySelectorAll(".yt-annotator-filter-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
@@ -1070,16 +1088,24 @@
     if (!sidebar) return;
     const contentDiv = sidebar.querySelector(".yt-annotator-sidebar-content");
     const countDiv = sidebar.querySelector(".yt-annotator-sidebar-count");
-    let filtered = sharedAnnotations;
-    if (sidebarFilter === "mine") {
-      filtered = sharedAnnotations.filter((a) => a.isOwn);
-    } else if (sidebarFilter === "creator") {
-      filtered = sharedAnnotations.filter((a) => a.isCreatorCitation);
-    } else if (sidebarFilter === "others") {
-      filtered = sharedAnnotations.filter((a) => !a.isOwn && !a.isCreatorCitation);
+    let filtered;
+    if (sidebarTab === "bookmarks") {
+      filtered = sharedAnnotations.filter((a) => a.isBookmark);
+    } else {
+      const citations = sharedAnnotations.filter((a) => !a.isBookmark);
+      if (sidebarFilter === "mine") {
+        filtered = citations.filter((a) => a.isOwn);
+      } else if (sidebarFilter === "creator") {
+        filtered = citations.filter((a) => a.isCreatorCitation);
+      } else if (sidebarFilter === "others") {
+        filtered = citations.filter((a) => !a.isOwn && !a.isCreatorCitation);
+      } else {
+        filtered = citations;
+      }
     }
     filtered = [...filtered].sort((a, b) => a.timestamp - b.timestamp);
-    countDiv.textContent = `${filtered.length} annotation${filtered.length !== 1 ? "s" : ""}`;
+    const label = sidebarTab === "bookmarks" ? "bookmark" : "annotation";
+    countDiv.textContent = `${filtered.length} ${label}${filtered.length !== 1 ? "s" : ""}`;
     if (filtered.length === 0) {
       contentDiv.innerHTML = '<div class="yt-annotator-sidebar-empty">No annotations yet</div>';
       return;
@@ -1090,15 +1116,22 @@
         ${escapeHtml(annotation.citation.title || "")}
       </div>` : "";
       const textPreview = annotation.text ? `<div class="yt-annotator-sidebar-text">${escapeHtml(annotation.text.substring(0, 100))}${annotation.text.length > 100 ? "..." : ""}</div>` : "";
-      const ownerClass = annotation.isCreatorCitation ? "creator-citation" : annotation.isOwn ? "own" : "other";
-      const creatorName = annotation.creatorDisplayName || "Anonymous";
-      let ownerBadge;
-      if (annotation.isCreatorCitation) {
+      let ownerClass, ownerBadge;
+      if (annotation.isBookmark) {
+        ownerClass = "bookmark";
+        ownerBadge = `<span class="yt-annotator-sidebar-badge bookmark">Bookmark</span>`;
+      } else if (annotation.isCreatorCitation) {
+        ownerClass = "creator-citation";
+        const creatorName = annotation.creatorDisplayName || "Anonymous";
         const ownSuffix = annotation.isOwn ? " (YOU)" : "";
         ownerBadge = `<span class="yt-annotator-sidebar-badge creator">Creator${ownSuffix} - ${escapeHtml(creatorName)}</span>`;
       } else if (annotation.isOwn) {
+        ownerClass = "own";
+        const creatorName = annotation.creatorDisplayName || "Anonymous";
         ownerBadge = `<span class="yt-annotator-sidebar-badge own">YOU - ${escapeHtml(creatorName)}</span>`;
       } else {
+        ownerClass = "other";
+        const creatorName = annotation.creatorDisplayName || "Anonymous";
         ownerBadge = `<span class="yt-annotator-sidebar-badge other">${escapeHtml(creatorName)}</span>`;
       }
       const sidebarSuggestionIndicator = annotation.isOwn && annotation.suggestionCount > 0 ? `<span class="yt-annotator-suggestion-badge-small" title="${annotation.suggestionCount} suggestion${annotation.suggestionCount !== 1 ? "s" : ""}">&#128161; ${annotation.suggestionCount}</span>` : "";
@@ -1145,7 +1178,7 @@
           sidebar.querySelectorAll(".menu-open").forEach((el) => el.classList.remove("menu-open"));
           const menu = document.createElement("div");
           menu.className = "yt-annotator-actions-menu";
-          if (annotation.isOwn) {
+          if (annotation.isBookmark || annotation.isOwn) {
             menu.innerHTML = `
             <button class="yt-annotator-actions-menu-item" data-menu-action="edit">
               <span class="yt-annotator-actions-menu-icon">&#9998;</span> Edit
