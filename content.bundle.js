@@ -2235,8 +2235,25 @@
       else if (accountSidebarOpen) toggleAccountSidebar();
     }
   });
+  var isResizing = false;
+  document.addEventListener("mousedown", (e) => {
+    if (activePopup && activePopup.contains(e.target)) {
+      isResizing = true;
+    }
+  });
+  document.addEventListener("mouseup", () => {
+    if (isResizing) {
+      isResizing = false;
+    }
+  });
   document.addEventListener("click", (e) => {
+    if (isResizing) return;
     if (activePopup && !activePopup.contains(e.target)) {
+      closePopup();
+    }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && activePopup) {
       closePopup();
     }
   });

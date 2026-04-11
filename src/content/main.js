@@ -204,9 +204,28 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// Close popup when clicking outside
+// Close popup when clicking outside (but not during textarea resize drags)
+let isResizing = false;
+document.addEventListener('mousedown', (e) => {
+  if (state.activePopup && state.activePopup.contains(e.target)) {
+    isResizing = true;
+  }
+});
+document.addEventListener('mouseup', () => {
+  if (isResizing) {
+    isResizing = false;
+  }
+});
 document.addEventListener('click', (e) => {
+  if (isResizing) return;
   if (state.activePopup && !state.activePopup.contains(e.target)) {
+    closePopup();
+  }
+});
+
+// Close popup on Escape key
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && state.activePopup) {
     closePopup();
   }
 });
