@@ -1156,7 +1156,7 @@
           return;
         }
         e.stopPropagation();
-        if (typeof analytics !== "undefined") analytics.track("citation_clicked", { videoId: currentVideoId, source: "sidebar" });
+        if (typeof analytics !== "undefined" && !annotation.isBookmark) analytics.track("citation_clicked", { videoId: currentVideoId, source: "sidebar" });
         const video = document.querySelector("video");
         if (video && annotation) {
           showAnnotationPopup(annotation, video, !annotation.isOwn);
