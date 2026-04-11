@@ -60,9 +60,6 @@ function positionPopupNearMarker(popup, markerEl) {
 export function showAnnotationPopup(annotation, video, isShared = false, markerEl = null) {
   closePopup();
 
-  // Admin-deleted annotations: show removal notice instead of full popup
-  if (annotation.adminDeleted) return;
-
   // Append popup to the citation timeline if available, otherwise player
   const timelineEl = document.querySelector('.citelines-timeline');
   const popupContainer = timelineEl || document.querySelector('#movie_player');

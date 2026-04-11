@@ -132,17 +132,6 @@ export function updateSidebarContent() {
   }
 
   const listHTML = filtered.map(annotation => {
-    if (annotation.adminDeleted) {
-      return `
-        <div class="yt-annotator-sidebar-item other" data-timestamp="${annotation.timestamp}" style="opacity: 0.5;">
-          <div class="yt-annotator-sidebar-item-header">
-            <span class="yt-annotator-sidebar-time">${formatTime(annotation.timestamp)}</span>
-          </div>
-          <div class="yt-annotator-sidebar-text" style="color: #999; font-style: italic;">This citation was removed by a moderator</div>
-        </div>
-      `;
-    }
-
     const citationPreview = annotation.citation ?
       `<div class="yt-annotator-sidebar-citation">
         ${annotation.citation.type === 'youtube' ? '🎥' : annotation.citation.type === 'movie' ? '🎬' : '📄'}
@@ -186,8 +175,6 @@ export function updateSidebarContent() {
 
   contentDiv.querySelectorAll('.yt-annotator-sidebar-item').forEach((item, index) => {
     const annotation = filtered[index];
-
-    if (annotation.adminDeleted) return;
 
     item.addEventListener('click', (e) => {
       if (e.target.classList.contains('yt-annotator-sidebar-badge') ||

@@ -50,13 +50,9 @@ export async function fetchAllAnnotations(videoId) {
       const suggestionCounts = share.suggestionCounts || {};
 
       const mapped = share.annotations
-        .filter(ann => {
-          if (!ann.deleted_at) return true;
-          return isOwn && !!ann.deleted_by;
-        })
+        .filter(ann => !ann.deleted_at)
         .map(ann => {
           const sc = suggestionCounts[ann.id];
-          const adminDeleted = !!(ann.deleted_at && ann.deleted_by);
           return {
             ...ann,
             shareToken: share.shareToken,
@@ -65,7 +61,6 @@ export async function fetchAllAnnotations(videoId) {
             creatorDisplayName: share.creatorDisplayName,
             creatorUserId: share.userId,
             isCreatorCitation,
-            adminDeleted,
             suggestionCount: sc ? sc.count : 0,
             userHasSuggestion: sc ? sc.userHasSuggestion : false
           };

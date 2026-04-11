@@ -645,7 +645,6 @@
   }
   function showAnnotationPopup(annotation, video, isShared = false, markerEl = null) {
     closePopup();
-    if (annotation.adminDeleted) return;
     const timelineEl = document.querySelector(".citelines-timeline");
     const popupContainer = timelineEl || document.querySelector("#movie_player");
     if (!popupContainer) return;
@@ -1086,16 +1085,6 @@
       return;
     }
     const listHTML = filtered.map((annotation) => {
-      if (annotation.adminDeleted) {
-        return `
-        <div class="yt-annotator-sidebar-item other" data-timestamp="${annotation.timestamp}" style="opacity: 0.5;">
-          <div class="yt-annotator-sidebar-item-header">
-            <span class="yt-annotator-sidebar-time">${formatTime(annotation.timestamp)}</span>
-          </div>
-          <div class="yt-annotator-sidebar-text" style="color: #999; font-style: italic;">This citation was removed by a moderator</div>
-        </div>
-      `;
-      }
       const citationPreview = annotation.citation ? `<div class="yt-annotator-sidebar-citation">
         ${annotation.citation.type === "youtube" ? "\u{1F3A5}" : annotation.citation.type === "movie" ? "\u{1F3AC}" : "\u{1F4C4}"}
         ${escapeHtml(annotation.citation.title || "")}
@@ -1129,7 +1118,6 @@
     contentDiv.innerHTML = listHTML;
     contentDiv.querySelectorAll(".yt-annotator-sidebar-item").forEach((item, index) => {
       const annotation = filtered[index];
-      if (annotation.adminDeleted) return;
       item.addEventListener("click", (e) => {
         if (e.target.classList.contains("yt-annotator-sidebar-badge") || e.target.classList.contains("yt-annotator-actions-btn")) {
           return;
@@ -1267,7 +1255,7 @@
       startAdObserver();
       return;
     }
-    const annotations2 = sharedAnnotations.filter((a) => !a.adminDeleted);
+    const annotations2 = sharedAnnotations;
     const laneAnnotations = {};
     for (const ann of annotations2) {
       const laneId = getLaneId(ann);
@@ -1529,12 +1517,8 @@
         }
         const isCreatorCitation = !!(videoChannelId && share.creatorYoutubeChannelId && share.creatorYoutubeChannelId === videoChannelId);
         const suggestionCounts = share.suggestionCounts || {};
-        const mapped = share.annotations.filter((ann) => {
-          if (!ann.deleted_at) return true;
-          return isOwn && !!ann.deleted_by;
-        }).map((ann) => {
+        const mapped = share.annotations.filter((ann) => !ann.deleted_at).map((ann) => {
           const sc = suggestionCounts[ann.id];
-          const adminDeleted = !!(ann.deleted_at && ann.deleted_by);
           return {
             ...ann,
             shareToken: share.shareToken,
@@ -1543,7 +1527,6 @@
             creatorDisplayName: share.creatorDisplayName,
             creatorUserId: share.userId,
             isCreatorCitation,
-            adminDeleted,
             suggestionCount: sc ? sc.count : 0,
             userHasSuggestion: sc ? sc.userHasSuggestion : false
           };

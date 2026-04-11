@@ -78,7 +78,7 @@ export function renderMarkers() {
     return;
   }
 
-  const annotations = state.sharedAnnotations.filter(a => !a.adminDeleted);
+  const annotations = state.sharedAnnotations;
 
   // Group annotations by lane
   const laneAnnotations = {};
