@@ -203,6 +203,7 @@ export function updateSidebarContent() {
       sidebarActionsBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         state.sidebar.querySelectorAll('.yt-annotator-actions-menu').forEach(m => m.remove());
+        state.sidebar.querySelectorAll('.menu-open').forEach(el => el.classList.remove('menu-open'));
 
         const menu = document.createElement('div');
         menu.className = 'yt-annotator-actions-menu';
@@ -230,12 +231,14 @@ export function updateSidebarContent() {
 
         const header = item.querySelector('.yt-annotator-sidebar-item-header');
         header.appendChild(menu);
+        item.classList.add('menu-open');
 
         menu.querySelectorAll('.yt-annotator-actions-menu-item').forEach(menuItem => {
           menuItem.addEventListener('click', (ev) => {
             ev.stopPropagation();
             const action = menuItem.dataset.menuAction;
             menu.remove();
+            item.classList.remove('menu-open');
 
             if (action === 'edit') {
               const video = document.querySelector('video');
@@ -258,6 +261,7 @@ export function updateSidebarContent() {
         const closeMenu = (ev) => {
           if (!menu.contains(ev.target) && ev.target !== sidebarActionsBtn) {
             menu.remove();
+            item.classList.remove('menu-open');
             document.removeEventListener('click', closeMenu, true);
           }
         };

@@ -522,6 +522,13 @@ a.yt-annotator-citation-title:hover {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 8px;
+  position: relative;
+}
+
+/* When a menu is open, lift the item above its siblings so the dropdown isn't occluded */
+.yt-annotator-sidebar-item.menu-open {
+  z-index: 10;
+  position: relative;
 }
 
 .yt-annotator-sidebar-time {
