@@ -50,6 +50,8 @@ async function initialize() {
     state.annotations[videoId] = await loadAnnotations(videoId);
     state.setSharedAnnotations([]);
     state.setUserShareId(null);
+    state.setBookmarkShareId(null);
+    state.setBookmarkAnnotations([]);
     state.setCurrentVideoChannelId(null);
   }
 
@@ -178,6 +180,8 @@ function handleNavigation() {
       state.setSidebarOpen(false);
       state.setSharedAnnotations([]);
       state.setUserShareId(null);
+      state.setBookmarkShareId(null);
+      state.setBookmarkAnnotations([]);
       state.setCurrentVideoChannelId(null);
       state.setInitialized(false);
       closePopup();

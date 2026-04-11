@@ -21,13 +21,19 @@ export async function fetchAllAnnotations(videoId) {
 
     const newSharedAnnotations = [];
     let foundUserShareId = null;
+    let foundBookmarkShareId = null;
 
     for (const share of result.shares) {
       if (!share.annotations || !Array.isArray(share.annotations)) continue;
 
       const isOwn = share.isOwner || false;
+      const isBookmarkShare = isOwn && share.isPublic === false;
 
-      if (isOwn && !foundUserShareId) {
+      if (isBookmarkShare && !foundBookmarkShareId) {
+        foundBookmarkShareId = share.shareToken;
+        const nonDeletedBookmarks = share.annotations.filter(ann => !ann.deleted_at);
+        state.setBookmarkAnnotations(nonDeletedBookmarks);
+      } else if (isOwn && !foundUserShareId) {
         foundUserShareId = share.shareToken;
         const nonDeletedAnnotations = share.annotations.filter(ann => !ann.deleted_at);
         state.annotations[videoId] = nonDeletedAnnotations;
@@ -55,6 +61,7 @@ export async function fetchAllAnnotations(videoId) {
             ...ann,
             shareToken: share.shareToken,
             isOwn,
+            isBookmark: isBookmarkShare,
             creatorDisplayName: share.creatorDisplayName,
             creatorUserId: share.userId,
             isCreatorCitation,
@@ -68,12 +75,17 @@ export async function fetchAllAnnotations(videoId) {
     }
 
     state.setUserShareId(foundUserShareId);
+    state.setBookmarkShareId(foundBookmarkShareId);
     state.setSharedAnnotations(newSharedAnnotations);
 
     if (!foundUserShareId) {
       state.annotations[videoId] = [];
       const storageKey = getAnnotationsStorageKey(videoId);
       chrome.storage.local.set({ [storageKey]: [] });
+    }
+
+    if (!foundBookmarkShareId) {
+      state.setBookmarkAnnotations([]);
     }
 
     renderMarkers();

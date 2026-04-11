@@ -118,7 +118,7 @@ class AnnotatorAPI {
    * @param {string} title - Optional title
    * @returns {Promise<Object>} Share data with token and URL
    */
-  async createShare(videoId, annotations, title = null) {
+  async createShare(videoId, annotations, title = null, isPublic = true) {
     const headers = await this.getAuthHeaders();
 
     const response = await fetch(`${this.baseUrl}/shares`, {
@@ -128,7 +128,7 @@ class AnnotatorAPI {
         videoId,
         title,
         annotations,
-        isPublic: true
+        isPublic
       })
     });
 

@@ -72,7 +72,7 @@ class Share {
    * @param {number} offset
    * @returns {Promise<Array>} Array of shares
    */
-  static async findByVideoId(videoId, limit = 50, offset = 0) {
+  static async findByVideoId(videoId, limit = 50, offset = 0, userId = null) {
     const query = `
       SELECT
         s.id, s.share_token, s.user_id, s.video_id, s.title,
@@ -83,13 +83,13 @@ class Share {
       FROM shares s
       LEFT JOIN users u ON s.user_id = u.id
       WHERE s.video_id = $1
-        AND s.is_public = true
+        AND (s.is_public = true OR s.user_id = $4)
         AND s.deleted_by_admin IS NULL
       ORDER BY s.created_at DESC
       LIMIT $2 OFFSET $3
     `;
 
-    const result = await db.query(query, [videoId, limit, offset]);
+    const result = await db.query(query, [videoId, limit, offset, userId]);
     return result.rows;
   }
 

@@ -14,6 +14,8 @@
   var sidebarFilter = "all";
   var activePopup = null;
   var userShareId = null;
+  var bookmarkShareId = null;
+  var bookmarkAnnotations = [];
   var loginButton = null;
   var loginUI = null;
   var expiryWarning = null;
@@ -61,6 +63,12 @@
   }
   function setUserShareId(val) {
     userShareId = val;
+  }
+  function setBookmarkShareId(val) {
+    bookmarkShareId = val;
+  }
+  function setBookmarkAnnotations(val) {
+    bookmarkAnnotations = val;
   }
   function setLoginButton(val) {
     loginButton = val;
@@ -587,9 +595,12 @@
     if (!popupContainer) return;
     const popup = document.createElement("div");
     popup.className = "yt-annotator-popup";
+    const isBookmark = !!annotation.isBookmark;
     const creatorName = annotation.creatorDisplayName || "Anonymous";
     let badge;
-    if (annotation.isCreatorCitation) {
+    if (isBookmark) {
+      badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Bookmark</span>`;
+    } else if (annotation.isCreatorCitation) {
       const ownSuffix = !isShared ? " (YOU)" : "";
       badge = `<span style="background: #ffaa3e; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Creator${ownSuffix} - ${escapeHtml(creatorName)}</span>`;
     } else if (!isShared) {
@@ -597,12 +608,13 @@
     } else {
       badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
     }
-    const citationHTML = formatCitation(annotation.citation, !isShared);
+    const citationHTML = isBookmark ? "" : formatCitation(annotation.citation, !isShared);
     const creationTime = formatCreationTime(annotation.createdAt);
     const creationTimeHTML = creationTime ? `<div class="yt-annotator-creation-time">Created ${creationTime}</div>` : "";
     const editedTimeHTML = annotation.editedAt ? `<div class="yt-annotator-edited-time">Edited ${formatCreationTime(annotation.editedAt)}</div>` : "";
+    const bookmarkMetaHTML = isBookmark ? `<div class="yt-annotator-bookmark-meta">Only visible to you</div>` : "";
     const suggestionCount = annotation.suggestionCount || 0;
-    const suggestionBadgeHTML = !isShared && suggestionCount > 0 ? `<div class="yt-annotator-suggestion-badge" title="View suggestions">&#128161; ${suggestionCount} suggestion${suggestionCount !== 1 ? "s" : ""}</div>` : "";
+    const suggestionBadgeHTML = !isShared && !isBookmark && suggestionCount > 0 ? `<div class="yt-annotator-suggestion-badge" title="View suggestions">&#128161; ${suggestionCount} suggestion${suggestionCount !== 1 ? "s" : ""}</div>` : "";
     popup.innerHTML = `
     <div class="yt-annotator-popup-header">
       <span class="yt-annotator-popup-timestamp">${formatTime(annotation.timestamp)}${badge}</span>
@@ -615,6 +627,7 @@
     <div class="yt-annotator-popup-content">${escapeHtml(annotation.text)}</div>
     ${creationTimeHTML}
     ${editedTimeHTML}
+    ${bookmarkMetaHTML}
     ${suggestionBadgeHTML}
     <div class="yt-annotator-suggestion-detail" style="display: none;"></div>
     <div class="yt-annotator-popup-actions">
@@ -730,7 +743,7 @@
       }
       const menu = document.createElement("div");
       menu.className = "yt-annotator-actions-menu";
-      if (!isShared) {
+      if (isBookmark || !isShared) {
         menu.innerHTML = `
         <button class="yt-annotator-actions-menu-item" data-menu-action="edit">
           <span class="yt-annotator-actions-menu-icon">&#9998;</span> Edit
@@ -798,17 +811,29 @@
     const shareToken = annotation.shareToken;
     if (!shareToken) return;
     try {
-      const shareData = await api.getShare(shareToken);
-      const updatedAnnotations = shareData.annotations.filter((a) => a.id !== annotation.id);
-      if (updatedAnnotations.length === 0) {
-        await api.deleteShare(shareToken);
+      if (annotation.isBookmark) {
+        const updatedBookmarks = bookmarkAnnotations.filter((a) => a.id !== annotation.id);
+        if (updatedBookmarks.length === 0) {
+          await api.deleteShare(shareToken);
+          setBookmarkShareId(null);
+        } else {
+          await api.updateShare(shareToken, { annotations: updatedBookmarks });
+        }
+        setBookmarkAnnotations(updatedBookmarks);
+        await fetchAllAnnotations(videoId);
       } else {
-        await api.updateShare(shareToken, { annotations: updatedAnnotations });
+        const shareData = await api.getShare(shareToken);
+        const updatedAnnotations = shareData.annotations.filter((a) => a.id !== annotation.id);
+        if (updatedAnnotations.length === 0) {
+          await api.deleteShare(shareToken);
+        } else {
+          await api.updateShare(shareToken, { annotations: updatedAnnotations });
+        }
+        annotations[videoId] = updatedAnnotations;
+        const storageKey = getAnnotationsStorageKey(videoId);
+        await chrome.storage.local.set({ [storageKey]: updatedAnnotations });
+        await fetchAllAnnotations(videoId);
       }
-      annotations[videoId] = updatedAnnotations;
-      const storageKey = getAnnotationsStorageKey(videoId);
-      await chrome.storage.local.set({ [storageKey]: updatedAnnotations });
-      await fetchAllAnnotations(videoId);
     } catch (error) {
       console.error("Failed to delete annotation:", error);
     }
@@ -1139,10 +1164,13 @@
     { id: "podcast", label: "Podcast", icon: "\u{1F399}" },
     { id: "note", label: "Note", icon: "\u{1F4DD}" }
   ];
+  var BOOKMARK_LANE = { id: "bookmark", label: "Bookmarks", icon: "\u{1F512}" };
   function getLaneId(annotation) {
+    if (annotation.isBookmark) return "bookmark";
     return annotation.citation?.type || "note";
   }
   function getMarkerClass(annotation) {
+    if (annotation.isBookmark) return "bookmark";
     if (annotation.isCreatorCitation) return "creator";
     if (annotation.isOwn) return "mine";
     return "other";
@@ -1191,11 +1219,13 @@
     }
     const populatedLanes = LANES.filter((l) => laneAnnotations[l.id]?.length > 0);
     const knownIds = new Set(LANES.map((l) => l.id));
+    knownIds.add("bookmark");
     for (const laneId of Object.keys(laneAnnotations)) {
       if (!knownIds.has(laneId)) {
         populatedLanes.push({ id: laneId, label: laneId.charAt(0).toUpperCase() + laneId.slice(1), icon: "\u{1F4C4}" });
       }
     }
+    const hasBookmarks = laneAnnotations["bookmark"]?.length > 0;
     const tracksContainer = citationTimeline.querySelector(".citelines-tracks");
     const countEl = citationTimeline.querySelector(".citelines-count");
     console.log("[Citelines] renderMarkers: tracksContainer found?", !!tracksContainer, "annotations:", annotations2.length, "lanes:", populatedLanes.map((l) => l.id));
@@ -1245,9 +1275,68 @@
       trackEl.appendChild(labelEl);
       tracksContainer.appendChild(trackEl);
     }
+    if (hasBookmarks) {
+      const svgDefs = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      svgDefs.setAttribute("width", "0");
+      svgDefs.setAttribute("height", "0");
+      svgDefs.style.position = "absolute";
+      svgDefs.innerHTML = `
+      <defs>
+        <pattern id="citelines-bookmark-hash" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(0,180,180,0.6)" stroke-width="1.5"/>
+        </pattern>
+      </defs>
+    `;
+      tracksContainer.appendChild(svgDefs);
+      const bookmarkTrack = document.createElement("div");
+      bookmarkTrack.className = "citelines-track citelines-track-bookmark";
+      const bookmarkLane = document.createElement("div");
+      bookmarkLane.className = "citelines-track-lane";
+      const bookmarkLaneBg = document.createElement("div");
+      bookmarkLaneBg.className = "citelines-track-lane-bg";
+      bookmarkLane.appendChild(bookmarkLaneBg);
+      const bookmarkAnns = laneAnnotations["bookmark"] || [];
+      for (const ann of bookmarkAnns) {
+        const pct = ann.timestamp / video.duration * 100;
+        const marker = document.createElement("div");
+        marker.className = "citelines-marker bookmark";
+        marker.style.left = pct + "%";
+        marker.dataset.annotationId = ann.id;
+        const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        svg.setAttribute("width", "12");
+        svg.setAttribute("height", "16");
+        svg.setAttribute("viewBox", "0 0 12 16");
+        svg.innerHTML = `<path d="M1 1h10v13l-5-3.5L1 14V1z" fill="url(#citelines-bookmark-hash)" stroke="rgba(0,180,180,0.8)" stroke-width="1"/>`;
+        marker.appendChild(svg);
+        const colorClass = "bookmark";
+        const tooltip = document.createElement("div");
+        tooltip.className = "citelines-marker-tooltip";
+        tooltip.innerHTML = `<div class="citelines-marker-tooltip-row"><span class="citelines-marker-tooltip-time ${colorClass}">${formatTime(ann.timestamp)}</span><span class="citelines-marker-tooltip-source">${escapeHtml(getTooltipSource(ann))}</span></div><div class="citelines-marker-tooltip-arrow"></div><div class="citelines-marker-tooltip-arrow-inner"></div>`;
+        marker.appendChild(tooltip);
+        marker.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showAnnotationPopup(ann, video, false, marker);
+        });
+        bookmarkLane.appendChild(marker);
+      }
+      const bookmarkLabel = document.createElement("div");
+      bookmarkLabel.className = "citelines-track-label citelines-track-label-bookmark";
+      bookmarkLabel.innerHTML = `<span class="citelines-track-icon">${BOOKMARK_LANE.icon}</span>${BOOKMARK_LANE.label}`;
+      bookmarkTrack.appendChild(bookmarkLane);
+      bookmarkTrack.appendChild(bookmarkLabel);
+      tracksContainer.appendChild(bookmarkTrack);
+    }
+    const citationCount = annotations2.filter((a) => !a.isBookmark).length;
     if (countEl) {
       const typeCount = populatedLanes.length;
-      countEl.textContent = `${annotations2.length} citation${annotations2.length !== 1 ? "s" : ""} \xB7 ${typeCount} type${typeCount !== 1 ? "s" : ""}`;
+      let countText = `${citationCount} citation${citationCount !== 1 ? "s" : ""}`;
+      if (typeCount > 0) countText += ` \xB7 ${typeCount} type${typeCount !== 1 ? "s" : ""}`;
+      if (hasBookmarks) countText += ` \xB7 ${laneAnnotations["bookmark"].length} bookmark${laneAnnotations["bookmark"].length !== 1 ? "s" : ""}`;
+      countEl.textContent = countText;
+    }
+    const bookmarkLegendItem = citationTimeline.querySelector(".citelines-legend-bookmark");
+    if (bookmarkLegendItem) {
+      bookmarkLegendItem.style.display = hasBookmarks ? "" : "none";
     }
     const ownCount = annotations2.filter((a) => a.isOwn).length;
     const sharedCount = annotations2.filter((a) => !a.isOwn && !a.isCreatorCitation).length;
@@ -1315,6 +1404,7 @@
         <div class="citelines-legend-item"><div class="citelines-legend-swatch creator"></div> Creator</div>
         <div class="citelines-legend-item"><div class="citelines-legend-swatch mine"></div> Yours</div>
         <div class="citelines-legend-item"><div class="citelines-legend-swatch other"></div> Others</div>
+        <div class="citelines-legend-item citelines-legend-bookmark" style="display: none;"><div class="citelines-legend-swatch bookmark"></div> Bookmarks</div>
       </div>
     </div>
   `;
@@ -1364,10 +1454,16 @@
       setCurrentVideoChannelId(videoChannelId);
       const newSharedAnnotations = [];
       let foundUserShareId = null;
+      let foundBookmarkShareId = null;
       for (const share of result.shares) {
         if (!share.annotations || !Array.isArray(share.annotations)) continue;
         const isOwn = share.isOwner || false;
-        if (isOwn && !foundUserShareId) {
+        const isBookmarkShare = isOwn && share.isPublic === false;
+        if (isBookmarkShare && !foundBookmarkShareId) {
+          foundBookmarkShareId = share.shareToken;
+          const nonDeletedBookmarks = share.annotations.filter((ann) => !ann.deleted_at);
+          setBookmarkAnnotations(nonDeletedBookmarks);
+        } else if (isOwn && !foundUserShareId) {
           foundUserShareId = share.shareToken;
           const nonDeletedAnnotations = share.annotations.filter((ann) => !ann.deleted_at);
           annotations[videoId] = nonDeletedAnnotations;
@@ -1386,6 +1482,7 @@
             ...ann,
             shareToken: share.shareToken,
             isOwn,
+            isBookmark: isBookmarkShare,
             creatorDisplayName: share.creatorDisplayName,
             creatorUserId: share.userId,
             isCreatorCitation,
@@ -1397,11 +1494,15 @@
         newSharedAnnotations.push(...mapped);
       }
       setUserShareId(foundUserShareId);
+      setBookmarkShareId(foundBookmarkShareId);
       setSharedAnnotations(newSharedAnnotations);
       if (!foundUserShareId) {
         annotations[videoId] = [];
         const storageKey = getAnnotationsStorageKey(videoId);
         chrome.storage.local.set({ [storageKey]: [] });
+      }
+      if (!foundBookmarkShareId) {
+        setBookmarkAnnotations([]);
       }
       renderMarkers();
       updateCreatorMode();
@@ -1454,6 +1555,35 @@
       console.log("Created share:", result.shareToken);
     }
   }
+  async function saveBookmark(videoId, text, timestamp) {
+    const annotation = {
+      id: Date.now().toString(),
+      timestamp,
+      text,
+      citation: null,
+      createdAt: (/* @__PURE__ */ new Date()).toISOString()
+    };
+    const updatedBookmarks = [...bookmarkAnnotations, annotation];
+    const videoTitle = document.querySelector("h1.ytd-watch-metadata yt-formatted-string")?.textContent || "YouTube Video";
+    try {
+      if (bookmarkShareId) {
+        await api.updateShare(bookmarkShareId, {
+          annotations: updatedBookmarks,
+          title: videoTitle
+        });
+      } else {
+        const result = await api.createShare(videoId, updatedBookmarks, videoTitle, false);
+        setBookmarkShareId(result.shareToken);
+      }
+      setBookmarkAnnotations(updatedBookmarks);
+      await fetchAllAnnotations(videoId);
+    } catch (error) {
+      console.error("Failed to save bookmark:", error);
+      if (error.suspended || error.banned) {
+        alert("Your account is suspended. Bookmarks will not be saved.");
+      }
+    }
+  }
 
   // src/content/createPopup.js
   function showCreatePopup(timestamp, video) {
@@ -1462,10 +1592,20 @@
     if (!playerContainer) return;
     const popup = document.createElement("div");
     popup.className = "yt-annotator-popup yt-annotator-popup-create" + (isCreatorMode() ? " creator-mode" : "");
+    const isLoggedIn = authManager && authManager.isLoggedIn();
     popup.innerHTML = `
     <div class="yt-annotator-popup-header">
       <span class="yt-annotator-popup-timestamp">New annotation at ${formatTime(timestamp)}</span>
       <button class="yt-annotator-popup-close">&times;</button>
+    </div>
+
+    <div class="yt-annotator-create-toggle">
+      <button class="yt-annotator-toggle-btn active" data-mode="citation">Citation <span class="yt-annotator-toggle-label">public</span></button>
+      <button class="yt-annotator-toggle-btn${isLoggedIn ? "" : " disabled"}" data-mode="bookmark">Bookmark <span class="yt-annotator-toggle-label">private</span></button>
+    </div>
+
+    <div class="yt-annotator-login-hint" style="display: none;">
+      Sign in to save private bookmarks.
     </div>
 
     <div class="yt-annotator-citation-type">
@@ -1482,6 +1622,10 @@
       <!-- Dynamic fields will be inserted here -->
     </div>
 
+    <div class="yt-annotator-private-hint" style="display: none;">
+      Only visible to you
+    </div>
+
     <textarea class="yt-annotator-popup-input" placeholder="Your note or comment..."></textarea>
 
     <div class="yt-annotator-popup-actions">
@@ -1492,6 +1636,35 @@
     const textarea = popup.querySelector("textarea");
     const citationTypeSelect = popup.querySelector("#citation-type");
     const citationFields = popup.querySelector("#citation-fields");
+    const citationTypeContainer = popup.querySelector(".yt-annotator-citation-type");
+    const privateHint = popup.querySelector(".yt-annotator-private-hint");
+    const loginHint = popup.querySelector(".yt-annotator-login-hint");
+    const toggleBtns = popup.querySelectorAll(".yt-annotator-toggle-btn");
+    let createMode = "citation";
+    toggleBtns.forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const mode = btn.dataset.mode;
+        if (mode === "bookmark" && !isLoggedIn) {
+          loginHint.style.display = "block";
+          return;
+        }
+        loginHint.style.display = "none";
+        createMode = mode;
+        toggleBtns.forEach((b) => b.classList.toggle("active", b.dataset.mode === mode));
+        if (mode === "bookmark") {
+          citationTypeContainer.style.display = "none";
+          citationFields.style.display = "none";
+          privateHint.style.display = "block";
+          textarea.placeholder = "Your private note...";
+        } else {
+          citationTypeContainer.style.display = "";
+          citationFields.style.display = "";
+          privateHint.style.display = "none";
+          textarea.placeholder = "Your note or comment...";
+        }
+      });
+    });
     function updateCitationFields(type) {
       let fieldsHTML = "";
       switch (type) {
@@ -1554,6 +1727,25 @@
       const saveBtn = popup.querySelector('[data-action="save"]');
       if (saveBtn.disabled) return;
       const text = textarea.value.trim();
+      const videoId = getVideoId();
+      if (createMode === "bookmark") {
+        if (!text) {
+          alert("Please enter a note");
+          return;
+        }
+        saveBtn.disabled = true;
+        saveBtn.textContent = "Saving...";
+        try {
+          await saveBookmark(videoId, text, timestamp);
+          closePopup();
+        } catch (error) {
+          console.error("Failed to save bookmark:", error);
+          saveBtn.disabled = false;
+          saveBtn.textContent = "Save";
+          alert("Failed to save bookmark. Please try again.");
+        }
+        return;
+      }
       const citationType = citationTypeSelect.value;
       let citation = null;
       if (citationType !== "note") {
@@ -1583,7 +1775,6 @@
       }
       saveBtn.disabled = true;
       saveBtn.textContent = "Saving...";
-      const videoId = getVideoId();
       const newAnnotation = {
         id: Date.now().toString(),
         timestamp,
@@ -1914,6 +2105,8 @@
       annotations[videoId] = await loadAnnotations(videoId);
       setSharedAnnotations([]);
       setUserShareId(null);
+      setBookmarkShareId(null);
+      setBookmarkAnnotations([]);
       setCurrentVideoChannelId(null);
     }
     createMarkersContainer();
@@ -2023,6 +2216,8 @@
         setSidebarOpen(false);
         setSharedAnnotations([]);
         setUserShareId(null);
+        setBookmarkShareId(null);
+        setBookmarkAnnotations([]);
         setCurrentVideoChannelId(null);
         setInitialized(false);
         closePopup();

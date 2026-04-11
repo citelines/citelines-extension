@@ -70,9 +70,13 @@ export function showAnnotationPopup(annotation, video, isShared = false, markerE
   const popup = document.createElement('div');
   popup.className = 'yt-annotator-popup';
 
+  const isBookmark = !!annotation.isBookmark;
+
   const creatorName = annotation.creatorDisplayName || 'Anonymous';
   let badge;
-  if (annotation.isCreatorCitation) {
+  if (isBookmark) {
+    badge = `<span style="background: #0497a6; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Bookmark</span>`;
+  } else if (annotation.isCreatorCitation) {
     const ownSuffix = !isShared ? ' (YOU)' : '';
     badge = `<span style="background: #ffaa3e; color: #000; padding: 2px 6px; border-radius: 3px; font-size: 11px; font-weight: 600; margin-left: 8px;">Creator${ownSuffix} - ${escapeHtml(creatorName)}</span>`;
   } else if (!isShared) {
@@ -81,13 +85,14 @@ export function showAnnotationPopup(annotation, video, isShared = false, markerE
     badge = `<span style="background: #3a3a3a; color: white; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">${escapeHtml(creatorName)}</span>`;
   }
 
-  const citationHTML = formatCitation(annotation.citation, !isShared);
+  const citationHTML = isBookmark ? '' : formatCitation(annotation.citation, !isShared);
   const creationTime = formatCreationTime(annotation.createdAt);
   const creationTimeHTML = creationTime ? `<div class="yt-annotator-creation-time">Created ${creationTime}</div>` : '';
   const editedTimeHTML = annotation.editedAt ? `<div class="yt-annotator-edited-time">Edited ${formatCreationTime(annotation.editedAt)}</div>` : '';
+  const bookmarkMetaHTML = isBookmark ? `<div class="yt-annotator-bookmark-meta">Only visible to you</div>` : '';
 
   const suggestionCount = annotation.suggestionCount || 0;
-  const suggestionBadgeHTML = (!isShared && suggestionCount > 0)
+  const suggestionBadgeHTML = (!isShared && !isBookmark && suggestionCount > 0)
     ? `<div class="yt-annotator-suggestion-badge" title="View suggestions">&#128161; ${suggestionCount} suggestion${suggestionCount !== 1 ? 's' : ''}</div>`
     : '';
 
@@ -103,6 +108,7 @@ export function showAnnotationPopup(annotation, video, isShared = false, markerE
     <div class="yt-annotator-popup-content">${escapeHtml(annotation.text)}</div>
     ${creationTimeHTML}
     ${editedTimeHTML}
+    ${bookmarkMetaHTML}
     ${suggestionBadgeHTML}
     <div class="yt-annotator-suggestion-detail" style="display: none;"></div>
     <div class="yt-annotator-popup-actions">
@@ -231,7 +237,7 @@ export function showAnnotationPopup(annotation, video, isShared = false, markerE
     const menu = document.createElement('div');
     menu.className = 'yt-annotator-actions-menu';
 
-    if (!isShared) {
+    if (isBookmark || !isShared) {
       menu.innerHTML = `
         <button class="yt-annotator-actions-menu-item" data-menu-action="edit">
           <span class="yt-annotator-actions-menu-icon">&#9998;</span> Edit
@@ -311,19 +317,35 @@ export async function handleDeleteAnnotation(annotation) {
   if (!shareToken) return;
 
   try {
-    const shareData = await api.getShare(shareToken);
-    const updatedAnnotations = shareData.annotations.filter(a => a.id !== annotation.id);
+    if (annotation.isBookmark) {
+      // Delete bookmark
+      const updatedBookmarks = state.bookmarkAnnotations.filter(a => a.id !== annotation.id);
 
-    if (updatedAnnotations.length === 0) {
-      await api.deleteShare(shareToken);
+      if (updatedBookmarks.length === 0) {
+        await api.deleteShare(shareToken);
+        state.setBookmarkShareId(null);
+      } else {
+        await api.updateShare(shareToken, { annotations: updatedBookmarks });
+      }
+
+      state.setBookmarkAnnotations(updatedBookmarks);
+      await fetchAllAnnotations(videoId);
     } else {
-      await api.updateShare(shareToken, { annotations: updatedAnnotations });
-    }
+      // Delete citation
+      const shareData = await api.getShare(shareToken);
+      const updatedAnnotations = shareData.annotations.filter(a => a.id !== annotation.id);
 
-    state.annotations[videoId] = updatedAnnotations;
-    const storageKey = getAnnotationsStorageKey(videoId);
-    await chrome.storage.local.set({ [storageKey]: updatedAnnotations });
-    await fetchAllAnnotations(videoId);
+      if (updatedAnnotations.length === 0) {
+        await api.deleteShare(shareToken);
+      } else {
+        await api.updateShare(shareToken, { annotations: updatedAnnotations });
+      }
+
+      state.annotations[videoId] = updatedAnnotations;
+      const storageKey = getAnnotationsStorageKey(videoId);
+      await chrome.storage.local.set({ [storageKey]: updatedAnnotations });
+      await fetchAllAnnotations(videoId);
+    }
   } catch (error) {
     console.error('Failed to delete annotation:', error);
   }

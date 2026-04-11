@@ -4,8 +4,9 @@ import * as state from './state.js';
 import { escapeHtml, formatTime, getVideoId } from './utils.js';
 import { isCreatorMode } from './creatorMode.js';
 import { closePopup } from './popup.js';
-import { getAnnotationsStorageKey, saveAnnotations } from './storage.js';
+import { getAnnotationsStorageKey, saveAnnotations, saveBookmark } from './storage.js';
 import { renderMarkers } from './markers.js';
+import { authManager } from './globals.js';
 
 // Show popup for creating new annotation
 export function showCreatePopup(timestamp, video) {
@@ -17,10 +18,21 @@ export function showCreatePopup(timestamp, video) {
   const popup = document.createElement('div');
   popup.className = 'yt-annotator-popup yt-annotator-popup-create' + (isCreatorMode() ? ' creator-mode' : '');
 
+  const isLoggedIn = authManager && authManager.isLoggedIn();
+
   popup.innerHTML = `
     <div class="yt-annotator-popup-header">
       <span class="yt-annotator-popup-timestamp">New annotation at ${formatTime(timestamp)}</span>
       <button class="yt-annotator-popup-close">&times;</button>
+    </div>
+
+    <div class="yt-annotator-create-toggle">
+      <button class="yt-annotator-toggle-btn active" data-mode="citation">Citation <span class="yt-annotator-toggle-label">public</span></button>
+      <button class="yt-annotator-toggle-btn${isLoggedIn ? '' : ' disabled'}" data-mode="bookmark">Bookmark <span class="yt-annotator-toggle-label">private</span></button>
+    </div>
+
+    <div class="yt-annotator-login-hint" style="display: none;">
+      Sign in to save private bookmarks.
     </div>
 
     <div class="yt-annotator-citation-type">
@@ -37,6 +49,10 @@ export function showCreatePopup(timestamp, video) {
       <!-- Dynamic fields will be inserted here -->
     </div>
 
+    <div class="yt-annotator-private-hint" style="display: none;">
+      Only visible to you
+    </div>
+
     <textarea class="yt-annotator-popup-input" placeholder="Your note or comment..."></textarea>
 
     <div class="yt-annotator-popup-actions">
@@ -48,6 +64,39 @@ export function showCreatePopup(timestamp, video) {
   const textarea = popup.querySelector('textarea');
   const citationTypeSelect = popup.querySelector('#citation-type');
   const citationFields = popup.querySelector('#citation-fields');
+  const citationTypeContainer = popup.querySelector('.yt-annotator-citation-type');
+  const privateHint = popup.querySelector('.yt-annotator-private-hint');
+  const loginHint = popup.querySelector('.yt-annotator-login-hint');
+  const toggleBtns = popup.querySelectorAll('.yt-annotator-toggle-btn');
+  let createMode = 'citation'; // 'citation' or 'bookmark'
+
+  toggleBtns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const mode = btn.dataset.mode;
+
+      if (mode === 'bookmark' && !isLoggedIn) {
+        loginHint.style.display = 'block';
+        return;
+      }
+
+      loginHint.style.display = 'none';
+      createMode = mode;
+      toggleBtns.forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+
+      if (mode === 'bookmark') {
+        citationTypeContainer.style.display = 'none';
+        citationFields.style.display = 'none';
+        privateHint.style.display = 'block';
+        textarea.placeholder = 'Your private note...';
+      } else {
+        citationTypeContainer.style.display = '';
+        citationFields.style.display = '';
+        privateHint.style.display = 'none';
+        textarea.placeholder = 'Your note or comment...';
+      }
+    });
+  });
 
   function updateCitationFields(type) {
     let fieldsHTML = '';
@@ -121,6 +170,31 @@ export function showCreatePopup(timestamp, video) {
     if (saveBtn.disabled) return;
 
     const text = textarea.value.trim();
+    const videoId = getVideoId();
+
+    // Bookmark mode: save privately
+    if (createMode === 'bookmark') {
+      if (!text) {
+        alert('Please enter a note');
+        return;
+      }
+
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      try {
+        await saveBookmark(videoId, text, timestamp);
+        closePopup();
+      } catch (error) {
+        console.error('Failed to save bookmark:', error);
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+        alert('Failed to save bookmark. Please try again.');
+      }
+      return;
+    }
+
+    // Citation mode: existing logic
     const citationType = citationTypeSelect.value;
 
     let citation = null;
@@ -157,7 +231,6 @@ export function showCreatePopup(timestamp, video) {
     saveBtn.disabled = true;
     saveBtn.textContent = 'Saving...';
 
-    const videoId = getVideoId();
     const newAnnotation = {
       id: Date.now().toString(),
       timestamp: timestamp,

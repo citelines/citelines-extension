@@ -27,6 +27,14 @@ const router = express.Router();
 router.post('/', authenticateAnonymous, rejectBannedWrites, rateLimitCitations, asyncHandler(async (req, res) => {
   const { videoId, title, annotations, isPublic = true } = req.body;
 
+  // Bookmarks (private shares) require a real account, not anonymous
+  if (isPublic === false && req.authType !== 'jwt') {
+    return res.status(403).json({
+      error: 'Account required',
+      message: 'Bookmarks require a Citelines account. Please sign in or create an account.'
+    });
+  }
+
   // Validate video ID
   if (!isValidVideoId(videoId)) {
     return res.status(400).json({
@@ -196,12 +204,12 @@ router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
     });
   }
 
-  // Find shares
-  const shares = await Share.findByVideoId(videoId, limit, offset);
+  // Find shares (include user's private bookmarks if authenticated)
+  const userId = req.user ? req.user.id : null;
+  const shares = await Share.findByVideoId(videoId, limit, offset, userId);
 
   // Batch query suggestion counts for all share tokens
   const shareTokens = shares.map(s => s.share_token);
-  const userId = req.user ? req.user.id : null;
   const suggestionRows = await Report.findByShareTokens(shareTokens, userId);
 
   // Build lookup: { shareToken: { annotationId: { count, userHasSuggestion } } }
@@ -220,6 +228,7 @@ router.get('/video/:videoId', optionalAuth, asyncHandler(async (req, res) => {
     title: share.title,
     annotations: share.annotations,
     annotationCount: share.annotations.length,
+    isPublic: share.is_public,
     viewCount: share.view_count,
     createdAt: share.created_at,
     isOwner: !!(req.user && req.user.id === share.user_id),

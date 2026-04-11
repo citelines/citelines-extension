@@ -67,3 +67,36 @@ export async function syncAnnotationsToBackend(videoId, annotationsList) {
     console.log('Created share:', result.shareToken);
   }
 }
+
+// Save a bookmark (private annotation) to backend
+export async function saveBookmark(videoId, text, timestamp) {
+  const annotation = {
+    id: Date.now().toString(),
+    timestamp,
+    text,
+    citation: null,
+    createdAt: new Date().toISOString()
+  };
+
+  const updatedBookmarks = [...state.bookmarkAnnotations, annotation];
+  const videoTitle = document.querySelector('h1.ytd-watch-metadata yt-formatted-string')?.textContent || 'YouTube Video';
+
+  try {
+    if (state.bookmarkShareId) {
+      await api.updateShare(state.bookmarkShareId, {
+        annotations: updatedBookmarks,
+        title: videoTitle
+      });
+    } else {
+      const result = await api.createShare(videoId, updatedBookmarks, videoTitle, false);
+      state.setBookmarkShareId(result.shareToken);
+    }
+    state.setBookmarkAnnotations(updatedBookmarks);
+    await fetchAllAnnotations(videoId);
+  } catch (error) {
+    console.error('Failed to save bookmark:', error);
+    if (error.suspended || error.banned) {
+      alert('Your account is suspended. Bookmarks will not be saved.');
+    }
+  }
+}

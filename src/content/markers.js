@@ -16,13 +16,18 @@ const LANES = [
   { id: 'note',     label: 'Note',     icon: '\uD83D\uDCDD' },
 ];
 
+// Bookmark lane — rendered separately after citation lanes
+const BOOKMARK_LANE = { id: 'bookmark', label: 'Bookmarks', icon: '\uD83D\uDD12' };
+
 // Get the lane id for an annotation based on its citation type
 function getLaneId(annotation) {
+  if (annotation.isBookmark) return 'bookmark';
   return annotation.citation?.type || 'note';
 }
 
 // Get marker color class based on ownership
 function getMarkerClass(annotation) {
+  if (annotation.isBookmark) return 'bookmark';
   if (annotation.isCreatorCitation) return 'creator';
   if (annotation.isOwn) return 'mine';
   return 'other';
@@ -83,16 +88,19 @@ export function renderMarkers() {
     laneAnnotations[laneId].push(ann);
   }
 
-  // Only show lanes that have annotations
+  // Only show lanes that have annotations (exclude bookmarks — handled separately)
   const populatedLanes = LANES.filter(l => laneAnnotations[l.id]?.length > 0);
 
   // Also include any unknown lane ids (future citation types)
   const knownIds = new Set(LANES.map(l => l.id));
+  knownIds.add('bookmark'); // bookmark lane handled separately
   for (const laneId of Object.keys(laneAnnotations)) {
     if (!knownIds.has(laneId)) {
       populatedLanes.push({ id: laneId, label: laneId.charAt(0).toUpperCase() + laneId.slice(1), icon: '\uD83D\uDCC4' });
     }
   }
+
+  const hasBookmarks = laneAnnotations['bookmark']?.length > 0;
 
   const tracksContainer = state.citationTimeline.querySelector('.citelines-tracks');
   const countEl = state.citationTimeline.querySelector('.citelines-count');
@@ -167,10 +175,93 @@ export function renderMarkers() {
     tracksContainer.appendChild(trackEl);
   }
 
-  // Update count
+  // Render bookmark lane (after citation lanes, with dashed separator)
+  if (hasBookmarks) {
+    // Add shared SVG defs for bookmark hash fill pattern
+    const svgDefs = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svgDefs.setAttribute('width', '0');
+    svgDefs.setAttribute('height', '0');
+    svgDefs.style.position = 'absolute';
+    svgDefs.innerHTML = `
+      <defs>
+        <pattern id="citelines-bookmark-hash" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">
+          <line x1="0" y1="0" x2="0" y2="6" stroke="rgba(0,180,180,0.6)" stroke-width="1.5"/>
+        </pattern>
+      </defs>
+    `;
+    tracksContainer.appendChild(svgDefs);
+
+    const bookmarkTrack = document.createElement('div');
+    bookmarkTrack.className = 'citelines-track citelines-track-bookmark';
+
+    const bookmarkLane = document.createElement('div');
+    bookmarkLane.className = 'citelines-track-lane';
+
+    const bookmarkLaneBg = document.createElement('div');
+    bookmarkLaneBg.className = 'citelines-track-lane-bg';
+    bookmarkLane.appendChild(bookmarkLaneBg);
+
+    const bookmarkAnns = laneAnnotations['bookmark'] || [];
+    for (const ann of bookmarkAnns) {
+      const pct = (ann.timestamp / video.duration) * 100;
+
+      // SVG bookmark-shaped marker with hash fill
+      const marker = document.createElement('div');
+      marker.className = 'citelines-marker bookmark';
+      marker.style.left = pct + '%';
+      marker.dataset.annotationId = ann.id;
+
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('width', '12');
+      svg.setAttribute('height', '16');
+      svg.setAttribute('viewBox', '0 0 12 16');
+      svg.innerHTML = `<path d="M1 1h10v13l-5-3.5L1 14V1z" fill="url(#citelines-bookmark-hash)" stroke="rgba(0,180,180,0.8)" stroke-width="1"/>`;
+      marker.appendChild(svg);
+
+      // Tooltip
+      const colorClass = 'bookmark';
+      const tooltip = document.createElement('div');
+      tooltip.className = 'citelines-marker-tooltip';
+      tooltip.innerHTML =
+        `<div class="citelines-marker-tooltip-row">` +
+          `<span class="citelines-marker-tooltip-time ${colorClass}">${formatTime(ann.timestamp)}</span>` +
+          `<span class="citelines-marker-tooltip-source">${escapeHtml(getTooltipSource(ann))}</span>` +
+        `</div>` +
+        `<div class="citelines-marker-tooltip-arrow"></div>` +
+        `<div class="citelines-marker-tooltip-arrow-inner"></div>`;
+      marker.appendChild(tooltip);
+
+      marker.addEventListener('click', (e) => {
+        e.stopPropagation();
+        showAnnotationPopup(ann, video, false, marker);
+      });
+
+      bookmarkLane.appendChild(marker);
+    }
+
+    const bookmarkLabel = document.createElement('div');
+    bookmarkLabel.className = 'citelines-track-label citelines-track-label-bookmark';
+    bookmarkLabel.innerHTML = `<span class="citelines-track-icon">${BOOKMARK_LANE.icon}</span>${BOOKMARK_LANE.label}`;
+
+    bookmarkTrack.appendChild(bookmarkLane);
+    bookmarkTrack.appendChild(bookmarkLabel);
+    tracksContainer.appendChild(bookmarkTrack);
+  }
+
+  // Update count (exclude bookmarks from citation count)
+  const citationCount = annotations.filter(a => !a.isBookmark).length;
   if (countEl) {
     const typeCount = populatedLanes.length;
-    countEl.textContent = `${annotations.length} citation${annotations.length !== 1 ? 's' : ''} \u00b7 ${typeCount} type${typeCount !== 1 ? 's' : ''}`;
+    let countText = `${citationCount} citation${citationCount !== 1 ? 's' : ''}`;
+    if (typeCount > 0) countText += ` \u00b7 ${typeCount} type${typeCount !== 1 ? 's' : ''}`;
+    if (hasBookmarks) countText += ` \u00b7 ${laneAnnotations['bookmark'].length} bookmark${laneAnnotations['bookmark'].length !== 1 ? 's' : ''}`;
+    countEl.textContent = countText;
+  }
+
+  // Show/hide bookmark legend item
+  const bookmarkLegendItem = state.citationTimeline.querySelector('.citelines-legend-bookmark');
+  if (bookmarkLegendItem) {
+    bookmarkLegendItem.style.display = hasBookmarks ? '' : 'none';
   }
 
   // Log
@@ -258,6 +349,7 @@ export function createMarkersContainer() {
         <div class="citelines-legend-item"><div class="citelines-legend-swatch creator"></div> Creator</div>
         <div class="citelines-legend-item"><div class="citelines-legend-swatch mine"></div> Yours</div>
         <div class="citelines-legend-item"><div class="citelines-legend-swatch other"></div> Others</div>
+        <div class="citelines-legend-item citelines-legend-bookmark" style="display: none;"><div class="citelines-legend-swatch bookmark"></div> Bookmarks</div>
       </div>
     </div>
   `;
