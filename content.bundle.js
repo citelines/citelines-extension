@@ -557,6 +557,57 @@
     document.body.appendChild(modal);
   }
 
+  // src/content/theme.js
+  var STORAGE_KEY = "citelines_theme_pref";
+  var currentPref = "auto";
+  var ytObserver = null;
+  function getEffectiveTheme() {
+    if (currentPref === "light" || currentPref === "dark") return currentPref;
+    return document.documentElement.classList.contains("dark") ? "dark" : "light";
+  }
+  function applyTheme() {
+    const theme = getEffectiveTheme();
+    const timeline = document.querySelector(".citelines-timeline");
+    if (timeline) {
+      timeline.classList.toggle("citelines-light", theme === "light");
+    }
+    document.querySelectorAll(".yt-annotator-popup, .yt-annotator-popup-create").forEach((el) => {
+      el.classList.toggle("citelines-light", theme === "light");
+    });
+    const sidebar2 = document.querySelector(".yt-annotator-account-sidebar");
+    if (sidebar2) {
+      sidebar2.classList.toggle("citelines-light", theme === "light");
+    }
+    const annSidebar = document.querySelector(".yt-annotator-sidebar");
+    if (annSidebar) {
+      annSidebar.classList.toggle("citelines-light", theme === "light");
+    }
+  }
+  function startYouTubeThemeObserver() {
+    if (ytObserver) return;
+    ytObserver = new MutationObserver(() => {
+      if (currentPref === "auto") applyTheme();
+    });
+    ytObserver.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["class"]
+    });
+  }
+  async function initTheme() {
+    const result = await chrome.storage.local.get([STORAGE_KEY]);
+    currentPref = result[STORAGE_KEY] || "auto";
+    applyTheme();
+    startYouTubeThemeObserver();
+  }
+  function getThemePref() {
+    return currentPref;
+  }
+  async function setThemePref(pref) {
+    currentPref = pref;
+    await chrome.storage.local.set({ [STORAGE_KEY]: pref });
+    applyTheme();
+  }
+
   // src/content/popup.js
   function closePopup() {
     if (activePopup) {
@@ -804,6 +855,7 @@
     });
     popupContainer.appendChild(popup);
     setActivePopup(popup);
+    applyTheme();
     positionPopupNearMarker(popup, markerEl);
   }
   async function handleDeleteAnnotation(annotation) {
@@ -1809,6 +1861,7 @@
     });
     playerContainer.appendChild(popup);
     setActivePopup(popup);
+    applyTheme();
     setTimeout(() => textarea.focus(), 0);
   }
 
@@ -1941,9 +1994,25 @@
         </div>
         <a class="yt-annotator-account-settings-link" href="https://www.citelines.org/my-dashboard" target="_blank">My Dashboard</a>
         <a class="yt-annotator-account-settings-link" href="https://www.citelines.org/account-settings" target="_blank">Account Settings</a>
+        <div class="yt-annotator-theme-toggle">
+          <span class="yt-annotator-theme-label">Theme</span>
+          <div class="yt-annotator-theme-options">
+            <button class="yt-annotator-theme-btn${getThemePref() === "auto" ? " active" : ""}" data-theme="auto">Auto</button>
+            <button class="yt-annotator-theme-btn${getThemePref() === "light" ? " active" : ""}" data-theme="light">Light</button>
+            <button class="yt-annotator-theme-btn${getThemePref() === "dark" ? " active" : ""}" data-theme="dark">Dark</button>
+          </div>
+        </div>
         <button class="yt-annotator-account-signout">Sign Out</button>
       </div>
     `;
+      accountSidebar.querySelectorAll(".yt-annotator-theme-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const pref = btn.dataset.theme;
+          await setThemePref(pref);
+          accountSidebar.querySelectorAll(".yt-annotator-theme-btn").forEach((b) => b.classList.toggle("active", b.dataset.theme === pref));
+        });
+      });
       accountSidebar.querySelector(".yt-annotator-account-signout").addEventListener("click", async (e) => {
         e.stopPropagation();
         await authManager.logout();
@@ -2000,11 +2069,27 @@
         <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
       </div>
       <div class="yt-annotator-account-auth-body"></div>
+      <div class="yt-annotator-theme-toggle" style="padding: 0 16px 12px;">
+        <span class="yt-annotator-theme-label">Theme</span>
+        <div class="yt-annotator-theme-options">
+          <button class="yt-annotator-theme-btn${getThemePref() === "auto" ? " active" : ""}" data-theme="auto">Auto</button>
+          <button class="yt-annotator-theme-btn${getThemePref() === "light" ? " active" : ""}" data-theme="light">Light</button>
+          <button class="yt-annotator-theme-btn${getThemePref() === "dark" ? " active" : ""}" data-theme="dark">Dark</button>
+        </div>
+      </div>
     `;
       if (!loginUI) {
         setLoginUI(new LoginUI(authManager, handleLoginSuccess, toggleAccountSidebar));
       }
       loginUI.show(accountSidebar.querySelector(".yt-annotator-account-auth-body"), "login");
+      accountSidebar.querySelectorAll(".yt-annotator-theme-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          e.stopPropagation();
+          const pref = btn.dataset.theme;
+          await setThemePref(pref);
+          accountSidebar.querySelectorAll(".yt-annotator-theme-btn").forEach((b) => b.classList.toggle("active", b.dataset.theme === pref));
+        });
+      });
     }
     accountSidebar.querySelector(".yt-annotator-sidebar-close").addEventListener("click", (e) => {
       e.stopPropagation();
@@ -2019,6 +2104,7 @@
       updateAccountSidebarContent();
       if (isCreatorMode()) accountSidebar.classList.add("creator-mode");
       accountSidebar.classList.add("yt-annotator-sidebar-open");
+      applyTheme();
       if (addButton) addButton.classList.add("sidebar-open");
       if (sidebarButton) sidebarButton.classList.add("sidebar-open");
       if (loginButton) loginButton.classList.add("sidebar-open");
@@ -2114,6 +2200,7 @@
     createSidebarButton();
     createLoginButton();
     updateCreatorMode();
+    initTheme();
     const [authReady, , channelIdResult] = await Promise.allSettled([
       authManager.initialize(),
       api.initialize(),
@@ -2131,6 +2218,7 @@
     }
     try {
       await fetchAllAnnotations(videoId);
+      applyTheme();
     } catch (err) {
       console.error("Failed to fetch annotations:", err);
     }

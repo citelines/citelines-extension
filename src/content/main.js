@@ -11,6 +11,7 @@ import { showCreatePopup } from './createPopup.js';
 import { createSidebarButton, toggleSidebar } from './annotationsSidebar.js';
 import { createLoginButton, updateLoginButton, checkExpiryWarning, toggleAccountSidebar } from './accountSidebar.js';
 import { fetchAllAnnotations } from './fetchAnnotations.js';
+import { initTheme, applyTheme } from './theme.js';
 
 // Re-export so other modules that already import from main.js still work
 export { fetchAllAnnotations };
@@ -60,6 +61,7 @@ async function initialize() {
   createSidebarButton();
   createLoginButton();
   updateCreatorMode();
+  initTheme();
 
   const [authReady, , channelIdResult] = await Promise.allSettled([
     authManager.initialize(),
@@ -81,6 +83,7 @@ async function initialize() {
 
   try {
     await fetchAllAnnotations(videoId);
+    applyTheme();
   } catch (err) {
     console.error('Failed to fetch annotations:', err);
   }

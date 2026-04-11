@@ -2292,3 +2292,383 @@ a.yt-annotator-citation-title:hover {
   margin-top: 6px;
   text-align: right;
 }
+
+/* ══════════════════════════════════════════
+   Theme toggle in account sidebar
+   ══════════════════════════════════════════ */
+.yt-annotator-theme-toggle {
+  margin: 12px 0 8px;
+}
+
+.yt-annotator-theme-label {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  margin-bottom: 6px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.yt-annotator-theme-options {
+  display: flex;
+  gap: 0;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid #3a3a3a;
+}
+
+.yt-annotator-theme-btn {
+  flex: 1;
+  padding: 6px 0;
+  background: #1a1a1a;
+  color: #aaa;
+  border: none;
+  border-right: 1px solid #3a3a3a;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 500;
+  transition: background 0.15s, color 0.15s;
+}
+
+.yt-annotator-theme-btn:last-child {
+  border-right: none;
+}
+
+.yt-annotator-theme-btn.active {
+  background: #0497a6;
+  color: #000;
+  font-weight: 600;
+}
+
+.yt-annotator-theme-btn:hover:not(.active) {
+  background: #2a2a2a;
+}
+
+/* ══════════════════════════════════════════
+   LIGHT MODE OVERRIDES
+   Applied via .citelines-light class
+   ══════════════════════════════════════════ */
+
+/* ── Citation Timeline ── */
+.citelines-timeline.citelines-light {
+  background: #ffffff;
+  border-color: #ddd;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.citelines-light .citelines-timeline-header {
+  border-bottom-color: #e8e8e8;
+}
+
+.citelines-light .citelines-title {
+  color: #666;
+}
+
+.citelines-light .citelines-logo-pipe {
+  color: #e8941a;
+}
+
+.citelines-light .citelines-count {
+  color: #999;
+}
+
+.citelines-light .citelines-chevron {
+  color: #999;
+}
+
+/* Tracks */
+.citelines-light .citelines-playhead {
+  background: #1a1a1a;
+  opacity: 0.25;
+}
+
+.citelines-light .citelines-track {
+  border-bottom-color: #eee;
+}
+
+.citelines-light .citelines-track:hover {
+  background: rgba(0, 0, 0, 0.015);
+}
+
+.citelines-light .citelines-track-label {
+  color: #999;
+}
+
+.citelines-light .citelines-track-lane-bg {
+  background: #eee;
+}
+
+/* Markers — adjusted for white background */
+.citelines-light .citelines-marker.creator { background: #e8941a; }
+.citelines-light .citelines-marker.mine    { background: #0497a6; }
+.citelines-light .citelines-marker.other   { background: #b0b0b0; }
+
+.citelines-light .citelines-marker.creator:hover { background: #d4850f; box-shadow: 0 0 8px rgba(232, 148, 26, 0.35); }
+.citelines-light .citelines-marker.mine:hover    { background: #03808d; box-shadow: 0 0 8px rgba(4, 151, 166, 0.35); }
+.citelines-light .citelines-marker.other:hover   { background: #888; box-shadow: 0 0 6px rgba(0, 0, 0, 0.12); }
+
+/* Marker tooltips */
+.citelines-light .citelines-marker-tooltip {
+  background: #fff;
+  border-color: #ddd;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+}
+
+.citelines-light .citelines-marker-tooltip-time.creator { color: #c77d0e; }
+.citelines-light .citelines-marker-tooltip-time.mine    { color: #0497a6; }
+.citelines-light .citelines-marker-tooltip-time.other   { color: #888; }
+
+.citelines-light .citelines-marker-tooltip-source {
+  color: #666;
+}
+
+.citelines-light .citelines-marker-tooltip-arrow {
+  border-top-color: #ddd;
+}
+
+.citelines-light .citelines-marker-tooltip-arrow-inner {
+  border-top-color: #fff;
+}
+
+/* Legend */
+.citelines-light .citelines-legend {
+  border-top-color: #eee;
+}
+
+.citelines-light .citelines-legend-item {
+  color: #888;
+}
+
+.citelines-light .citelines-legend-swatch.creator { background: #e8941a; }
+.citelines-light .citelines-legend-swatch.mine    { background: #0497a6; }
+.citelines-light .citelines-legend-swatch.other   { background: #b0b0b0; }
+
+/* Bookmark lane in light mode */
+.citelines-light .citelines-track-bookmark {
+  border-top-color: rgba(4, 151, 166, 0.25) !important;
+}
+
+.citelines-light .citelines-track-bookmark .citelines-track-lane-bg {
+  background: rgba(4, 151, 166, 0.03);
+}
+
+.citelines-light .citelines-track-label-bookmark {
+  color: rgba(4, 151, 166, 0.6) !important;
+}
+
+/* ── Popups (view + create) ── */
+.yt-annotator-popup.citelines-light {
+  background: rgba(255, 255, 255, 0.97);
+  border-color: #ddd;
+  color: #1a1a1a;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.citelines-light .yt-annotator-popup-header {
+  border-bottom-color: #eee;
+}
+
+.citelines-light .yt-annotator-popup-timestamp {
+  color: #666;
+}
+
+.citelines-light .yt-annotator-popup-close {
+  color: #999;
+}
+
+.citelines-light .yt-annotator-popup-close:hover {
+  color: #333;
+}
+
+.citelines-light .yt-annotator-popup-content {
+  color: #333;
+}
+
+.citelines-light .yt-annotator-creation-time,
+.citelines-light .yt-annotator-edited-time {
+  color: #aaa;
+}
+
+/* Create popup light overrides */
+.yt-annotator-popup.citelines-light .yt-annotator-popup-input {
+  background: #fafafa;
+  border-color: #ddd;
+  color: #1a1a1a;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-popup-input:focus {
+  border-color: #0497a6;
+  box-shadow: 0 0 0 2px rgba(4, 151, 166, 0.12);
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-popup-input::placeholder {
+  color: #aaa;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-input {
+  background: #fafafa;
+  border-color: #ddd;
+  color: #1a1a1a;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-input:focus {
+  border-color: #0497a6;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-select {
+  background: #fafafa;
+  border-color: #ddd;
+  color: #1a1a1a;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-btn-secondary {
+  background: #eee;
+  color: #333;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-btn-secondary:hover {
+  background: #ddd;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-btn-primary {
+  background: #0497a6;
+  color: #fff;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-btn-primary:hover {
+  background: #03808d;
+}
+
+/* Citation type label */
+.yt-annotator-popup.citelines-light .yt-annotator-citation-type label {
+  color: #666;
+}
+
+/* Toggle buttons */
+.yt-annotator-popup.citelines-light .yt-annotator-toggle-btn {
+  background: #f5f5f5;
+  color: #888;
+  border-color: #ddd;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-toggle-btn:first-child {
+  border-right-color: #ddd;
+}
+
+.yt-annotator-popup.citelines-light .yt-annotator-create-toggle {
+  border-color: #ddd;
+}
+
+/* Actions menu */
+.citelines-light .yt-annotator-actions-btn {
+  color: #999;
+}
+
+.citelines-light .yt-annotator-actions-menu {
+  background: #fff;
+  border-color: #ddd;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.citelines-light .yt-annotator-actions-menu-item {
+  color: #333;
+}
+
+.citelines-light .yt-annotator-actions-menu-item:hover {
+  background: #f5f5f5;
+}
+
+/* Citation display in popup */
+.citelines-light .yt-annotator-citation-display {
+  background: #f8f8f8;
+  border-color: #eee;
+}
+
+/* ── Sidebars ── */
+.yt-annotator-sidebar.citelines-light,
+.yt-annotator-account-sidebar.citelines-light {
+  background: rgba(255, 255, 255, 0.97);
+  border-left-color: #ddd;
+  color: #1a1a1a;
+}
+
+.citelines-light .yt-annotator-sidebar-header {
+  border-bottom-color: #eee;
+}
+
+.citelines-light .yt-annotator-sidebar-header h3 {
+  color: #333;
+}
+
+.citelines-light .yt-annotator-sidebar-close {
+  color: #999;
+}
+
+.citelines-light .yt-annotator-sidebar-close:hover {
+  color: #333;
+}
+
+/* Account sidebar light */
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-name {
+  color: #1a1a1a;
+}
+
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-email {
+  color: #888;
+}
+
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-settings-link {
+  color: #666;
+}
+
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-settings-link:hover {
+  color: #1a1a1a;
+}
+
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-stats {
+  background: #f5f5f5;
+  border-color: #eee;
+}
+
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-stats-joined {
+  color: #888;
+}
+
+.yt-annotator-account-sidebar.citelines-light .yt-annotator-account-stat-num {
+  color: #1a1a1a;
+}
+
+/* Theme toggle in light mode */
+.citelines-light .yt-annotator-theme-options {
+  border-color: #ddd;
+}
+
+.citelines-light .yt-annotator-theme-btn {
+  background: #f5f5f5;
+  color: #888;
+  border-right-color: #ddd;
+}
+
+.citelines-light .yt-annotator-theme-btn:hover:not(.active) {
+  background: #eee;
+}
+
+/* Annotations sidebar light */
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-item {
+  border-bottom-color: #eee;
+}
+
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-item:hover {
+  background: #f5f5f5;
+}
+
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-filters button {
+  background: #eee;
+  color: #666;
+}
+
+.yt-annotator-sidebar.citelines-light .yt-annotator-sidebar-filters button.active {
+  background: #0497a6;
+  color: #fff;
+}

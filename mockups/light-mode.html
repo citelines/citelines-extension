@@ -1,0 +1,1396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Citelines — Light Mode</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #f5f5f5;
+      color: #1a1a1a;
+      font-family: 'Roboto', 'Arial', sans-serif;
+      display: flex;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    .page { width: 900px; }
+
+    .label {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 12px;
+    }
+
+    /* ── Mode toggle (for mockup comparison) ── */
+    .mode-toggle {
+      display: flex;
+      gap: 0;
+      margin-bottom: 24px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #d0d0d0;
+      width: fit-content;
+    }
+
+    .mode-toggle button {
+      padding: 8px 20px;
+      border: none;
+      background: #fff;
+      color: #666;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .mode-toggle button:first-child {
+      border-right: 1px solid #d0d0d0;
+    }
+
+    .mode-toggle button.active {
+      background: #0497a6;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    /* ── Fake video player ── */
+    .video-player {
+      position: relative;
+      width: 100%;
+      aspect-ratio: 16 / 9;
+      background: #1a1a1a;
+      border-radius: 12px 12px 0 0;
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .video-player .placeholder {
+      color: #444;
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+    }
+
+    /* ── Floating action buttons (inside player) ── */
+    .player-buttons {
+      position: absolute;
+      right: 12px;
+      bottom: 60px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      z-index: 50;
+    }
+
+    .player-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: none;
+      background: #0497a6;
+      color: #000;
+      font-size: 16px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3), 0 0 8px rgba(4,151,166,0.4);
+      transition: transform 0.15s, background 0.15s, box-shadow 0.15s;
+    }
+
+    .player-btn:hover {
+      transform: scale(1.1);
+      background: #05b3c4;
+    }
+
+    .player-btn .icon { font-size: 16px; line-height: 1; }
+    .player-btn.account-btn .icon { font-size: 14px; }
+    .player-btn.bib-btn .icon { font-size: 18px; font-weight: 400; }
+
+    /* ── YouTube-style progress bar ── */
+    .yt-progress-bar {
+      width: 100%;
+      height: 4px;
+      background: #333;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .yt-progress-fill {
+      height: 100%;
+      width: 35%;
+      background: #f00;
+      border-radius: 0 2px 2px 0;
+    }
+
+    /* ══════════════════════════════════════════
+       LIGHT MODE — Citation timeline region
+       ══════════════════════════════════════════ */
+    .citation-timeline {
+      width: 100%;
+      background: #ffffff;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 8px 8px;
+      position: relative;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+    }
+
+    .timeline-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e8e8e8;
+      cursor: pointer;
+      user-select: none;
+      transition: border-bottom-color 0.2s;
+    }
+
+    .timeline-header.collapsed { border-bottom-color: transparent; }
+
+    .timeline-header .title {
+      font-size: 11px;
+      font-weight: 600;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .timeline-header .title .logo {
+      color: #0497a6;
+      font-weight: 700;
+      font-size: 12px;
+    }
+
+    .timeline-header .title .logo .pipe { color: #e8941a; }
+
+    .timeline-header .right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .timeline-header .count {
+      font-size: 11px;
+      color: #999;
+    }
+
+    .chevron {
+      font-size: 10px;
+      color: #999;
+      transition: transform 0.25s;
+      display: inline-block;
+    }
+
+    .chevron.collapsed { transform: rotate(-90deg); }
+
+    /* ── Collapsible body ── */
+    .timeline-body {
+      overflow: hidden;
+      max-height: 500px;
+      transition: max-height 0.3s ease, opacity 0.25s ease;
+      opacity: 1;
+    }
+
+    .timeline-body.collapsed {
+      max-height: 0;
+      opacity: 0;
+    }
+
+    /* ── Tracks container ── */
+    .tracks {
+      position: relative;
+      padding: 0 12px;
+    }
+
+    /* ── Playhead ── */
+    .playhead {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 1px;
+      background: #1a1a1a;
+      opacity: 0.25;
+      z-index: 20;
+      pointer-events: none;
+    }
+
+    /* ── Individual track (lane) ── */
+    .track {
+      position: relative;
+      height: 32px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+    }
+
+    .track:last-child { border-bottom: none; }
+
+    .track:hover { background: rgba(0,0,0,0.015); }
+
+    .track-label {
+      width: 64px;
+      flex-shrink: 0;
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #999;
+      padding-right: 8px;
+      text-align: right;
+      user-select: none;
+    }
+
+    .track-lane {
+      flex: 1;
+      position: relative;
+      height: 100%;
+    }
+
+    .track-lane-bg {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: #eee;
+    }
+
+    .track-icon {
+      font-size: 10px;
+      width: 16px;
+      text-align: center;
+      flex-shrink: 0;
+      margin-right: 2px;
+    }
+
+    /* ── Markers ── */
+    .marker {
+      position: absolute;
+      top: 4px;
+      bottom: 4px;
+      width: 2px;
+      border-radius: 1px;
+      cursor: pointer;
+      transition: width 0.15s, opacity 0.15s;
+      z-index: 1;
+    }
+
+    .marker:hover {
+      width: 4px;
+      transform: translateX(-1px);
+      z-index: 30;
+    }
+
+    /* Light-mode marker colors — slightly deeper for contrast on white */
+    .marker.creator { background: #e8941a; }
+    .marker.mine    { background: #0497a6; }
+    .marker.other   { background: #b0b0b0; }
+
+    .marker.creator:hover { background: #d4850f; box-shadow: 0 0 8px rgba(232,148,26,0.35); }
+    .marker.mine:hover    { background: #03808d; box-shadow: 0 0 8px rgba(4,151,166,0.35); }
+    .marker.other:hover   { background: #888; box-shadow: 0 0 6px rgba(0,0,0,0.12); }
+
+    /* ── Bookmark lane ── */
+    .track.track-bookmark {
+      border-top: 1px dashed rgba(4,151,166,0.3);
+    }
+
+    .track.track-bookmark .track-lane-bg {
+      background: rgba(4,151,166,0.04);
+      height: 100%;
+      top: 0;
+    }
+
+    .track.track-bookmark .track-label {
+      color: rgba(4,151,166,0.6);
+    }
+
+    /* Bookmark marker — SVG shape instead of bar */
+    .marker.bookmark {
+      background: none !important;
+      width: 12px !important;
+      top: 1px;
+      bottom: 1px;
+      transform: translateX(-6px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .marker.bookmark:hover {
+      width: 12px !important;
+      transform: translateX(-6px);
+      box-shadow: none;
+      filter: brightness(0.85);
+    }
+
+    .marker.bookmark svg { display: block; }
+
+    /* ── Tooltip ── */
+    .tooltip {
+      display: none;
+      position: absolute;
+      bottom: calc(100% + 6px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 10px 14px;
+      white-space: nowrap;
+      z-index: 100;
+      pointer-events: none;
+      min-width: 200px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    }
+
+    .marker:hover .tooltip { display: block; }
+
+    .tooltip .timestamp { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+    .tooltip .timestamp.creator { color: #c77d0e; }
+    .tooltip .timestamp.mine    { color: #0497a6; }
+    .tooltip .timestamp.other   { color: #888; }
+
+    .tooltip .text { font-size: 12px; color: #333; margin-bottom: 3px; }
+    .tooltip .source { font-size: 11px; color: #888; font-style: italic; }
+
+    .tooltip .badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 2px 6px;
+      border-radius: 3px;
+      margin-top: 6px;
+    }
+
+    .tooltip .badge.creator  { background: rgba(232,148,26,0.12); color: #c77d0e; }
+    .tooltip .badge.mine     { background: rgba(4,151,166,0.12); color: #0497a6; }
+    .tooltip .badge.other    { background: rgba(0,0,0,0.06); color: #888; }
+    .tooltip .badge.bookmark { background: rgba(4,151,166,0.12); color: #0497a6; }
+
+    .tooltip .timestamp.bookmark { color: #0497a6; }
+
+    /* ── Time labels ── */
+    .time-labels {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 12px 8px;
+      padding-left: 88px;
+      font-size: 10px;
+      color: #bbb;
+    }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      gap: 16px;
+      padding: 6px 12px 10px;
+      border-top: 1px solid #eee;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 10px;
+      color: #888;
+    }
+
+    .legend-swatch { width: 10px; height: 10px; border-radius: 2px; }
+    .legend-swatch.creator { background: #e8941a; }
+    .legend-swatch.mine    { background: #0497a6; }
+    .legend-swatch.other   { background: #b0b0b0; }
+    .legend-swatch.bookmark {
+      background: repeating-linear-gradient(
+        45deg,
+        transparent,
+        transparent 2px,
+        rgba(4,151,166,0.5) 2px,
+        rgba(4,151,166,0.5) 3.5px
+      );
+      border: 1px solid rgba(4,151,166,0.6);
+    }
+
+    /* ── Video info ── */
+    .video-info { padding: 16px 0; }
+    .video-info h2 { font-size: 18px; font-weight: 500; margin-bottom: 4px; color: #1a1a1a; }
+    .video-info .channel { font-size: 13px; color: #666; }
+
+    /* ── Create citation popup ── */
+    .create-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 200;
+      background: rgba(0,0,0,0.3);
+      align-items: center;
+      justify-content: center;
+    }
+
+    .create-overlay.open { display: flex; }
+
+    .create-popup {
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 16px;
+      width: 360px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+    }
+
+    .create-popup .popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .create-popup .popup-header span {
+      font-size: 12px;
+      color: #0497a6;
+      font-weight: 500;
+    }
+
+    .create-popup .popup-close {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 18px;
+      cursor: pointer;
+      line-height: 1;
+    }
+
+    .create-popup .popup-close:hover { color: #333; }
+
+    .create-popup label {
+      display: block;
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 4px;
+      font-weight: 500;
+    }
+
+    .create-popup select,
+    .create-popup input,
+    .create-popup textarea {
+      width: 100%;
+      background: #fafafa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      color: #1a1a1a;
+      padding: 8px 10px;
+      font-size: 13px;
+      font-family: inherit;
+      margin-bottom: 10px;
+    }
+
+    .create-popup select:focus,
+    .create-popup input:focus,
+    .create-popup textarea:focus {
+      outline: none;
+      border-color: #0497a6;
+      box-shadow: 0 0 0 2px rgba(4,151,166,0.12);
+    }
+
+    .create-popup textarea {
+      resize: vertical;
+      min-height: 60px;
+    }
+
+    .create-popup input::placeholder,
+    .create-popup textarea::placeholder { color: #aaa; }
+
+    .create-popup .field-row {
+      display: flex;
+      gap: 8px;
+    }
+
+    .create-popup .field-row input { flex: 1; }
+
+    .create-popup .actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .create-popup .btn {
+      padding: 6px 14px;
+      border-radius: 4px;
+      font-size: 13px;
+      border: none;
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    .create-popup .btn-secondary { background: #eee; color: #333; }
+    .create-popup .btn-secondary:hover { background: #ddd; }
+    .create-popup .btn-primary { background: #0497a6; color: #fff; font-weight: 600; }
+    .create-popup .btn-primary:hover { background: #03808d; }
+
+    .citation-fields {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    /* ── Annotation popup (click on marker) ── */
+    .annotation-popup {
+      position: absolute;
+      bottom: calc(100% + 12px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 14px;
+      width: 320px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      z-index: 150;
+    }
+
+    .annotation-popup .popup-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .annotation-popup .popup-timestamp {
+      font-size: 12px;
+      color: #333;
+      font-weight: 500;
+    }
+
+    .annotation-popup .popup-badge {
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 11px;
+      font-weight: 600;
+      margin-left: 8px;
+    }
+
+    .annotation-popup .popup-badge.creator { background: #e8941a; color: #fff; }
+    .annotation-popup .popup-badge.mine    { background: #0497a6; color: #fff; }
+    .annotation-popup .popup-badge.other   { background: #e0e0e0; color: #555; }
+
+    .annotation-popup .popup-close {
+      background: none;
+      border: none;
+      color: #999;
+      font-size: 16px;
+      cursor: pointer;
+    }
+
+    .annotation-popup .popup-close:hover { color: #333; }
+
+    .annotation-popup .popup-citation {
+      background: #f8f8f8;
+      border: 1px solid #eee;
+      border-radius: 4px;
+      padding: 8px 10px;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .annotation-popup .popup-citation .citation-title {
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 2px;
+    }
+
+    .annotation-popup .popup-citation .citation-meta {
+      color: #888;
+      font-size: 11px;
+    }
+
+    .annotation-popup .popup-text {
+      font-size: 13px;
+      color: #333;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+
+    .annotation-popup .popup-time-meta {
+      font-size: 11px;
+      color: #aaa;
+      font-style: italic;
+      text-align: right;
+    }
+
+    .annotation-popup .popup-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid #eee;
+    }
+
+    .annotation-popup .popup-actions button {
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      border: none;
+      cursor: pointer;
+    }
+
+    .annotation-popup .popup-actions .btn-goto {
+      background: #eee;
+      color: #333;
+    }
+
+    .annotation-popup .popup-actions .btn-goto:hover { background: #ddd; }
+
+    /* ── Side-by-side comparison section ── */
+    .comparison {
+      margin-top: 40px;
+    }
+
+    .comparison-header {
+      font-size: 11px;
+      color: #888;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+
+    .comparison-row {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+
+    .comparison-item {
+      flex: 1;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .comparison-item .comp-label {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 6px 10px;
+      text-align: center;
+    }
+
+    .comparison-item.dark .comp-label { background: #1a1a1a; color: #888; }
+    .comparison-item.light .comp-label { background: #fff; color: #888; border: 1px solid #ddd; border-bottom: none; }
+
+    .swatch-row {
+      display: flex;
+      gap: 0;
+    }
+
+    .swatch-cell {
+      flex: 1;
+      padding: 16px 10px;
+      text-align: center;
+    }
+
+    .comparison-item.dark .swatch-cell { background: #181818; }
+    .comparison-item.light .swatch-cell { background: #fff; border: 1px solid #ddd; border-left: none; }
+    .comparison-item.light .swatch-cell:first-child { border-left: 1px solid #ddd; }
+
+    .swatch {
+      width: 24px;
+      height: 24px;
+      border-radius: 4px;
+      margin: 0 auto 6px;
+    }
+
+    .swatch-cell .swatch-label {
+      font-size: 9px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .comparison-item.dark .swatch-label { color: #888; }
+    .comparison-item.light .swatch-label { color: #888; }
+
+    /* Dark swatches */
+    .dark .swatch.creator { background: #ffaa3e; }
+    .dark .swatch.mine    { background: #0497a6; }
+    .dark .swatch.other   { background: #555; }
+    .dark .swatch.bg      { background: #181818; border: 1px solid #2a2a2a; }
+    .dark .swatch.border  { background: #2a2a2a; }
+    .dark .swatch.text    { background: #aaa; }
+
+    /* Light swatches */
+    .light .swatch.creator { background: #e8941a; }
+    .light .swatch.mine    { background: #0497a6; }
+    .light .swatch.other   { background: #b0b0b0; }
+    .light .swatch.bg      { background: #fff; border: 1px solid #ddd; }
+    .light .swatch.border  { background: #eee; }
+    .light .swatch.text    { background: #666; }
+
+    /* ── Design notes ── */
+    .design-notes {
+      margin-top: 40px;
+      padding: 20px;
+      background: #fff;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+    }
+
+    .design-notes h3 {
+      font-size: 13px;
+      color: #0497a6;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .design-notes ul { list-style: none; padding: 0; }
+
+    .design-notes li {
+      font-size: 13px;
+      color: #666;
+      padding: 4px 0 4px 16px;
+      position: relative;
+    }
+
+    .design-notes li::before {
+      content: '\2014';
+      position: absolute;
+      left: 0;
+      color: #ccc;
+    }
+
+    .design-notes li strong {
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <p class="label">Light Mode — Citation Timeline</p>
+
+    <div class="mode-toggle">
+      <button class="active" id="lightToggle">Light</button>
+      <button id="darkToggle">Dark (current)</button>
+    </div>
+
+    <!-- Fake video player (always dark — YouTube player is always dark) -->
+    <div class="video-player">
+      <span class="placeholder">Video Player (16:9)</span>
+
+      <div class="player-buttons">
+        <button class="player-btn account-btn" title="Account"><span class="icon">&#128100;</span></button>
+        <button class="player-btn bib-btn" title="Bibliography"><span class="icon">&#8801;</span></button>
+        <button class="player-btn add-btn" id="addBtn" title="Add Citation"><span class="icon">+</span></button>
+      </div>
+    </div>
+
+    <!-- YouTube progress bar -->
+    <div class="yt-progress-bar">
+      <div class="yt-progress-fill"></div>
+    </div>
+
+    <!-- Citation timeline region -->
+    <div class="citation-timeline" id="citationTimeline">
+      <div class="timeline-header" id="timelineHeader">
+        <span class="title">
+          <span class="logo">Cite<span class="pipe">|</span>ines</span>
+          Citations
+        </span>
+        <span class="right">
+          <span class="count" id="citationCount">12 citations &middot; 5 types</span>
+          <span class="chevron" id="chevron">&#9660;</span>
+        </span>
+      </div>
+
+      <div class="timeline-body" id="timelineBody">
+        <div class="tracks" id="tracks">
+          <!-- Playhead + tracks injected by JS -->
+        </div>
+
+        <div class="time-labels">
+          <span>0:00</span>
+          <span>5:00</span>
+          <span>10:00</span>
+          <span>15:00</span>
+          <span>20:00</span>
+          <span>25:12</span>
+        </div>
+
+        <div class="legend">
+          <div class="legend-item"><div class="legend-swatch creator"></div> Creator</div>
+          <div class="legend-item"><div class="legend-swatch mine"></div> Yours</div>
+          <div class="legend-item"><div class="legend-swatch other"></div> Others</div>
+          <div class="legend-item"><div class="legend-swatch bookmark"></div> Bookmarks</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Video title area -->
+    <div class="video-info">
+      <h2>How the Internet Changed Citation Culture Forever</h2>
+      <div class="channel">Knowledge Lab &middot; 1.2M views &middot; 3 months ago</div>
+    </div>
+
+    <!-- Color comparison -->
+    <div class="comparison">
+      <div class="comparison-header">Color Mapping: Dark vs Light</div>
+      <div class="comparison-row">
+        <div class="comparison-item dark">
+          <div class="comp-label">Dark Mode (current)</div>
+          <div class="swatch-row">
+            <div class="swatch-cell"><div class="swatch creator"></div><div class="swatch-label">Creator<br>#ffaa3e</div></div>
+            <div class="swatch-cell"><div class="swatch mine"></div><div class="swatch-label">Yours<br>#0497a6</div></div>
+            <div class="swatch-cell"><div class="swatch other"></div><div class="swatch-label">Others<br>#555</div></div>
+            <div class="swatch-cell"><div class="swatch bg"></div><div class="swatch-label">BG<br>#181818</div></div>
+            <div class="swatch-cell"><div class="swatch border"></div><div class="swatch-label">Border<br>#2a2a2a</div></div>
+            <div class="swatch-cell"><div class="swatch text"></div><div class="swatch-label">Text<br>#aaa</div></div>
+          </div>
+        </div>
+        <div class="comparison-item light">
+          <div class="comp-label">Light Mode (proposed)</div>
+          <div class="swatch-row">
+            <div class="swatch-cell"><div class="swatch creator"></div><div class="swatch-label">Creator<br>#e8941a</div></div>
+            <div class="swatch-cell"><div class="swatch mine"></div><div class="swatch-label">Yours<br>#0497a6</div></div>
+            <div class="swatch-cell"><div class="swatch other"></div><div class="swatch-label">Others<br>#b0b0b0</div></div>
+            <div class="swatch-cell"><div class="swatch bg"></div><div class="swatch-label">BG<br>#ffffff</div></div>
+            <div class="swatch-cell"><div class="swatch border"></div><div class="swatch-label">Border<br>#eee</div></div>
+            <div class="swatch-cell"><div class="swatch text"></div><div class="swatch-label">Text<br>#666</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design notes -->
+    <div class="design-notes">
+      <h3>Design Notes — Light Mode</h3>
+      <ul>
+        <li><strong>Detection:</strong> YouTube uses class <code>dark</code> on <code>html</code> for dark theme, absent for light. Use this to toggle our styles via <code>html:not(.dark) .citelines-*</code> selectors</li>
+        <li><strong>Video player stays dark:</strong> YouTube's player is always dark regardless of theme, so the floating buttons (+, bibliography, account) don't change</li>
+        <li><strong>Timeline background:</strong> White (#fff) with light grey borders (#ddd/#eee) instead of dark grey (#181818/#2a2a2a)</li>
+        <li><strong>Creator orange:</strong> Shifted from #ffaa3e to #e8941a (darker, richer) for sufficient contrast on white background</li>
+        <li><strong>Teal unchanged:</strong> #0497a6 works on both light and dark backgrounds — no adjustment needed</li>
+        <li><strong>Others grey:</strong> Lifted from #555 to #b0b0b0 — needs to be lighter to read as "muted" on white rather than "bold"</li>
+        <li><strong>Tooltips &amp; popups:</strong> White background, light border, subtle shadow — inverted from current dark panel style</li>
+        <li><strong>Playhead:</strong> Dark (#1a1a1a) at 25% opacity instead of white at 40% opacity</li>
+        <li><strong>Focus rings:</strong> Teal outline with subtle teal shadow instead of just border-color change — more visible on white</li>
+        <li><strong>Badge colors in popups:</strong> White text on colored background instead of dark text — better contrast on light popup</li>
+        <li><strong>Implementation approach:</strong> CSS-only via <code>html:not(.dark)</code> overrides — no JS theme detection needed. All light-mode rules override the existing dark-mode defaults</li>
+        <li><strong>Bookmark markers:</strong> SVG bookmark shapes with hash fill work on both themes — the teal (#0497a6) has enough contrast on white. Hash pattern stroke opacity adjusted slightly lighter for light mode</li>
+        <li><strong>Bookmark lane:</strong> Dashed teal separator and tinted background adapt naturally — rgba values look correct on both white and dark backgrounds</li>
+        <li><strong>Scope:</strong> Only the Citelines UI adapts — we don't control YouTube's own elements</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Create citation overlay -->
+  <div class="create-overlay" id="createOverlay">
+    <div class="create-popup">
+      <div class="popup-header">
+        <span>New citation at <strong id="createTimestamp">8:48</strong></span>
+        <button class="popup-close" id="createClose">&times;</button>
+      </div>
+
+      <label>Citation Type</label>
+      <select id="citationType">
+        <option value="note">Basic Note</option>
+        <option value="youtube">YouTube Video</option>
+        <option value="movie">Movie</option>
+        <option value="article" selected>Article</option>
+        <option value="podcast">Podcast</option>
+        <option value="book">Book</option>
+      </select>
+
+      <div class="citation-fields" id="citationFields"></div>
+
+      <label>Note</label>
+      <textarea id="citationNote" placeholder="Your note or comment..."></textarea>
+
+      <div class="actions">
+        <button class="btn btn-secondary" id="createCancel">Cancel</button>
+        <button class="btn btn-primary" id="createSave">Save</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DURATION = 1512;
+
+    const lanes = [
+      { id: 'article', label: 'Article',  icon: '\uD83D\uDCC4' },
+      { id: 'video',   label: 'Video',    icon: '\uD83C\uDFAC' },
+      { id: 'book',    label: 'Book',     icon: '\uD83D\uDCD6' },
+      { id: 'podcast', label: 'Podcast',  icon: '\uD83C\uDF99' },
+      { id: 'movie',   label: 'Movie',    icon: '\uD83C\uDF9E' },
+      { id: 'youtube', label: 'YouTube',  icon: '\u25B6' },
+      { id: 'note',    label: 'Note',     icon: '\uD83D\uDCDD' },
+    ];
+
+    const bookmarkLane = { id: 'bookmark', label: 'Bookmarks', icon: '\uD83D\uDD12' };
+
+    const citations = [
+      { time: 12,   lane: 'article', type: 'creator', label: '0:12',  text: 'Original research paper',           source: 'Smith et al., Nature 2019' },
+      { time: 45,   lane: 'video',   type: 'mine',    label: '0:45',  text: 'Related TED talk on this topic',     source: 'TED \u2014 "The Future of Sources"' },
+      { time: 112,  lane: 'article', type: 'other',   label: '1:52',  text: 'Historical context from Wikipedia',  source: 'Wikipedia \u2014 Citation' },
+      { time: 198,  lane: 'article', type: 'creator', label: '3:18',  text: 'Dataset used in the analysis',       source: 'Kaggle \u2014 Citation Networks' },
+      { time: 256,  lane: 'article', type: 'other',   label: '4:16',  text: 'Counter-argument from blog post',    source: 'blog.example.com' },
+      { time: 340,  lane: 'book',    type: 'mine',    label: '5:40',  text: 'Book chapter on academic citation',  source: 'Grafton, "The Footnote" Ch.3' },
+      { time: 489,  lane: 'video',   type: 'creator', label: '8:09',  text: 'Interview clip referenced',          source: 'PBS NewsHour, 2022-03-14' },
+      { time: 612,  lane: 'podcast', type: 'other',   label: '10:12', text: 'Podcast episode discussing this',    source: 'Lex Fridman #312' },
+      { time: 745,  lane: 'article', type: 'other',   label: '12:25', text: 'Follow-up study results',            source: 'Johnson & Lee, PNAS 2021' },
+      { time: 890,  lane: 'movie',   type: 'mine',    label: '14:50', text: 'Documentary on same subject',        source: '"The Source Code" (2020)' },
+      { time: 1100, lane: 'article', type: 'creator', label: '18:20', text: 'Correction: updated statistics',     source: 'WHO Data Portal, 2023' },
+      { time: 1400, lane: 'video',   type: 'other',    label: '23:20', text: 'Summary article by another creator', source: 'Veritasium \u2014 "Is Citation Broken?"' },
+      { time: 78,   lane: 'bookmark', type: 'bookmark', label: '1:18',  text: 'Come back to this section',          source: 'Come back to this section' },
+      { time: 520,  lane: 'bookmark', type: 'bookmark', label: '8:40',  text: 'Great explanation of methodology',   source: 'Great explanation of methodology' },
+      { time: 1050, lane: 'bookmark', type: 'bookmark', label: '17:30', text: 'Disagree with this claim',           source: 'Disagree with this claim' },
+    ];
+
+    const tracksContainer = document.getElementById('tracks');
+    const countEl = document.getElementById('citationCount');
+
+    function renderTracks() {
+      tracksContainer.innerHTML = '';
+
+      const playhead = document.createElement('div');
+      playhead.className = 'playhead';
+      playhead.style.left = '35%';
+      tracksContainer.appendChild(playhead);
+
+      const populatedLanes = new Set(citations.filter(c => c.lane !== 'bookmark').map(c => c.lane));
+      const typeCount = populatedLanes.size;
+
+      lanes.filter(l => populatedLanes.has(l.id)).forEach(lane => {
+        const trackEl = document.createElement('div');
+        trackEl.className = 'track';
+
+        trackEl.innerHTML =
+          '<span class="track-icon">' + lane.icon + '</span>' +
+          '<span class="track-label">' + lane.label + '</span>' +
+          '<div class="track-lane"><div class="track-lane-bg"></div></div>';
+
+        const laneEl = trackEl.querySelector('.track-lane');
+
+        citations.filter(c => c.lane === lane.id).forEach(c => {
+          const pct = (c.time / DURATION) * 100;
+          const marker = document.createElement('div');
+          marker.className = 'marker ' + c.type;
+          marker.style.left = pct + '%';
+          const badgeLabel = c.type === 'creator' ? 'Creator' : c.type === 'mine' ? 'You' : 'Viewer';
+          marker.innerHTML =
+            '<div class="tooltip">' +
+              '<div class="timestamp ' + c.type + '">' + c.label + ' \u00b7 ' + lane.label + '</div>' +
+              '<div class="text">' + c.text + '</div>' +
+              '<div class="source">' + c.source + '</div>' +
+              '<span class="badge ' + c.type + '">' + badgeLabel + '</span>' +
+            '</div>';
+          laneEl.appendChild(marker);
+        });
+
+        tracksContainer.appendChild(trackEl);
+      });
+
+      // Bookmark lane (rendered after citation lanes with dashed separator)
+      const bookmarkCitations = citations.filter(c => c.lane === 'bookmark');
+      if (bookmarkCitations.length > 0) {
+        // SVG defs for hash fill pattern
+        const svgDefs = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svgDefs.setAttribute('width', '0');
+        svgDefs.setAttribute('height', '0');
+        svgDefs.style.position = 'absolute';
+        svgDefs.innerHTML = '<defs><pattern id="bookmark-hash" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="rgba(4,151,166,0.5)" stroke-width="1.5"/></pattern></defs>';
+        tracksContainer.appendChild(svgDefs);
+
+        const trackEl = document.createElement('div');
+        trackEl.className = 'track track-bookmark';
+
+        trackEl.innerHTML =
+          '<span class="track-icon">' + bookmarkLane.icon + '</span>' +
+          '<span class="track-label">' + bookmarkLane.label + '</span>' +
+          '<div class="track-lane"><div class="track-lane-bg"></div></div>';
+
+        const laneEl = trackEl.querySelector('.track-lane');
+
+        bookmarkCitations.forEach(c => {
+          const pct = (c.time / DURATION) * 100;
+          const marker = document.createElement('div');
+          marker.className = 'marker bookmark';
+          marker.style.left = pct + '%';
+
+          const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+          svg.setAttribute('width', '12');
+          svg.setAttribute('height', '16');
+          svg.setAttribute('viewBox', '0 0 12 16');
+          svg.innerHTML = '<path d="M1 1h10v13l-5-3.5L1 14V1z" fill="url(#bookmark-hash)" stroke="rgba(4,151,166,0.7)" stroke-width="1"/>';
+          marker.appendChild(svg);
+
+          marker.innerHTML +=
+            '<div class="tooltip">' +
+              '<div class="timestamp bookmark">' + c.label + ' \u00b7 Bookmark</div>' +
+              '<div class="text">' + c.text + '</div>' +
+              '<span class="badge bookmark">Only visible to you</span>' +
+            '</div>';
+
+          laneEl.appendChild(marker);
+        });
+
+        tracksContainer.appendChild(trackEl);
+      }
+
+      const citationOnly = citations.filter(c => c.lane !== 'bookmark');
+      const bookmarkCount = bookmarkCitations.length;
+      let countText = citationOnly.length + ' citation' + (citationOnly.length !== 1 ? 's' : '') + ' \u00b7 ' + typeCount + ' type' + (typeCount !== 1 ? 's' : '');
+      if (bookmarkCount > 0) countText += ' \u00b7 ' + bookmarkCount + ' bookmark' + (bookmarkCount !== 1 ? 's' : '');
+      countEl.textContent = countText;
+    }
+
+    renderTracks();
+
+    // Toggle collapse
+    const header = document.getElementById('timelineHeader');
+    const body = document.getElementById('timelineBody');
+    const chevron = document.getElementById('chevron');
+
+    header.addEventListener('click', () => {
+      body.classList.toggle('collapsed');
+      header.classList.toggle('collapsed');
+      chevron.classList.toggle('collapsed');
+    });
+
+    // Dark/light mode toggle (for comparison in mockup)
+    const lightToggle = document.getElementById('lightToggle');
+    const darkToggle = document.getElementById('darkToggle');
+    const timeline = document.getElementById('citationTimeline');
+
+    // Dark mode overrides
+    const darkOverrides = {
+      body: { background: '#0f0f0f', color: '#fff' },
+      timeline: { background: '#181818', borderColor: '#2a2a2a', boxShadow: 'none' },
+      header: { borderBottomColor: '#2a2a2a' },
+      headerTitle: { color: '#aaa' },
+      logoPipe: { color: '#ffaa3e' },
+      count: { color: '#666' },
+      chevronEl: { color: '#666' },
+      tracks: { },
+      track: { borderBottomColor: '#222' },
+      trackHover: 'rgba(255,255,255,0.02)',
+      trackLabel: { color: '#555' },
+      trackLaneBg: { background: '#1f1f1f' },
+      playhead: { background: '#fff', opacity: '0.4' },
+      markerCreator: '#ffaa3e',
+      markerMine: '#0497a6',
+      markerOther: '#555',
+      legend: { borderTopColor: '#2a2a2a' },
+      legendItem: { color: '#888' },
+      timeLabels: { color: '#444' },
+      videoTitle: { color: '#fff' },
+      videoChannel: { color: '#aaa' },
+      designNotes: { background: '#1a1a1a', borderColor: '#2a2a2a' },
+      designNotesLi: { color: '#999' },
+      designNotesStrong: { color: '#fff' },
+      designNotesBefore: { color: '#555' },
+    };
+
+    function applyDarkMode() {
+      document.body.style.background = '#0f0f0f';
+      document.body.style.color = '#fff';
+      timeline.style.background = '#181818';
+      timeline.style.borderColor = '#2a2a2a';
+      timeline.style.boxShadow = 'none';
+
+      const h = timeline.querySelector('.timeline-header');
+      h.style.borderBottomColor = '#2a2a2a';
+      h.querySelector('.title').style.color = '#aaa';
+      h.querySelector('.logo .pipe').style.color = '#ffaa3e';
+      h.querySelector('.count').style.color = '#666';
+      h.querySelector('.chevron').style.color = '#666';
+
+      timeline.querySelectorAll('.track').forEach(t => {
+        t.style.borderBottomColor = '#222';
+      });
+      timeline.querySelectorAll('.track-label').forEach(t => t.style.color = '#555');
+      timeline.querySelectorAll('.track-lane-bg').forEach(t => t.style.background = '#1f1f1f');
+
+      const ph = timeline.querySelector('.playhead');
+      if (ph) { ph.style.background = '#fff'; ph.style.opacity = '0.4'; }
+
+      timeline.querySelectorAll('.marker.creator').forEach(m => m.style.background = '#ffaa3e');
+      timeline.querySelectorAll('.marker.mine').forEach(m => m.style.background = '#0497a6');
+      timeline.querySelectorAll('.marker.other').forEach(m => m.style.background = '#555');
+
+      timeline.querySelectorAll('.legend-swatch.creator').forEach(s => s.style.background = '#ffaa3e');
+      timeline.querySelectorAll('.legend-swatch.other').forEach(s => s.style.background = '#555');
+
+      const leg = timeline.querySelector('.legend');
+      if (leg) leg.style.borderTopColor = '#2a2a2a';
+      timeline.querySelectorAll('.legend-item').forEach(i => i.style.color = '#888');
+
+      const tl = timeline.querySelector('.time-labels');
+      if (tl) tl.style.color = '#444';
+
+      const vi = document.querySelector('.video-info h2');
+      if (vi) vi.style.color = '#fff';
+      const vc = document.querySelector('.video-info .channel');
+      if (vc) vc.style.color = '#aaa';
+
+      // Tooltips
+      timeline.querySelectorAll('.tooltip').forEach(t => {
+        t.style.background = '#282828';
+        t.style.borderColor = '#3a3a3a';
+        t.style.boxShadow = '0 4px 16px rgba(0,0,0,0.4)';
+      });
+      timeline.querySelectorAll('.tooltip .text').forEach(t => t.style.color = '#ccc');
+      timeline.querySelectorAll('.tooltip .timestamp.creator').forEach(t => t.style.color = '#ffaa3e');
+      timeline.querySelectorAll('.tooltip .timestamp.other').forEach(t => t.style.color = '#999');
+      timeline.querySelectorAll('.tooltip .badge.creator').forEach(b => { b.style.background = 'rgba(255,170,62,0.2)'; b.style.color = '#ffaa3e'; });
+      timeline.querySelectorAll('.tooltip .badge.other').forEach(b => { b.style.background = 'rgba(153,153,153,0.15)'; b.style.color = '#999'; });
+
+      // Bookmark lane
+      timeline.querySelectorAll('.track-bookmark').forEach(t => {
+        t.style.borderTopColor = 'rgba(0,180,180,0.3)';
+      });
+      timeline.querySelectorAll('.track-bookmark .track-lane-bg').forEach(t => {
+        t.style.background = 'rgba(0,180,180,0.04)';
+      });
+      timeline.querySelectorAll('.track-bookmark .track-label').forEach(t => {
+        t.style.color = 'rgba(0,180,180,0.7)';
+      });
+      timeline.querySelectorAll('.marker.bookmark svg path').forEach(p => {
+        p.setAttribute('stroke', 'rgba(0,180,180,0.8)');
+      });
+      timeline.querySelectorAll('#bookmark-hash line').forEach(l => {
+        l.setAttribute('stroke', 'rgba(0,180,180,0.6)');
+      });
+      timeline.querySelectorAll('.legend-swatch.bookmark').forEach(s => {
+        s.style.background = 'repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,180,180,0.6) 2px, rgba(0,180,180,0.6) 3.5px)';
+        s.style.borderColor = 'rgba(0,180,180,0.8)';
+      });
+
+      const dn = document.querySelector('.design-notes');
+      if (dn) {
+        dn.style.background = '#1a1a1a';
+        dn.style.borderColor = '#2a2a2a';
+        dn.querySelectorAll('li').forEach(li => li.style.color = '#999');
+        dn.querySelectorAll('strong').forEach(s => s.style.color = '#fff');
+      }
+    }
+
+    function applyLightMode() {
+      document.body.style.background = '';
+      document.body.style.color = '';
+      timeline.style.background = '';
+      timeline.style.borderColor = '';
+      timeline.style.boxShadow = '';
+
+      const h = timeline.querySelector('.timeline-header');
+      h.style.borderBottomColor = '';
+      h.querySelector('.title').style.color = '';
+      h.querySelector('.logo .pipe').style.color = '';
+      h.querySelector('.count').style.color = '';
+      h.querySelector('.chevron').style.color = '';
+
+      timeline.querySelectorAll('.track').forEach(t => t.style.borderBottomColor = '');
+      timeline.querySelectorAll('.track-label').forEach(t => t.style.color = '');
+      timeline.querySelectorAll('.track-lane-bg').forEach(t => t.style.background = '');
+
+      const ph = timeline.querySelector('.playhead');
+      if (ph) { ph.style.background = ''; ph.style.opacity = ''; }
+
+      timeline.querySelectorAll('.marker.creator').forEach(m => m.style.background = '');
+      timeline.querySelectorAll('.marker.mine').forEach(m => m.style.background = '');
+      timeline.querySelectorAll('.marker.other').forEach(m => m.style.background = '');
+
+      timeline.querySelectorAll('.legend-swatch.creator').forEach(s => s.style.background = '');
+      timeline.querySelectorAll('.legend-swatch.other').forEach(s => s.style.background = '');
+
+      const leg = timeline.querySelector('.legend');
+      if (leg) leg.style.borderTopColor = '';
+      timeline.querySelectorAll('.legend-item').forEach(i => i.style.color = '');
+
+      const tl = timeline.querySelector('.time-labels');
+      if (tl) tl.style.color = '';
+
+      const vi = document.querySelector('.video-info h2');
+      if (vi) vi.style.color = '';
+      const vc = document.querySelector('.video-info .channel');
+      if (vc) vc.style.color = '';
+
+      timeline.querySelectorAll('.tooltip').forEach(t => {
+        t.style.background = '';
+        t.style.borderColor = '';
+        t.style.boxShadow = '';
+      });
+      timeline.querySelectorAll('.tooltip .text').forEach(t => t.style.color = '');
+      timeline.querySelectorAll('.tooltip .timestamp.creator').forEach(t => t.style.color = '');
+      timeline.querySelectorAll('.tooltip .timestamp.other').forEach(t => t.style.color = '');
+      timeline.querySelectorAll('.tooltip .badge.creator').forEach(b => { b.style.background = ''; b.style.color = ''; });
+      timeline.querySelectorAll('.tooltip .badge.other').forEach(b => { b.style.background = ''; b.style.color = ''; });
+
+      // Bookmark lane — reset to light defaults
+      timeline.querySelectorAll('.track-bookmark').forEach(t => {
+        t.style.borderTopColor = '';
+      });
+      timeline.querySelectorAll('.track-bookmark .track-lane-bg').forEach(t => {
+        t.style.background = '';
+      });
+      timeline.querySelectorAll('.track-bookmark .track-label').forEach(t => {
+        t.style.color = '';
+      });
+      timeline.querySelectorAll('.marker.bookmark svg path').forEach(p => {
+        p.setAttribute('stroke', 'rgba(4,151,166,0.7)');
+      });
+      timeline.querySelectorAll('#bookmark-hash line').forEach(l => {
+        l.setAttribute('stroke', 'rgba(4,151,166,0.5)');
+      });
+      timeline.querySelectorAll('.legend-swatch.bookmark').forEach(s => {
+        s.style.background = '';
+        s.style.borderColor = '';
+      });
+
+      const dn = document.querySelector('.design-notes');
+      if (dn) {
+        dn.style.background = '';
+        dn.style.borderColor = '';
+        dn.querySelectorAll('li').forEach(li => li.style.color = '');
+        dn.querySelectorAll('strong').forEach(s => s.style.color = '');
+      }
+    }
+
+    darkToggle.addEventListener('click', () => {
+      darkToggle.classList.add('active');
+      lightToggle.classList.remove('active');
+      applyDarkMode();
+    });
+
+    lightToggle.addEventListener('click', () => {
+      lightToggle.classList.add('active');
+      darkToggle.classList.remove('active');
+      applyLightMode();
+    });
+
+    // Create citation popup
+    const overlay = document.getElementById('createOverlay');
+    const addBtn = document.getElementById('addBtn');
+    const createClose = document.getElementById('createClose');
+    const createCancel = document.getElementById('createCancel');
+    const createSave = document.getElementById('createSave');
+    const citationTypeEl = document.getElementById('citationType');
+    const citationFieldsEl = document.getElementById('citationFields');
+    const citationNote = document.getElementById('citationNote');
+    const createTimestamp = document.getElementById('createTimestamp');
+
+    function formatTime(s) {
+      const m = Math.floor(s / 60);
+      const sec = Math.floor(s % 60);
+      return m + ':' + (sec < 10 ? '0' : '') + sec;
+    }
+
+    function getCurrentTime() {
+      return Math.floor(DURATION * 0.35);
+    }
+
+    const fieldDefs = {
+      note: [],
+      youtube: [
+        { id: 'title', placeholder: 'Video Title' },
+        { id: 'url', placeholder: 'YouTube URL', type: 'url' },
+        { id: 'year', placeholder: 'Year' },
+      ],
+      movie: [
+        { id: 'title', placeholder: 'Movie Title' },
+        { id: 'year', placeholder: 'Year' },
+        { id: 'director', placeholder: 'Director (optional)' },
+      ],
+      article: [
+        { id: 'title', placeholder: 'Article Title' },
+        { id: 'url', placeholder: 'Article URL', type: 'url' },
+        { id: 'author', placeholder: 'Author (optional)' },
+        { id: 'year', placeholder: 'Year (optional)' },
+      ],
+      podcast: [
+        { id: 'title', placeholder: 'Episode Title' },
+        { id: 'url', placeholder: 'Podcast URL', type: 'url' },
+        { id: 'host', placeholder: 'Host / Show Name' },
+      ],
+      book: [
+        { id: 'title', placeholder: 'Book Title' },
+        { id: 'author', placeholder: 'Author' },
+        { id: 'year', placeholder: 'Year (optional)' },
+      ],
+    };
+
+    function updateFields() {
+      const type = citationTypeEl.value;
+      const defs = fieldDefs[type] || [];
+      citationFieldsEl.innerHTML = defs.map(f =>
+        '<input type="' + (f.type || 'text') + '" id="cf-' + f.id + '" placeholder="' + f.placeholder + '" />'
+      ).join('');
+    }
+
+    citationTypeEl.addEventListener('change', updateFields);
+    updateFields();
+
+    function openCreate() {
+      createTimestamp.textContent = formatTime(getCurrentTime());
+      citationTypeEl.value = 'article';
+      updateFields();
+      citationNote.value = '';
+      overlay.classList.add('open');
+    }
+
+    function closeCreate() {
+      overlay.classList.remove('open');
+    }
+
+    addBtn.addEventListener('click', openCreate);
+    createClose.addEventListener('click', closeCreate);
+    createCancel.addEventListener('click', closeCreate);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeCreate(); });
+
+    createSave.addEventListener('click', () => {
+      const time = getCurrentTime();
+      const type = citationTypeEl.value;
+      const note = citationNote.value.trim() || '(no note)';
+      const titleField = document.getElementById('cf-title');
+      const source = titleField ? titleField.value.trim() || 'Untitled' : note;
+
+      citations.push({
+        time: time,
+        lane: type,
+        type: 'mine',
+        label: formatTime(time),
+        text: note,
+        source: source,
+      });
+
+      renderTracks();
+      closeCreate();
+
+      body.classList.remove('collapsed');
+      header.classList.remove('collapsed');
+      chevron.classList.remove('collapsed');
+    });
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeCreate();
+    });
+  </script>
+</body>
+</html>

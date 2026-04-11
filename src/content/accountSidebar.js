@@ -7,6 +7,7 @@ import { isCreatorMode, updateCreatorMode } from './creatorMode.js';
 import { refreshMarkerColors, renderMarkers } from './markers.js';
 import { fetchAllAnnotations } from './fetchAnnotations.js';
 import { toggleSidebar } from './annotationsSidebar.js';
+import { getThemePref, setThemePref, applyTheme } from './theme.js';
 
 // Populate the login button based on current auth state
 export function updateLoginButton() {
@@ -169,9 +170,26 @@ export function updateAccountSidebarContent() {
         </div>
         <a class="yt-annotator-account-settings-link" href="https://www.citelines.org/my-dashboard" target="_blank">My Dashboard</a>
         <a class="yt-annotator-account-settings-link" href="https://www.citelines.org/account-settings" target="_blank">Account Settings</a>
+        <div class="yt-annotator-theme-toggle">
+          <span class="yt-annotator-theme-label">Theme</span>
+          <div class="yt-annotator-theme-options">
+            <button class="yt-annotator-theme-btn${getThemePref() === 'auto' ? ' active' : ''}" data-theme="auto">Auto</button>
+            <button class="yt-annotator-theme-btn${getThemePref() === 'light' ? ' active' : ''}" data-theme="light">Light</button>
+            <button class="yt-annotator-theme-btn${getThemePref() === 'dark' ? ' active' : ''}" data-theme="dark">Dark</button>
+          </div>
+        </div>
         <button class="yt-annotator-account-signout">Sign Out</button>
       </div>
     `;
+
+    state.accountSidebar.querySelectorAll('.yt-annotator-theme-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pref = btn.dataset.theme;
+        await setThemePref(pref);
+        state.accountSidebar.querySelectorAll('.yt-annotator-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === pref));
+      });
+    });
 
     state.accountSidebar.querySelector('.yt-annotator-account-signout').addEventListener('click', async (e) => {
       e.stopPropagation();
@@ -236,12 +254,29 @@ export function updateAccountSidebarContent() {
         <button class="yt-annotator-sidebar-close" title="Close">&times;</button>
       </div>
       <div class="yt-annotator-account-auth-body"></div>
+      <div class="yt-annotator-theme-toggle" style="padding: 0 16px 12px;">
+        <span class="yt-annotator-theme-label">Theme</span>
+        <div class="yt-annotator-theme-options">
+          <button class="yt-annotator-theme-btn${getThemePref() === 'auto' ? ' active' : ''}" data-theme="auto">Auto</button>
+          <button class="yt-annotator-theme-btn${getThemePref() === 'light' ? ' active' : ''}" data-theme="light">Light</button>
+          <button class="yt-annotator-theme-btn${getThemePref() === 'dark' ? ' active' : ''}" data-theme="dark">Dark</button>
+        </div>
+      </div>
     `;
 
     if (!state.loginUI) {
       state.setLoginUI(new LoginUI(authManager, handleLoginSuccess, toggleAccountSidebar));
     }
     state.loginUI.show(state.accountSidebar.querySelector('.yt-annotator-account-auth-body'), 'login');
+
+    state.accountSidebar.querySelectorAll('.yt-annotator-theme-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const pref = btn.dataset.theme;
+        await setThemePref(pref);
+        state.accountSidebar.querySelectorAll('.yt-annotator-theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === pref));
+      });
+    });
   }
 
   state.accountSidebar.querySelector('.yt-annotator-sidebar-close').addEventListener('click', (e) => {
@@ -262,6 +297,7 @@ export function toggleAccountSidebar() {
     updateAccountSidebarContent();
     if (isCreatorMode()) state.accountSidebar.classList.add('creator-mode');
     state.accountSidebar.classList.add('yt-annotator-sidebar-open');
+    applyTheme();
     if (state.addButton) state.addButton.classList.add('sidebar-open');
     if (state.sidebarButton) state.sidebarButton.classList.add('sidebar-open');
     if (state.loginButton) state.loginButton.classList.add('sidebar-open');

@@ -9,6 +9,7 @@ import { getAnnotationsStorageKey } from './storage.js';
 import { fetchAllAnnotations } from './fetchAnnotations.js';
 import { renderMarkers } from './markers.js';
 import { showReportModal, handleSuggestAction } from './modals.js';
+import { applyTheme } from './theme.js';
 
 // Close any open popup
 export function closePopup() {
@@ -306,6 +307,7 @@ export function showAnnotationPopup(annotation, video, isShared = false, markerE
 
   popupContainer.appendChild(popup);
   state.setActivePopup(popup);
+  applyTheme();
 
   positionPopupNearMarker(popup, markerEl);
 }

@@ -7,6 +7,7 @@ import { closePopup } from './popup.js';
 import { getAnnotationsStorageKey, saveAnnotations, saveBookmark } from './storage.js';
 import { renderMarkers } from './markers.js';
 import { authManager } from './globals.js';
+import { applyTheme } from './theme.js';
 
 // Show popup for creating new annotation
 export function showCreatePopup(timestamp, video) {
@@ -272,6 +273,7 @@ export function showCreatePopup(timestamp, video) {
 
   playerContainer.appendChild(popup);
   state.setActivePopup(popup);
+  applyTheme();
 
   setTimeout(() => textarea.focus(), 0);
 }
