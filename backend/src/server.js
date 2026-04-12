@@ -8,6 +8,7 @@ const usersRoutes = require('./routes/users');
 const adminRoutes = require('./routes/admin');
 const analyticsRoutes = require('./routes/analytics');
 const reportsRoutes = require('./routes/reports');
+const newsletterRoutes = require('./routes/newsletter');
 const { errorHandler, notFoundHandler } = require('./middleware/errorHandler');
 const { setupCounterResetJobs } = require('./jobs/resetCounters');
 
@@ -117,9 +118,18 @@ const analyticsLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const newsletterLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 5,
+  message: { error: 'Too many subscription attempts' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 app.use('/api/', generalLimiter);
 app.use('/api/shares', writeShareLimiter);
 app.use('/api/analytics', analyticsLimiter);
+app.use('/api/newsletter', newsletterLimiter);
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
@@ -142,6 +152,7 @@ app.use('/api/users', usersRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/analytics', analyticsRoutes);
 app.use('/api/reports', reportsRoutes);
+app.use('/api/newsletter', newsletterRoutes);
 
 // 404 handler
 app.use(notFoundHandler);
