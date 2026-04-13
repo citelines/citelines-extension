@@ -3,6 +3,7 @@ const validator = require('validator');
 const { Resend } = require('resend');
 const router = express.Router();
 const { asyncHandler } = require('../middleware/errorHandler');
+const { authenticateUser } = require('../middleware/auth');
 const { signEmail, verifyToken } = require('../utils/unsubscribeToken');
 const { sendNewsletterWelcomeEmail, sendNewsletterUnsubscribeConfirmation } = require('../services/email');
 
@@ -151,5 +152,85 @@ async function handleUnsubscribe(req, res) {
 
 router.post('/unsubscribe', asyncHandler(handleUnsubscribe));
 router.get('/unsubscribe', asyncHandler(handleUnsubscribe));
+
+/**
+ * GET /api/newsletter/me/status
+ * Returns the authenticated user's newsletter subscription status.
+ */
+router.get('/me/status', authenticateUser, asyncHandler(async (req, res) => {
+  const email = req.user?.email;
+  if (!email) {
+    return res.status(200).json({ status: 'no_email', email: null });
+  }
+
+  const audienceId = process.env.RESEND_AUDIENCE_ID;
+  if (!audienceId) {
+    return res.status(500).json({ error: 'Newsletter not configured' });
+  }
+
+  if (IS_DEV) {
+    return res.status(200).json({ status: 'not_subscribed', email });
+  }
+
+  const existing = await resend.contacts.get({ email, audienceId });
+  if (!existing.data) {
+    return res.status(200).json({ status: 'not_subscribed', email });
+  }
+  return res.status(200).json({
+    status: existing.data.unsubscribed ? 'unsubscribed' : 'subscribed',
+    email,
+  });
+}));
+
+/**
+ * POST /api/newsletter/me/unsubscribe
+ * Authenticated unsubscribe — uses JWT email, no HMAC token required.
+ */
+router.post('/me/unsubscribe', authenticateUser, asyncHandler(async (req, res) => {
+  const email = req.user?.email;
+  if (!email) {
+    return res.status(400).json({ error: 'Account has no email' });
+  }
+
+  const audienceId = process.env.RESEND_AUDIENCE_ID;
+  if (!audienceId) {
+    return res.status(500).json({ error: 'Newsletter not configured' });
+  }
+
+  if (IS_DEV) {
+    console.log('\n========================================');
+    console.log('📧 NEWSLETTER UNSUBSCRIBE (auth)');
+    console.log('========================================');
+    console.log('Email:', email);
+    console.log('(Dev mode — not calling Resend)');
+    console.log('========================================\n');
+    await sendNewsletterUnsubscribeConfirmation(email);
+    return res.status(200).json({ ok: true });
+  }
+
+  const existing = await resend.contacts.get({ email, audienceId });
+  const wasSubscribed = existing.data && !existing.data.unsubscribed;
+
+  const { error } = await resend.contacts.update({
+    email,
+    audienceId,
+    unsubscribed: true,
+  });
+
+  if (error && !/not found/i.test(error.message || '')) {
+    console.error('[Newsletter] Auth unsubscribe error:', error);
+    return res.status(502).json({ error: 'Unsubscribe failed' });
+  }
+
+  if (wasSubscribed) {
+    try {
+      await sendNewsletterUnsubscribeConfirmation(email);
+    } catch (err) {
+      console.error('[Newsletter] Unsubscribe confirmation email failed:', err);
+    }
+  }
+
+  res.status(200).json({ ok: true });
+}));
 
 module.exports = router;
