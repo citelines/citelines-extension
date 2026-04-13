@@ -231,6 +231,64 @@ async function sendNewsletterWelcomeEmail(email, unsubscribeUrl, oneClickUnsubsc
 }
 
 /**
+ * Send resubscribe confirmation email (user rejoined after previously unsubscribing).
+ * @param {string} email - Recipient email
+ * @param {string} unsubscribeUrl - Full URL to the unsubscribe page (with token)
+ * @param {string} oneClickUnsubscribeUrl - API URL for one-click unsubscribe (List-Unsubscribe header)
+ */
+async function sendNewsletterResubscribeEmail(email, unsubscribeUrl, oneClickUnsubscribeUrl) {
+  if (IS_DEV) {
+    console.log('\n========================================');
+    console.log('📧 NEWSLETTER RESUBSCRIBE');
+    console.log('========================================');
+    console.log('To:', email);
+    console.log('Unsubscribe URL:', unsubscribeUrl);
+    console.log('========================================\n');
+    return;
+  }
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: 'Welcome back to the Citelines newsletter',
+    html: generateNewsletterResubscribeHTML(unsubscribeUrl),
+    headers: {
+      'List-Unsubscribe': `<${oneClickUnsubscribeUrl}>, <${unsubscribeUrl}>`,
+      'List-Unsubscribe-Post': 'List-Unsubscribe=One-Click',
+    },
+  });
+}
+
+function generateNewsletterResubscribeHTML(unsubscribeUrl) {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: #0497a6; margin-bottom: 1rem; }
+        .footer { margin-top: 40px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 16px; }
+        .footer a { color: #888; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="brand">Cite<span style="color:#e8943a">|</span>ines</div>
+        <p>Welcome back — you've been resubscribed to the Citelines newsletter.</p>
+        <p>You'll hear from us occasionally with product updates, community highlights, and thoughts on citation culture online.</p>
+        <p>— The Citelines team</p>
+        <div class="footer">
+          <p>You're receiving this because you resubscribed at <a href="https://www.citelines.org">citelines.org</a>.</p>
+          <p><a href="${unsubscribeUrl}">Unsubscribe</a></p>
+        </div>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
+/**
  * Send unsubscribe confirmation email.
  * @param {string} email - Recipient email
  */
@@ -311,5 +369,6 @@ module.exports = {
   sendPasswordResetEmail,
   sendWelcomeEmail,
   sendNewsletterWelcomeEmail,
+  sendNewsletterResubscribeEmail,
   sendNewsletterUnsubscribeConfirmation
 };

@@ -5,7 +5,7 @@ const router = express.Router();
 const { asyncHandler } = require('../middleware/errorHandler');
 const { authenticateUser } = require('../middleware/auth');
 const { signEmail, verifyToken } = require('../utils/unsubscribeToken');
-const { sendNewsletterWelcomeEmail, sendNewsletterUnsubscribeConfirmation } = require('../services/email');
+const { sendNewsletterWelcomeEmail, sendNewsletterResubscribeEmail, sendNewsletterUnsubscribeConfirmation } = require('../services/email');
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const SITE_URL = process.env.APP_URL || 'https://www.citelines.org';
@@ -66,6 +66,12 @@ router.post('/subscribe', asyncHandler(async (req, res) => {
       if (updateError) {
         console.error('[Newsletter] Resubscribe error:', updateError);
         return res.status(502).json({ error: 'Subscription failed' });
+      }
+      try {
+        const urls = buildUnsubscribeUrls(email);
+        await sendNewsletterResubscribeEmail(email, urls.page, urls.oneClick);
+      } catch (err) {
+        console.error('[Newsletter] Resubscribe email failed:', err);
       }
       return res.status(200).json({ ok: true, resubscribed: true });
     }
