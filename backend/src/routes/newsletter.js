@@ -51,21 +51,39 @@ router.post('/subscribe', asyncHandler(async (req, res) => {
     return res.status(200).json({ ok: true });
   }
 
-  const { error } = await resend.contacts.create({
+  // Check if the contact already exists in the audience
+  const existing = await resend.contacts.get({ email, audienceId });
+
+  if (existing.data) {
+    if (existing.data.unsubscribed) {
+      // Previously unsubscribed — re-enable
+      const { error: updateError } = await resend.contacts.update({
+        email,
+        audienceId,
+        unsubscribed: false,
+      });
+      if (updateError) {
+        console.error('[Newsletter] Resubscribe error:', updateError);
+        return res.status(502).json({ error: 'Subscription failed' });
+      }
+      return res.status(200).json({ ok: true, resubscribed: true });
+    }
+    // Already active
+    return res.status(200).json({ ok: true, alreadySubscribed: true });
+  }
+
+  // New contact — create and send welcome email
+  const { error: createError } = await resend.contacts.create({
     email,
     audienceId,
     unsubscribed: false,
   });
 
-  if (error) {
-    if (/already exists/i.test(error.message || '')) {
-      return res.status(200).json({ ok: true, alreadySubscribed: true });
-    }
-    console.error('[Newsletter] Resend error:', error);
+  if (createError) {
+    console.error('[Newsletter] Resend error:', createError);
     return res.status(502).json({ error: 'Subscription failed' });
   }
 
-  // Send welcome email (don't fail the subscribe if email send fails)
   try {
     const urls = buildUnsubscribeUrls(email);
     await sendNewsletterWelcomeEmail(email, urls.page, urls.oneClick);
