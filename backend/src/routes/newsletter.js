@@ -4,7 +4,7 @@ const { Resend } = require('resend');
 const router = express.Router();
 const { asyncHandler } = require('../middleware/errorHandler');
 const { signEmail, verifyToken } = require('../utils/unsubscribeToken');
-const { sendNewsletterWelcomeEmail } = require('../services/email');
+const { sendNewsletterWelcomeEmail, sendNewsletterUnsubscribeConfirmation } = require('../services/email');
 
 const IS_DEV = process.env.NODE_ENV !== 'production';
 const SITE_URL = process.env.APP_URL || 'https://www.citelines.org';
@@ -119,8 +119,13 @@ async function handleUnsubscribe(req, res) {
     console.log('Email:', email);
     console.log('(Dev mode — not calling Resend)');
     console.log('========================================\n');
+    await sendNewsletterUnsubscribeConfirmation(email);
     return res.status(200).json({ ok: true });
   }
+
+  // Check current state so we only email a confirmation when something changed
+  const existing = await resend.contacts.get({ email, audienceId });
+  const wasSubscribed = existing.data && !existing.data.unsubscribed;
 
   const { error } = await resend.contacts.update({
     email,
@@ -131,6 +136,14 @@ async function handleUnsubscribe(req, res) {
   if (error && !/not found/i.test(error.message || '')) {
     console.error('[Newsletter] Unsubscribe error:', error);
     return res.status(502).json({ error: 'Unsubscribe failed' });
+  }
+
+  if (wasSubscribed) {
+    try {
+      await sendNewsletterUnsubscribeConfirmation(email);
+    } catch (err) {
+      console.error('[Newsletter] Unsubscribe confirmation email failed:', err);
+    }
   }
 
   res.status(200).json({ ok: true });

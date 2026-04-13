@@ -230,6 +230,53 @@ async function sendNewsletterWelcomeEmail(email, unsubscribeUrl, oneClickUnsubsc
   });
 }
 
+/**
+ * Send unsubscribe confirmation email.
+ * @param {string} email - Recipient email
+ */
+async function sendNewsletterUnsubscribeConfirmation(email) {
+  if (IS_DEV) {
+    console.log('\n========================================');
+    console.log('📧 NEWSLETTER UNSUBSCRIBE CONFIRMATION');
+    console.log('========================================');
+    console.log('To:', email);
+    console.log('========================================\n');
+    return;
+  }
+
+  await resend.emails.send({
+    from: FROM_EMAIL,
+    to: email,
+    subject: 'You\'ve been unsubscribed from Citelines',
+    html: generateUnsubscribeConfirmationHTML(),
+  });
+}
+
+function generateUnsubscribeConfirmationHTML() {
+  return `
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; padding: 20px; }
+        .brand { font-size: 1.5rem; font-weight: 700; color: #0497a6; margin-bottom: 1rem; }
+        .footer { margin-top: 40px; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 16px; }
+        .footer a { color: #888; }
+      </style>
+    </head>
+    <body>
+      <div class="container">
+        <div class="brand">Cite<span style="color:#e8943a">|</span>ines</div>
+        <p>You've been unsubscribed from the Citelines newsletter.</p>
+        <p>You won't receive any more newsletter emails from us. If this was a mistake, you can resubscribe anytime at <a href="https://www.citelines.org">citelines.org</a>.</p>
+        <p>— The Citelines team</p>
+      </div>
+    </body>
+    </html>
+  `;
+}
+
 function generateNewsletterWelcomeHTML(unsubscribeUrl) {
   return `
     <!DOCTYPE html>
@@ -263,5 +310,6 @@ module.exports = {
   sendVerificationEmail,
   sendPasswordResetEmail,
   sendWelcomeEmail,
-  sendNewsletterWelcomeEmail
+  sendNewsletterWelcomeEmail,
+  sendNewsletterUnsubscribeConfirmation
 };
